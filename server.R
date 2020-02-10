@@ -154,7 +154,13 @@ shinyServer(function(input, output, session) {
         if (input$useFAS == FALSE) {
             fasoff <- paste0("-fasoff")
         }
-        return(c(fasoff))
+        seqName <- ""
+        if (input$seqName != "") seqName <- paste0("-seqName=", input$seqName)
+        
+        optOptionList <- c(fasoff, seqName)
+        return(
+            optOptionList[unlist(lapply(optOptionList, function (x) x != ""))]
+        )
     })
     
     output$optOptions.ui <- renderUI({
@@ -162,6 +168,21 @@ shinyServer(function(input, output, session) {
     })
     
     # RUN HAMSTR ===============================================================
+    randFn <- function(n = 5000) {
+        a <- do.call(paste0, replicate(5, sample(LETTERS, n, TRUE), FALSE))
+        paste0(
+            a, sprintf("%04d", sample(9999, n, TRUE)), sample(LETTERS, n, TRUE)
+        )
+    }
+    
+    jobID <- reactive({
+        return(randFn(1))
+    })
+    
+    observeEvent(input$seqID, {
+        updateTextInput(session, "seqName", "Job name", value = jobID())
+    })
+    
     observeEvent(input$refSpec, {
         if (input$refSpec == "undefined") {
             updateButton(session, "doHamstr", disabled = TRUE)
@@ -217,6 +238,9 @@ shinyServer(function(input, output, session) {
     )
     observeEvent(input$doHamstr, {
         rv$started <- TRUE
+        cmd <- paste(
+            
+        )
         system2("perl", "/Volumes/External/work/bionf/HaMStR/bin/hamstr.pl -h >> test.log", wait = FALSE)
     })
     observeEvent(input$btn_stop, { rv$started <- FALSE })
