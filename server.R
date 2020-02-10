@@ -109,9 +109,15 @@ shinyServer(function(input, output, session) {
     # get list of available refspec ============================================
     getRefspecList <- function(oneseqPath = NULL){
         if (is.null(oneseqPath)) stop("HaMStR not found!")
-        blastDir <- stringr::str_replace(
-            oneseqPath, "/bin/oneSeq.pl", "/blast_dir"
-        )
+    	if (length(grep("oneSeq.pl", oneseqPath))) {
+    		blastDir <- stringr::str_replace(
+    			oneseqPath, "/bin/oneSeq.pl", "/blast_dir"
+    		)
+    	} else {
+    		blastDir <- stringr::str_replace(
+    			oneseqPath, "/bin/oneSeq", "/blast_dir"
+    		)
+    	}
         refspecPath <- list.dirs(
             path = blastDir, full.names = TRUE, recursive = FALSE
         )
@@ -133,7 +139,7 @@ shinyServer(function(input, output, session) {
     
     # required options =========================================================
     reqOptions <- reactive({
-        seqFile <- paste0("-seqFile=", getInputPath())
+        seqFile <- paste0("-seqFile=", "infile.fa") #paste0("-seqFile=", getInputPath())
         seqId <- paste0("-seqId=", input$seqID)
         refSpec <- paste0("-refSpec=", input$refSpec)
         minDist <- paste0("-minDist=", input$minDist)
@@ -192,16 +198,17 @@ shinyServer(function(input, output, session) {
     })
     
     hamstrCmd <- reactive({
-        paste(
-            "perl",
-            getOneseqPath(),
-            paste(reqOptions(), collapse = " "),
-            paste(optOptions(), collapse = " ")
-        )
+    	return(
+    		paste(
+    			getOneseqPath(),
+    			paste(reqOptions(), collapse = " "),
+    			paste(optOptions(), collapse = " ")
+    		)
+    	)
     })
     
     output$hamstrCmdText <- renderText({
-        hamstrCmd()
+   		paste("perl", hamstrCmd())
     })
     
     # runHamstr <- function() {
@@ -239,15 +246,24 @@ shinyServer(function(input, output, session) {
     observeEvent(input$doHamstr, {
         rv$started <- TRUE
         cmd <- paste(
-            
+        	hamstrCmd(),
+        	">>",
+        	paste0(input$seqName, ".log")
         )
-        system2("perl", "/Volumes/External/work/bionf/HaMStR/bin/hamstr.pl -h >> test.log", wait = FALSE)
+        # system2("perl", "/Volumes/External/work/bionf/HaMStR/bin/hamstr.pl -h >> test.log", wait = FALSE)
+        system2("perl", cmd, wait = FALSE)
     })
-    observeEvent(input$btn_stop, { rv$started <- FALSE })
+    
+    observeEvent(input$btn_stop, {
+    	rv$started <- FALSE
+    	system2("rm", "*.log")
+    })
+    
     observe({
         rv$timer()
         if (isolate(rv$started)) {
-            rv$textstream <- paste(readLines("test.log"), collapse = "<br/>")
+            # rv$textstream <- paste(readLines("test.log"), collapse = "<br/>")
+            rv$textstream <- paste(readLines(paste0(input$seqName, ".log")), collapse = "<br/>")
         }
     })
     # output$hamstrLog <- renderText({
