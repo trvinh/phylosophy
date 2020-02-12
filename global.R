@@ -3,6 +3,8 @@
 #' 2) start the PhyloProfile app
 
 # source("R/functions.R")
+sourceFiles = list.files( path = "R", pattern = "*.R$", full.names = TRUE)
+lapply(sourceFiles, source, .GlobalEnv)
 
 # List of dependent packages --------------------------------------------------
 packages <- c(
@@ -15,4 +17,8 @@ packages <- c(
 
 # Load packages
 lapply(packages, library, character.only = TRUE)
+
+# add path
+old_path <- Sys.getenv("PATH")
+Sys.setenv(PATH = paste(old_path, "/share/applications/bin:/home/vinh/.local/bin:/share/project/vinh/HaMStR/bin", sep = ":"))
 
