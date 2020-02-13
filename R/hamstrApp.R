@@ -9,12 +9,29 @@ hamstrAppUI <- function(id) {
 			# ** hamstr location ===================================
 			conditionalPanel(
 				condition = "output.checkHamstrStatus == 0", ns = ns,
-				shinyFilesButton(
-					ns("oneSeqFile"),
-					"HaMStR location?" ,
-					title = "Please provide oneSeq.pl file:",
-					multiple = FALSE,
-					buttonType = "default"
+				selectInput(
+				    ns("whereHamstr"), "HaMStR not found! Please:",
+				    choice = c("Install HaMStR", "Provide HaMStR path"),
+				    selected = "Provide HaMStR path"
+				),
+				conditionalPanel(
+				    condition = "input.whereHamstr == 'Provide HaMStR path'",
+				    ns = ns,
+				    shinyFilesButton(
+				        ns("hamstrFile"),
+				        "HaMStR location?" ,
+				        title = "Please provide oneSeq.pl file:",
+				        multiple = FALSE,
+				        buttonType = "default"
+				    )
+				),
+				conditionalPanel(
+				    condition = "input.whereHamstr == 'Install HaMStR'",
+				    ns = ns,
+				    bsButton(
+				        "installHamstr", "Install HaMStR", 
+				        onclick = "window.open('https://bionf.github.io/HaMStR/#how-to-install', '_blank')"
+				    )
 				)
 			),
 			hr(),
@@ -734,28 +751,26 @@ hamstrApp <- function(input, output, session) {
 	})
 	outputOptions(output, "checkHamstrStatus", suspendWhenHidden = FALSE)
 	
-	getOneseqPath <- reactive({
+	getHamstrPath <- reactive({
 		hamstrLocation <- suppressWarnings(
 			system("which oneSeq", intern = TRUE)
 		)
 		if (!is.na (hamstrLocation[1])){
 			return(hamstrLocation[1])
 		} else {
-			shinyFileChoose(
-			    input, "oneSeqFile", roots = homePath, session = session
+		    shinyFileChoose(
+			    input, "hamstrFile", roots = homePath, session = session
 			)
-			req(input$oneSeqFile)
-			if(!is.null(input$oneSeqFile)){
-				file_selected <- parseFilePaths(homePath, input$oneSeqFile)
-				return(as.character(file_selected$datapath))
-			}
+			req(input$hamstrFile)
+			file_selected <- parseFilePaths(homePath, input$hamstrFile)
+			return(as.character(file_selected$datapath))
 		}
 	})
 	
 	output$hamstrLocation <- renderText({
-		oneseqPath <- getOneseqPath()
+		hamstrPath <- getHamstrPath()
 		paste(
-			"HaMStR found at", oneseqPath
+			"HaMStR found at", hamstrPath
 		)
 	})
 	
@@ -778,7 +793,7 @@ hamstrApp <- function(input, output, session) {
 			return(fasLocation[1])
 		} else {
 			shinyFileChoose(
-			    input, "greedyFasFile", roots = homePath, session = session
+			    input, ns("greedyFasFile"), roots = homePath, session = session
 			)
 			req(input$greedyFasFile)
 			if(!is.null(input$greedyFasFile)){
@@ -817,25 +832,25 @@ hamstrApp <- function(input, output, session) {
 	})
 	
 	# get list of available refspec ============================================
-	getSubFolderDir <- function (oneseqPath = NULL, subFolderName = NULL) {
-	    if (is.null(oneseqPath)) stop("HaMStR not found!")
-	    if (length(grep("oneSeq.pl", oneseqPath))) {
+	getSubFolderDir <- function (hamstrPath = NULL, subFolderName = NULL) {
+	    if (is.null(hamstrPath)) stop("HaMStR not found!")
+	    if (length(grep("oneSeq.pl", hamstrPath))) {
 	        return(
 	            stringr::str_replace(
-	                oneseqPath, "/bin/oneSeq.pl", paste0("/", subFolderName)
+	                hamstrPath, "/bin/oneSeq.pl", paste0("/", subFolderName)
 	            )
 	        )
 	    } else {
 	        return(
 	            stringr::str_replace(
-	                oneseqPath, "/bin/oneSeq", paste0("/", subFolderName)
+	                hamstrPath, "/bin/oneSeq", paste0("/", subFolderName)
 	            )
 	        )
 	    }
 	}
 	
-	getRefspecList <- function(oneseqPath = NULL, subFolderName = NULL){
-	    outDir <- getSubFolderDir(getOneseqPath(), subFolderName)
+	getRefspecList <- function(hamstrPath = NULL, subFolderName = NULL){
+	    outDir <- getSubFolderDir(getHamstrPath(), subFolderName)
 		outDirPath <- list.dirs(
 			path = outDir, full.names = TRUE, recursive = FALSE
 		)
@@ -847,7 +862,7 @@ hamstrApp <- function(input, output, session) {
 	
 	output$refSpec.ui <- renderUI({
 		refspecList <- c("undefined")
-		refspecList <- getRefspecList(getOneseqPath(), "blast_dir")
+		refspecList <- getRefspecList(getHamstrPath(), "blast_dir")
 		selectInput(
 			ns("refSpec"), "Reference species",
 			choices = c("undefined", refspecList),
@@ -857,7 +872,7 @@ hamstrApp <- function(input, output, session) {
 	
 	output$coreTaxa.ui <- renderUI({
 		coreTaxaList <- "all"
-		coreTaxaList <- getRefspecList(getOneseqPath(), "blast_dir")
+		coreTaxaList <- getRefspecList(getHamstrPath(), "blast_dir")
 		selectInput(
 			ns("coreTaxa"), "Core taxa",
 			choices = c("all", coreTaxaList),
@@ -873,7 +888,7 @@ hamstrApp <- function(input, output, session) {
 	reqOptions <- reactive({
 	    req(getInputPath())
 	    # copy input file to hamstr/data folder
-	    dataDir <- getSubFolderDir(getOneseqPath(), "data")
+	    dataDir <- getSubFolderDir(getHamstrPath(), "data")
 	    system2("cp", paste(getInputPath(), dataDir, sep = " "), wait = TRUE)
 	    
 		# seqFile <- paste0("-seqFile=", "infile.fa")
@@ -1100,7 +1115,7 @@ hamstrApp <- function(input, output, session) {
 	hamstrCmd <- reactive({
 		return(
 			paste(
-				getOneseqPath(),
+				getHamstrPath(),
 				paste(reqOptions(), collapse = " "),
 				paste(optOptions(), collapse = " ")
 			)
@@ -1154,10 +1169,10 @@ hamstrApp <- function(input, output, session) {
 	})
 	
 	output$outputLocation <- renderText({
-	    req(getOneseqPath())
+	    req(getHamstrPath())
 	    req(getInputPath())
 	    # get default output folder of hamstr
-	    dataDir <- getSubFolderDir(getOneseqPath(), "data")
+	    dataDir <- getSubFolderDir(getHamstrPath(), "data")
 	    # return output files
 	    faOut <- paste0(dataDir, "/", input$seqName, ".extended.fa")
 	    if (input$useFAS == TRUE) {

@@ -13,5 +13,18 @@ shinyServer(function(input, output, session) {
 	
 	# HaMStR app
 	callModule(hamstrApp, "hamstrApp")
+	
+	# PhyloProfile app
+	# observeEvent(input$runPhyloProfile, {
+	#     rstudioapi::jobRunScript(path = "R/lauchPhyloProfile.R")
+	# })
+	# output$phyloprofile <- renderUI({
+	#     # input$Member
+	#     # link = "https://applbio.biologie.uni-frankfurt.de/phyloprofile/"
+	#     link = "https://www.google.com"
+	#     my_test <- tags$iframe(src=link, height=600, width=535)
+	#     print(my_test)
+	#     my_test
+	# })
 })
 

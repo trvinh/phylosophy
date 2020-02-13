@@ -42,7 +42,9 @@ shinyUI(
             
             # PHYLOPROFILE TAB =================================================
             tabPanel(
-            	"PhyloProfile"
+            	"PhyloProfile",
+            	bsButton("runPhyloProfile", "Run PhyloProfile"),
+            	htmlOutput("phyloprofile")
             ),
 
             # HELP TAB =========================================================
