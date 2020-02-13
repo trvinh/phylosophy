@@ -717,7 +717,7 @@ hamstrAppUI <- function(id) {
 }
 
 hamstrApp <- function(input, output, session) {
-	volumes = getVolumes() # for shinyFileChoose
+    homePath = c(wd='~/') # for shinyFileChoose
 	ns <- session$ns
 	
 	# get hamstr location ======================================================
@@ -738,10 +738,12 @@ hamstrApp <- function(input, output, session) {
 		if (!is.na (hamstrLocation[1])){
 			return(hamstrLocation[1])
 		} else {
-			shinyFileChoose(input, "oneSeqFile", roots = volumes, session = session)
+			shinyFileChoose(
+			    input, "oneSeqFile", roots = homePath, session = session
+			)
 			req(input$oneSeqFile)
 			if(!is.null(input$oneSeqFile)){
-				file_selected <- parseFilePaths(volumes, input$oneSeqFile)
+				file_selected <- parseFilePaths(homePath, input$oneSeqFile)
 				return(as.character(file_selected$datapath))
 			}
 		}
@@ -773,11 +775,11 @@ hamstrApp <- function(input, output, session) {
 			return(fasLocation[1])
 		} else {
 			shinyFileChoose(
-			    input, "greedyFasFile", roots = volumes, session = session
+			    input, "greedyFasFile", roots = homePath, session = session
 			)
 			req(input$greedyFasFile)
 			if(!is.null(input$greedyFasFile)){
-				file_selected <- parseFilePaths(volumes, input$greedyFasFile)
+				file_selected <- parseFilePaths(homePath, input$greedyFasFile)
 				return(as.character(file_selected$datapath))
 			}
 		}
@@ -793,21 +795,15 @@ hamstrApp <- function(input, output, session) {
 	# get input fasta ==========================================================
 	getInputPath <- reactive({
 		shinyFileChoose(
-		    input, "hamstrInput", roots = volumes, session = session,
+		    input, "hamstrInput", session = session, roots = homePath, 
 		    filetypes = c('', 'fa', 'fasta')
 		)
-		file_selected <- parseFilePaths(volumes, input$hamstrInput)
-		req(input$hamstrInput)
+	    req(input$hamstrInput)
+		file_selected <- parseFilePaths(homePath, input$hamstrInput)
 		return(as.character(file_selected$datapath))
 	})
 	
 	# get list of sequence IDs =================================================
-	getSeqID <- function(file = NULL){
-		if (is.null(file)) stop("Input fasta file not provided!")
-		faFile <- Biostrings::readAAStringSet(file)
-		return(names(faFile))
-	}
-	
 	output$seqID.ui <- renderUI({
 		seqIDs <- getSeqID(getInputPath())
 		selectInput(
@@ -818,29 +814,37 @@ hamstrApp <- function(input, output, session) {
 	})
 	
 	# get list of available refspec ============================================
-	getRefspecList <- function(oneseqPath = NULL){
-		if (is.null(oneseqPath)) stop("HaMStR not found!")
-		if (length(grep("oneSeq.pl", oneseqPath))) {
-			blastDir <- stringr::str_replace(
-				oneseqPath, "/bin/oneSeq.pl", "/blast_dir"
-			)
-		} else {
-			blastDir <- stringr::str_replace(
-				oneseqPath, "/bin/oneSeq", "/blast_dir"
-			)
-		}
-		refspecPath <- list.dirs(
-			path = blastDir, full.names = TRUE, recursive = FALSE
+	getSubFolderDir <- function (oneseqPath = NULL, subFolderName = NULL) {
+	    if (is.null(oneseqPath)) stop("HaMStR not found!")
+	    if (length(grep("oneSeq.pl", oneseqPath))) {
+	        return(
+	            stringr::str_replace(
+	                oneseqPath, "/bin/oneSeq.pl", paste0("/", subFolderName)
+	            )
+	        )
+	    } else {
+	        return(
+	            stringr::str_replace(
+	                oneseqPath, "/bin/oneSeq", paste0("/", subFolderName)
+	            )
+	        )
+	    }
+	}
+	
+	getRefspecList <- function(oneseqPath = NULL, subFolderName = NULL){
+	    outDir <- getSubFolderDir(getOneseqPath(), subFolderName)
+		outDirPath <- list.dirs(
+			path = outDir, full.names = TRUE, recursive = FALSE
 		)
-		refspecList <- stringr::str_replace(
-			refspecPath, paste0(blastDir,"/"), ""
+		outDirList <- stringr::str_replace(
+		    outDirPath, paste0(outDir,"/"), ""
 		)
-		return(refspecList)
+		return(outDirList)
 	}
 	
 	output$refSpec.ui <- renderUI({
 		refspecList <- c("undefined")
-		refspecList <- getRefspecList(getOneseqPath())
+		refspecList <- getRefspecList(getOneseqPath(), "blast_dir")
 		selectInput(
 			ns("refSpec"), "Reference species",
 			choices = c("undefined", refspecList),
@@ -850,7 +854,7 @@ hamstrApp <- function(input, output, session) {
 	
 	output$coreTaxa.ui <- renderUI({
 		coreTaxaList <- "all"
-		coreTaxaList <- getRefspecList(getOneseqPath())
+		coreTaxaList <- getRefspecList(getOneseqPath(), "blast_dir")
 		selectInput(
 			ns("coreTaxa"), "Core taxa",
 			choices = c("all", coreTaxaList),
@@ -859,10 +863,18 @@ hamstrApp <- function(input, output, session) {
 		)
 	})
 	
+	# get data dir =============================================================
+	
+	
 	# required options =========================================================
 	reqOptions <- reactive({
-		seqFile <- paste0("-seqFile=", "infile.fa")
-		# seqFile <- paste0("-seqFile=", getInputPath())
+	    req(getInputPath())
+	    # copy input file to hamstr/data folder
+	    dataDir <- getSubFolderDir(getOneseqPath(), "data")
+	    system2("cp", paste(getInputPath(), dataDir, sep = " "), wait = TRUE)
+	    
+		# seqFile <- paste0("-seqFile=", "infile.fa")
+		seqFile <- paste0("-seqFile=", getFileName(getInputPath()))
 		seqId <- paste0("-seqId=", input$seqID)
 		refSpec <- paste0("-refSpec=", input$refSpec)
 		minDist <- paste0("-minDist=", input$minDist)
@@ -1138,27 +1150,20 @@ hamstrApp <- function(input, output, session) {
 	})
 	
 	output$outputLocation <- renderText({
+	    req(getOneseqPath())
+	    req(getInputPath())
 	    # get default output folder of hamstr
-	    dataDir <- ""
-	    oneseqPath <- getOneseqPath()
-	    if (length(grep("oneSeq.pl", getOneseqPath()))) {
-	        dataDir <- stringr::str_replace(
-	            oneseqPath, "/bin/oneSeq.pl", "/data"
-	        )
-	    } else {
-	        dataDir <- stringr::str_replace(
-	            oneseqPath, "/bin/oneSeq", "/data"
-	        )
-	    }
+	    dataDir <- getSubFolderDir(getOneseqPath(), "data")
 	    # return output files
 	    faOut <- paste0(dataDir, "/", input$seqName, ".extended.fa")
 	    if (input$useFAS == TRUE) {
+	        inFaOut <- paste0(dataDir, "/", getFileName(getInputPath()))
 	        ppOut <- paste0(dataDir, "/", input$seqName, ".phyloprofile")
 	        domainFwOut <- paste0(dataDir, "/", input$seqName, "_1.domains")
 	        domainRvOut <- paste0(
 	            "[", dataDir, "/", input$seqName, "_1.domains", "]"
 	        )
-	        paste(faOut, ppOut, domainFwOut, domainRvOut, sep = "\n")
+	        paste(inFaOut, faOut, ppOut, domainFwOut, domainRvOut, sep = "\n")
 	    } else {
 	        faOut
 	    }

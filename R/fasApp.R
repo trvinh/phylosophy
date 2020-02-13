@@ -126,7 +126,7 @@ fasAppUI <- function(id) {
 }
 
 fasApp <- function(input, output, session) {
-	volumes = getVolumes() # for shinyFileChoose
+    homePath = c(wd='~/') # for shinyFileChoose
 	ns <- session$ns
 
 	# get fas location =========================================================
@@ -147,10 +147,10 @@ fasApp <- function(input, output, session) {
 		if (!is.na (fasLocation[1])){
 			return(fasLocation[1])
 		} else {
-			shinyFileChoose(input, "greedyFasFile", roots = volumes, session = session)
+			shinyFileChoose(input, "greedyFasFile", roots = homePath, session = session)
 			req(input$greedyFasFile)
 			if(!is.null(input$greedyFasFile)){
-				file_selected <- parseFilePaths(volumes, input$greedyFasFile)
+				file_selected <- parseFilePaths(homePath, input$greedyFasFile)
 				return(as.character(file_selected$datapath))
 			}
 		}
@@ -163,10 +163,10 @@ fasApp <- function(input, output, session) {
 	    if (!is.na (fasLocation[1])){
 	        return(fasLocation[1])
 	    } else {
-	        # shinyFileChoose(input, "annoFasFile", roots = volumes, session = session)
+	        # shinyFileChoose(input, "annoFasFile", roots = homePath, session = session)
 	        # req(input$annoFasFile)
 	        # if(!is.null(input$annoFasFile)){
-	        #     file_selected <- parseFilePaths(volumes, input$annoFasFile)
+	        #     file_selected <- parseFilePaths(homePath, input$annoFasFile)
 	        #     return(as.character(file_selected$datapath))
 	        # }
 	    }
@@ -182,31 +182,25 @@ fasApp <- function(input, output, session) {
 	# get input fasta ==========================================================
 	getSeedPath <- reactive({
 		shinyFileChoose(
-		    input, "seedInput", roots = volumes, session = session,
+		    input, "seedInput", roots = homePath, session = session,
 		    filetypes = c('', 'fa', 'fasta')
 		)
-		file_selected <- parseFilePaths(volumes, input$seedInput)
+		file_selected <- parseFilePaths(homePath, input$seedInput)
 		req(input$seedInput)
 		return(as.character(file_selected$datapath))
 	})
 
 	getQueryPath <- reactive({
 	    shinyFileChoose(
-	        input, "queryInput", roots = volumes, session = session,
+	        input, "queryInput", roots = homePath, session = session,
 	        filetypes = c('', 'fa', 'fasta')
 	    )
-	    file_selected <- parseFilePaths(volumes, input$queryInput)
+	    file_selected <- parseFilePaths(homePath, input$queryInput)
 	    req(input$queryInput)
 	    return(as.character(file_selected$datapath))
 	})
 
 	# get list of sequence IDs =================================================
-	getSeqID <- function(file = NULL){
-		if (is.null(file)) stop("Input fasta file not provided!")
-		faFile <- Biostrings::readAAStringSet(file)
-		return(names(faFile))
-	}
-
 	output$seedID.ui <- renderUI({
 		seqIDs <- getSeqID(getSeedPath())
 		selectInput(
@@ -259,9 +253,9 @@ fasApp <- function(input, output, session) {
 
 	# getOutputPath <- reactive({
 	#     shinyDirChoose(
-	#         input, 'dir', roots=c(wd='.') #roots = volumes
+	#         input, 'dir', roots=c(wd='.') #roots = homePath
 	#     )
-	#     outputPath <- parseDirPath(volumes, input$dir)
+	#     outputPath <- parseDirPath(homePath, input$dir)
 	#     # outputPath <-
 	#     #     file.path(home, paste(unlist(dir()$path[-1]), collapse = .Platform$file.sep))
 	#     # req(input$queryInput)

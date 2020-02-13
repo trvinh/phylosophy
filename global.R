@@ -35,11 +35,3 @@ system("rm *.log")
 old_path <- Sys.getenv("PATH")
 Sys.setenv(PATH = paste(old_path, "/opt/anaconda3/bin:/Users/bemun/.local/bin:/Users/bemun/Desktop/bionf/HaMStR/bin", sep = ":"))
 Sys.setenv(PERL = "usr/bin/perl")
-
-# functions
-randFn <- function(n = 5000) {
-    a <- do.call(paste0, replicate(5, sample(LETTERS, n, TRUE), FALSE))
-    paste0(
-        a, sprintf("%04d", sample(9999, n, TRUE)), sample(LETTERS, n, TRUE)
-    )
-}
