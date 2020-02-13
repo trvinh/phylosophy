@@ -709,8 +709,11 @@ hamstrAppUI <- function(id) {
 			),
 			column(
 				6,
+				strong("Command"),
 				verbatimTextOutput(ns("hamstrCmdText")),
-				htmlOutput(ns("hamstrLog"))
+				hr(),
+				strong("Progress"),
+				verbatimTextOutput(ns("hamstrLog"))
 			)
 		)
 	)
@@ -1135,13 +1138,14 @@ hamstrApp <- function(input, output, session) {
 		if (isolate(rv$started)) {
 			rv$textstream <- suppressWarnings(
 			  paste(
-			      readLines(paste0(input$seqName, ".log")), collapse = "<br/>"
+			      readLines(paste0(input$seqName, ".log"),  n = -1) %>% 
+			          tail(50) %>% paste(collapse = "\n")
 			  )
 			)
 		}
 	})
-	output$hamstrLog <- renderUI({
-		HTML(rv$textstream)
+	output$hamstrLog <- renderText({
+	    rv$textstream
 	})
 	
 	# report results ===========================================================
