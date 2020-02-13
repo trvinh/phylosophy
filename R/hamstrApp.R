@@ -793,13 +793,11 @@ hamstrApp <- function(input, output, session) {
 			return(fasLocation[1])
 		} else {
 			shinyFileChoose(
-			    input, ns("greedyFasFile"), roots = homePath, session = session
+			    input, "greedyFasFile", roots = homePath, session = session
 			)
 			req(input$greedyFasFile)
-			if(!is.null(input$greedyFasFile)){
-				file_selected <- parseFilePaths(homePath, input$greedyFasFile)
-				return(as.character(file_selected$datapath))
-			}
+			file_selected <- parseFilePaths(homePath, input$greedyFasFile)
+			return(as.character(file_selected$datapath))
 		}
 	})
 	
@@ -1064,26 +1062,18 @@ hamstrApp <- function(input, output, session) {
 		HTML(paste(optOptions(), collapse = "<br/>"))
 	})
 	
-	# RUN HAMSTR ===============================================================
-	randFn <- function(n = 5000) {
-		a <- do.call(paste0, replicate(5, sample(LETTERS, n, TRUE), FALSE))
-		paste0(
-			a, sprintf("%04d", sample(9999, n, TRUE)), sample(LETTERS, n, TRUE)
-		)
-	}
-	
-	jobID <- reactiveValues()
-	
+	# generate new job ID ======================================================
 	output$seqName.ui <- renderUI({
-		jobID <- randFn(1)
-		textInput(ns("seqName"), "Job name", value = jobID)
+	    jobID <- randFn(1)
+	    textInput(ns("seqName"), "Job name", value = jobID)
 	})
 	
 	observeEvent(input$newSeqName.btn, {
-		jobID <- randFn(1)
-		updateTextInput(session, "seqName", "Job name", value = jobID)
+	    jobID <- randFn(1)
+	    updateTextInput(session, "seqName", "Job name", value = jobID)
 	})
 	
+	# RUN HAMSTR ===============================================================
 	output$hamstrBtn.ui <- renderUI({
 		if (
 			!is.null(input$refSpec) && !is.null(input$seqID) && input$seqID !=""
@@ -1140,6 +1130,7 @@ hamstrApp <- function(input, output, session) {
 		)
 		system2("perl", cmd, wait = FALSE)
 		updateButton(session, ns("doHamstr"), disabled = TRUE)
+		updateButton(session, ns("newSeqName.btn"), disabled = TRUE)
 	})
 	
 	observeEvent(input$stopHamstr, {

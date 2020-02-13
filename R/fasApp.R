@@ -9,12 +9,30 @@ fasAppUI <- function(id) {
 			# ** FAS location ===================================
 			conditionalPanel(
 			    condition = "output.checkFasStatus == 0", ns = ns,
-			    shinyFilesButton(
-			        ns("greedyFasFile"),
-			        "FAS location?" ,
-			        title = "Please provide greedyFAS.py file:",
-			        multiple = FALSE,
-			        buttonType = "default"
+			    
+			    selectInput(
+			        ns("whereFas"), "FAS not found! Please:",
+			        choice = c("Install FAS", "Provide FAS path"),
+			        selected = "Provide FAS path"
+			    ),
+			    conditionalPanel(
+			        condition = "input.whereFas == 'Provide FAS path'",
+			        ns = ns,
+			        shinyFilesButton(
+			            ns("greedyFasFile"),
+			            "FAS location?" ,
+			            title = "Please provide greedyFAS.py file:",
+			            multiple = FALSE,
+			            buttonType = "default"
+			        )
+			    ),
+			    conditionalPanel(
+			        condition = "input.whereFas == 'Install FAS'",
+			        ns = ns,
+			        bsButton(
+			            "installFas", "Install FAS", 
+			            onclick = "window.open('https://bionf.github.io/FAS/#installation', '_blank')"
+			        )
 			    )
 			),
 			hr(),
@@ -40,18 +58,63 @@ fasAppUI <- function(id) {
 			    )
 			),
 			br(),
-
-			# ** annoFAS options ==================================
 			checkboxInput(
 			    ns("addQueryCheck"),
 			    strong("Add query protein(s)"),
 			    value = FALSE,
 			    width = NULL
 			),
-			
 			hr(),
-			strong("annoFAS options"),
+			
+			# ** job ID ========================================================
+			textInput(ns("fasJob"), "Job ID", value = randFn(1)),
+			bsPopover(
+			    ns("fasJob"),
+			    "",
+			    paste(
+			        "Name of job and log file(s)."
+			    ),
+			    "bottom"
+			),
+			bsButton(ns("newFasJob.btn"), "New job ID"),
+			hr(),
 
+			# ** annoFAS options ===============================================
+			strong("annoFAS options"),
+			textInput(
+			    ns("seedName"), "Seed Name",
+			    value = "seed", placeholder = "seed"
+			),
+			bsPopover(
+			    ns("seedName"),
+			    "",
+			    paste(
+			        "Name of annotation folder for seed protein(s)."
+			    ),
+			    "bottom"
+			),
+			
+			conditionalPanel(
+			    condition = "input.addQueryCheck", ns = ns,
+			    textInput(
+			        ns("queryName"), "Query Name",
+			        value = "query", placeholder = "query"
+			    ),
+			    bsPopover(
+			        ns("queryName"),
+			        "",
+			        paste(
+			            "Name of annotation folder for query protein(s)."
+			        ),
+			        "bottom"
+			    )
+			),
+			
+			shinyDirButton("outAnnoDir", "Output directory", "Upload"),
+
+			hr(),
+			
+			# ** greedyFAS options ==================================
 			uiOutput(ns("seedID.ui")),
 			bsPopover(
 				ns("seedID"),
@@ -63,10 +126,6 @@ fasAppUI <- function(id) {
 					"determine it automatically."
 				),
 				"bottom"
-			),
-			textInput(
-			    ns("seedName"), "Seed ID",
-			    value = "seed", placeholder = "seed"
 			),
 
 			conditionalPanel(
@@ -82,44 +141,43 @@ fasAppUI <- function(id) {
 			            "determine it automatically."
 			        ),
 			        "bottom"
-			    ),
-			    textInput(
-			        ns("queryName"), "Query ID",
-			        value = "query", placeholder = "query"
 			    )
-			),
-
-			shinyDirButton("dir", "Input directory", "Upload"),
-			# uiOutput("fasJob.ui"),
-			textInput(ns("fasJob"), "Job ID", value = randFn(1)),
-			bsButton(ns("newFasJob.btn"), "New job ID")
+			)
 		),
 		# * main panel for FAS run ----------------------------
 		mainPanel(
 			width = 9,
 			column(
 				6,
-				uiOutput(ns("fasBtn.ui")),
+				uiOutput(ns("annoBtn.ui")),
 				hr(),
-				strong("SELECTED OPTIONS"),
-				br(), br(),
-				strong("annoFAS"),
+				strong("annoFAS OPTIONS"),
 				br(), br(),
 				uiOutput(ns("annoOptions.ui")),
-				br(), br(),
-				strong("greedyFAS"),
+				hr(),
+				strong("Log file"),
+				verbatimTextOutput(ns("logAnnoLocation")),
+				strong("Output files"),
+				verbatimTextOutput(ns("outputAnnoLocation")),
+				hr(),
+				verbatimTextOutput(ns("annoCmdText")),
+				verbatimTextOutput(ns("annoLog"))
+			),
+			column(
+				6,
+				uiOutput(ns("fasBtn.ui")),
+				hr(),
+				strong("greedyFAS OPTIONS"),
 				br(), br(),
 				uiOutput(ns("greedyOptions.ui")),
 				hr(),
 				strong("Log file"),
-				verbatimTextOutput(ns("logLocation")),
+				verbatimTextOutput(ns("logFasLocation")),
 				strong("Output files"),
-				verbatimTextOutput(ns("outputLocation"))
-			),
-			column(
-				6,
+				verbatimTextOutput(ns("outputFasLocation")),
+				hr(),
 				verbatimTextOutput(ns("fasCmdText")),
-				htmlOutput(ns("fasLog"))
+				verbatimTextOutput(ns("fasLog"))
 			)
 		)
 	)
@@ -128,58 +186,56 @@ fasAppUI <- function(id) {
 fasApp <- function(input, output, session) {
     homePath = c(wd='~/') # for shinyFileChoose
 	ns <- session$ns
-
-	# get fas location =========================================================
+	
+	# get greedyFAS location ===================================================
 	output$checkFasStatus <- reactive({
-		fasLocation <- suppressWarnings(
-			system("which greedyFAS", intern = TRUE)
-		)
-		if (!is.na (fasLocation[1])){
-			return(1)
-		} else return(0)
+	    fasLocation <- suppressWarnings(
+	        system("which greedyFAS", intern = TRUE)
+	    )
+	    if (!is.na (fasLocation[1])){
+	        return(1)
+	    } else return(0)
 	})
 	outputOptions(output, "checkFasStatus", suspendWhenHidden = FALSE)
-
-	getFasPath <- reactive({
-		fasLocation <- suppressWarnings(
-			system("which greedyFAS", intern = TRUE)
-		)
-		if (!is.na (fasLocation[1])){
-			return(fasLocation[1])
-		} else {
-			shinyFileChoose(input, "greedyFasFile", roots = homePath, session = session)
-			req(input$greedyFasFile)
-			if(!is.null(input$greedyFasFile)){
-				file_selected <- parseFilePaths(homePath, input$greedyFasFile)
-				return(as.character(file_selected$datapath))
-			}
-		}
-	})
 	
-	getAnnoPath <- reactive({
+	getFasPath <- reactive({
 	    fasLocation <- suppressWarnings(
-	        system("which annoFAS", intern = TRUE)
+	        system("which greedyFAS", intern = TRUE)
 	    )
 	    if (!is.na (fasLocation[1])){
 	        return(fasLocation[1])
 	    } else {
-	        # shinyFileChoose(input, "annoFasFile", roots = homePath, session = session)
-	        # req(input$annoFasFile)
-	        # if(!is.null(input$annoFasFile)){
-	        #     file_selected <- parseFilePaths(homePath, input$annoFasFile)
-	        #     return(as.character(file_selected$datapath))
-	        # }
+	        shinyFileChoose(
+	            input, "greedyFasFile", roots = homePath, session = session
+	        )
+	        req(input$greedyFasFile)
+	        file_selected <- parseFilePaths(homePath, input$greedyFasFile)
+	        return(as.character(file_selected$datapath))
 	    }
 	})
-
+	
 	output$fasLocation <- renderText({
-		fasPath <- getFasPath()
-		paste(
-			"FAS found at", fasPath
-		)
+	    fasPath <- getFasPath()
+	    paste(
+	        "greedyFAS found at", fasPath
+	    )
+	})
+	
+	# get annoFAS location =====================================================
+	getAnnoPath <- reactive({
+	    fasPath <- getFasPath()
+	    annoPath <- stringr::str_replace(fasPath, "greedyFAS", "annoFAS")
+	    return(annoPath)
+	})
+	
+	output$annoLocation <- renderText({
+	    annoPath <- getAnnoPath()
+	    paste(
+	        "annoFAS found at", annoPath
+	    )
 	})
 
-	# get input fasta ==========================================================
+	# get input fasta (seed and query) =========================================
 	getSeedPath <- reactive({
 		shinyFileChoose(
 		    input, "seedInput", roots = homePath, session = session,
@@ -200,7 +256,7 @@ fasApp <- function(input, output, session) {
 	    return(as.character(file_selected$datapath))
 	})
 
-	# get list of sequence IDs =================================================
+	# get list of seed and query sequence IDs ==================================
 	output$seedID.ui <- renderUI({
 		seqIDs <- getSeqID(getSeedPath())
 		selectInput(
@@ -219,54 +275,32 @@ fasApp <- function(input, output, session) {
 	    )
 	})
 
-	# get list of available refspec ============================================
-	# getRefspecList <- function(oneseqPath = NULL){
-	# 	if (is.null(oneseqPath)) stop("HaMStR not found!")
-	# 	if (length(grep("oneSeq.pl", oneseqPath))) {
-	# 		blastDir <- stringr::str_replace(
-	# 			oneseqPath, "/bin/oneSeq.pl", "/blast_dir"
-	# 		)
-	# 	} else {
-	# 		blastDir <- stringr::str_replace(
-	# 			oneseqPath, "/bin/oneSeq", "/blast_dir"
-	# 		)
-	# 	}
-	# 	refspecPath <- list.dirs(
-	# 		path = blastDir, full.names = TRUE, recursive = FALSE
-	# 	)
-	# 	refspecList <- stringr::str_replace(
-	# 		refspecPath, paste0(blastDir,"/"), ""
-	# 	)
-	# 	return(refspecList)
-	# }
-	#
-	# output$refSpec.ui <- renderUI({
-	# 	refspecList <- c("undefined")
-	# 	refspecList <- getRefspecList(getOneseqPath())
-	# 	selectInput(
-	# 		ns("refSpec"), "Reference species",
-	# 		choices = c("undefined", refspecList),
-	# 		selected = "undefined"
-	# 	)
-	# })
-
-
+	# get output path ==========================================================
 	# getOutputPath <- reactive({
 	#     shinyDirChoose(
-	#         input, 'dir', roots=c(wd='.') #roots = homePath
+	#         input, 'outAnnoDir', roots=c(wd='.') #roots = homePath
 	#     )
-	#     outputPath <- parseDirPath(homePath, input$dir)
+	#     outputPath <- parseDirPath(homePath, input$outAnnoDir)
 	#     # outputPath <-
-	#     #     file.path(home, paste(unlist(dir()$path[-1]), collapse = .Platform$file.sep))
+	#     #     file.path(home, paste(unlist(outAnnoDir()$path[-1]), collapse = .Platform$file.sep))
 	#     # req(input$queryInput)
 	#     return(as.character(outputPath))
 	# })
+	
+	# generate new job ID ======================================================
+	observeEvent(input$newFasJob.btn, {
+	    jobID <- randFn(1)
+	    updateTextInput(session, "fasJob", "Job ID", value = jobID)
+	})
 
-	# annoFAS options =========================================================
+	# annoFAS options ==========================================================
 	annoOptions <- reactive({
-
-		# fasta <- paste0("--fasta=", getSeedPath()) #paste0("-seqFile=", getInputPath())
-		fasta <- paste0("--fasta=/Users/bemun/Desktop/bionf/HaMStR/data/infile.fa")
+	    fasta <- paste0("--fasta=", getSeedPath())
+	    if (input$addQueryCheck == TRUE) {
+	        if (input$annoObj == "query") {
+	            fasta <- paste0("--fasta=", getQueryPath())
+	        }
+	    }
 		# path <- paste0("--path=", getOutputPath())
 		path <- paste0("--path=", "/Users/bemun/Desktop/bionf/trvinh_github/phylosophy/tmp")
 		name <- paste0("--name=", input$seedName)
@@ -279,43 +313,105 @@ fasApp <- function(input, output, session) {
 		HTML(paste(annoOptions(), collapse = "<br/>"))
 	})
 
-	# RUN FAS ===============================================================
-	# randFn <- function(n = 5000) {
-	# 	a <- do.call(paste0, replicate(5, sample(LETTERS, n, TRUE), FALSE))
-	# 	paste0(
-	# 		a, sprintf("%04d", sample(9999, n, TRUE)), sample(LETTERS, n, TRUE)
-	# 	)
-	# }
-
-	jobID <- reactiveValues()
-
-	# output$fasJob.ui <- renderUI({
-	# 	jobID <- randFn(1)
-	# 	h3("BLABLABLA")
-	# 	# textInput(ns("fasJob"), "Job ID", value = jobID)
-	# })
-
-	observeEvent(input$newFasJob.btn, {
-		jobID <- randFn(1)
-		updateTextInput(session, "fasJob", "Job ID", value = jobID)
+	# RUN annFAS ===============================================================
+	output$annoBtn.ui <- renderUI({
+	    if (length(input$seedInput) > 1) {
+	        tagList(
+	            bsButton(
+	                ns("doAnno"), "Run annoFAS",
+	                style = "warning", disabled = FALSE
+	            ),
+	            actionButton(ns("stopAnno"),label = "Stop"),
+	            actionButton(ns("newAnno"),label = "New job"),
+	            conditionalPanel(
+	                condition = "input.addQueryCheck", ns = ns,
+	                selectInput(
+	                    ns("annoObj"), "for", choices = c("seed", "query"),
+	                    selected = "seed"
+	                )
+	            ), 
+	            textOutput(ns("annoLocation"))
+	        )
+	    }
 	})
-
+	
+	observeEvent(input$newAnno, {
+	    updateButton(session, ns("doAnno"), disabled = FALSE)
+	    updateButton(session, ns("stopAnno"), disabled = FALSE)
+	})
+	
+	annoCmd <- reactive({
+	    return(
+	        paste(
+	            getAnnoPath(),
+	            paste(annoOptions(), collapse = " ")
+	        )
+	    )
+	})
+	
+	output$annoCmdText <- renderText({
+	    # paste("python", fasCmd())
+	    paste(annoCmd())
+	})
+	
+	rvAnno <- reactiveValues(
+	    textstream = c(""),
+	    timer = reactiveTimer(1000),
+	    started = FALSE
+	)
+	observeEvent(input$doAnno, {
+	    rvAnno$started <- TRUE
+	    cmd <- paste(
+	        annoCmd(),
+	        ">>",
+	        paste0(input$fasJob, ".anno.log")
+	    )
+	    # system2("python", cmd, wait = FALSE)
+	    system(cmd, wait = FALSE)
+	    updateButton(session, ns("doAnno"), disabled = TRUE)
+	    updateButton(session, ns("newFasJob.btn"), disabled = TRUE)
+	})
+	
+	observeEvent(input$stopAnno, {
+	    rvAnno$started <- FALSE
+	    system2("rm", "*.anno.log")
+	    updateButton(session, ns("stopAnno"), disabled = TRUE)
+	})
+	
+	observe({
+	    rvAnno$timer()
+	    if (isolate(rvAnno$started)) {
+	        rvAnno$textstream <- suppressWarnings(
+	            readLines(paste0(input$fasJob, ".anno.log"),  n = -1) %>% 
+	                tail(50) %>% paste(collapse = "\n")
+	        )
+	    }
+	})
+	output$annoLog <- renderText({
+	    rvAnno$textstream
+	})
+	
+	
+	# greedyFAS options ========================================================
+	fasOptions <- reactive({
+	    return(
+	        c("blablabla")
+	    )
+	})
+	
+	# RUN greedyFAS ============================================================
 	output$fasBtn.ui <- renderUI({
-		# if (
-		# 	!is.null(input$refSpec) && !is.null(input$seqID) && input$seqID !=""
-		# ) {
-		# 	if (input$refSpec != "undefined") {
-				tagList(
-					bsButton(
-						ns("doFAS"), "Run FAS",
-						style = "warning", disabled = FALSE
-					),
-					actionButton(ns("stopFAS"),label = "Stop"),
-					actionButton(ns("newFAS"),label = "New job"),
-					textOutput(ns("fasLocation"))
-				)
-		# 	}
-		# }
+	    if (length(input$seedInput) > 1 && length(input$queryInput) > 1) {
+	        tagList(
+	            bsButton(
+	                ns("doFAS"), "Run greedyFAS",
+	                style = "warning", disabled = FALSE
+	            ),
+	            actionButton(ns("stopFAS"),label = "Stop"),
+	            actionButton(ns("newFAS"),label = "New job"),
+	            textOutput(ns("fasLocation"))
+	        )
+	    }
 	})
 
 	observeEvent(input$newFAS, {
@@ -326,11 +422,8 @@ fasApp <- function(input, output, session) {
 	fasCmd <- reactive({
 		return(
 			paste(
-				# getFasPath(),
-				# "annoFAS", #
-				getAnnoPath(),
-				paste(annoOptions(), collapse = " ")
-				# paste(optOptions(), collapse = " ")
+				getFasPath(),
+				paste(fasOptions(), collapse = " ")
 			)
 		)
 	})
@@ -340,44 +433,46 @@ fasApp <- function(input, output, session) {
 	    paste(fasCmd())
 	})
 
-	rv <- reactiveValues(
+	rvFas <- reactiveValues(
 		textstream = c(""),
 		timer = reactiveTimer(1000),
 		started = FALSE
 	)
 	observeEvent(input$doFAS, {
-		rv$started <- TRUE
+		rvFas$started <- TRUE
 		cmd <- paste(
 			fasCmd(),
 			">>",
-			paste0(input$fasJob, ".log")
+			paste0(input$fasJob, ".fas.log")
 		)
 		# system2("python", cmd, wait = FALSE)
-		system(cmd)#, wait = FALSE)
+		system(cmd, wait = FALSE)
 		updateButton(session, ns("doFAS"), disabled = TRUE)
+		updateButton(session, ns("newFasJob.btn"), disabled = TRUE)
 	})
 
 	observeEvent(input$stopFAS, {
-		rv$started <- FALSE
-		system2("rm", "*.log")
+		rvFas$started <- FALSE
+		system2("rm", "*.fas.log")
 		updateButton(session, ns("stopFAS"), disabled = TRUE)
 	})
 
-	# observe({
-	# 	rv$timer()
-	# 	if (isolate(rv$started)) {
-	# 		rv$textstream <- suppressWarnings(
-	# 		  paste(readLines(paste0(input$fasJob, ".log")), collapse = "<br/>")
-	# 		)
-	# 	}
-	# })
-	# output$hamstrLog <- renderUI({
-	# 	HTML(rv$textstream)
-	# })
+	observe({
+		rvFas$timer()
+		if (isolate(rvFas$started)) {
+			rvFas$textstream <- suppressWarnings(
+			    readLines(paste0(input$fasJob, ".fas.log"),  n = -1) %>% 
+			        tail(50) %>% paste(collapse = "\n")
+			)
+		}
+	})
+	output$fasLog <- renderUI({
+		HTML(rvFas$textstream)
+	})
 
 	# report results ===========================================================
 	# output$logLocation <- renderText({
-	#     paste0(getwd(), "/", input$seqName, ".log")
+	#     paste0(getwd(), "/", input$fasJob, ".log")
 	# })
 	#
 	# output$outputLocation <- renderText({
@@ -394,12 +489,12 @@ fasApp <- function(input, output, session) {
 	#         )
 	#     }
 	#     # return output files
-	#     faOut <- paste0(dataDir, "/", input$seqName, ".extended.fa")
+	#     faOut <- paste0(dataDir, "/", input$fasJob, ".extended.fa")
 	#     if (input$useFAS == TRUE) {
-	#         ppOut <- paste0(dataDir, "/", input$seqName, ".phyloprofile")
-	#         domainFwOut <- paste0(dataDir, "/", input$seqName, "_1.domains")
+	#         ppOut <- paste0(dataDir, "/", input$fasJob, ".phyloprofile")
+	#         domainFwOut <- paste0(dataDir, "/", input$fasJob, "_1.domains")
 	#         domainRvOut <- paste0(
-	#             "[", dataDir, "/", input$seqName, "_1.domains", "]"
+	#             "[", dataDir, "/", input$fasJob, "_1.domains", "]"
 	#         )
 	#         paste(faOut, ppOut, domainFwOut, domainRvOut, sep = "\n")
 	#     } else {
