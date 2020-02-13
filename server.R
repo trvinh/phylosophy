@@ -7,6 +7,9 @@ options(
 shinyServer(function(input, output, session) {
     # Automatically stop a Shiny app when closing the browser tab
     session$allowReconnect(TRUE)
+    
+    # FAS app
+    callModule(fasApp, "fasApp")
 	
 	# HaMStR app
 	callModule(hamstrApp, "hamstrApp")

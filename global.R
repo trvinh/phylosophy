@@ -10,15 +10,36 @@ lapply(sourceFiles, source, .GlobalEnv)
 packages <- c(
     "shinythemes",
     "shinyFiles", "shinyjs", "shinyBS", "stringr"
-    # "ape", "bioDist", "Biostrings", "colourpicker", "data.table", "energy",
-    # "GenomeInfoDbData", "ggplot2", "GO.db", "grid", "gridExtra", "RColorBrewer",
-    # "shiny", "OmaDB", "zoo"
 )
+
+# install missing packages
+installPackages <- function(packages){
+  missingPackages <-
+    packages[!(packages %in% installed.packages()[, "Package"])]
+  if (length(missingPackages))
+    install.packages(
+      missingPackages,
+      dependencies = TRUE,
+      repos = "http://cran.us.r-project.org"
+    )
+}
+installPackages(packages)
 
 # Load packages
 lapply(packages, library, character.only = TRUE)
 
+# remove old log files
+system("rm *.log")
+
 # add path
 old_path <- Sys.getenv("PATH")
-Sys.setenv(PATH = paste(old_path, "/share/applications/bin:/home/vinh/.local/bin:/share/project/vinh/HaMStR/bin", sep = ":"))
+Sys.setenv(PATH = paste(old_path, "/opt/anaconda3/bin:/Users/bemun/.local/bin:/Users/bemun/Desktop/bionf/HaMStR/bin", sep = ":"))
+Sys.setenv(PERL = "usr/bin/perl")
 
+# functions
+randFn <- function(n = 5000) {
+    a <- do.call(paste0, replicate(5, sample(LETTERS, n, TRUE), FALSE))
+    paste0(
+        a, sprintf("%04d", sample(9999, n, TRUE)), sample(LETTERS, n, TRUE)
+    )
+}

@@ -20,6 +20,17 @@ shinyUI(
             
             # DCC TAB ==========================================================
             tabPanel(
+              "INTRODUCTION",
+              h1("WELCOME TO PHYLOSOPHY WORLD!")
+            ),
+            
+            # FAS TAB ==========================================================
+            tabPanel(
+                "FAS", fasAppUI("fasApp")
+            ),
+            
+            # DCC TAB ==========================================================
+            tabPanel(
             	"DCC"
             ),
             
@@ -27,11 +38,6 @@ shinyUI(
             tabPanel(
                 "HaMStR",
                 hamstrAppUI("hamstrApp")
-            ),
-            
-            # FAS TAB ==========================================================
-            tabPanel(
-            	"FAS"
             ),
             
             # PHYLOPROFILE TAB =================================================

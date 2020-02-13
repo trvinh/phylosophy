@@ -8,7 +8,7 @@ hamstrAppUI <- function(id) {
 			width = 3,
 			# ** hamstr location ===================================
 			conditionalPanel(
-				condition = "output.checkHamstrStatus == 0",
+				condition = "output.checkHamstrStatus == 0", ns = ns,
 				shinyFilesButton(
 					ns("oneSeqFile"),
 					"HaMStR location?" ,
@@ -148,9 +148,8 @@ hamstrAppUI <- function(id) {
 				width = NULL
 			),
 			conditionalPanel(
-				condition = 
-					"input.useFAS
-				&& output.checkFasStatus == 0",
+				condition = "input.useFAS && output.checkFasStatus == 0", 
+				ns = ns,
 				shinyFilesButton(
 					ns("greedyFasFile"), 
 					"FAS location?" ,
@@ -692,21 +691,6 @@ hamstrAppUI <- function(id) {
 			column(
 				6,
 				uiOutput(ns("hamstrBtn.ui")),
-# 				bsButton(
-# 					ns("doHamstr"), "Run HaMStR",
-# 					style = "warning", disabled = TRUE
-# 				),
-# 				actionButton(ns("stopHamstr"),label = "Stop"),
-# 				actionButton(ns("newHamstr"),label = "New job"),
-# 				conditionalPanel(
-# 					condition = 'input.refSpec != "undefined"',
-# 					textOutput(ns("hamstrLocation"))
-# 				),
-# 				conditionalPanel(
-# 					condition = 'input.refSpec != "undefined" 
-#                             	    && input.useFAS',
-# 					textOutput(ns("fasLocation"))
-# 				),
 				hr(),
 				strong("SELECTED OPTIONS"),
 				br(), br(),
@@ -718,12 +702,14 @@ hamstrAppUI <- function(id) {
 				br(), br(),
 				uiOutput(ns("optOptions.ui")),
 				hr(),
-				h3("MSG WHEN FINISHED WILL BE HERE!")
+				strong("Log file"),
+				verbatimTextOutput(ns("logLocation")),
+				strong("Output files"),
+				verbatimTextOutput(ns("outputLocation"))
 			),
 			column(
 				6,
 				verbatimTextOutput(ns("hamstrCmdText")),
-				# verbatimTextOutput("hamstrLog")
 				htmlOutput(ns("hamstrLog"))
 			)
 		)
@@ -786,7 +772,9 @@ hamstrApp <- function(input, output, session) {
 		if (!is.na (fasLocation[1])){
 			return(fasLocation[1])
 		} else {
-			shinyFileChoose(input, "greedyFasFile", roots = volumes, session = session)
+			shinyFileChoose(
+			    input, "greedyFasFile", roots = volumes, session = session
+			)
 			req(input$greedyFasFile)
 			if(!is.null(input$greedyFasFile)){
 				file_selected <- parseFilePaths(volumes, input$greedyFasFile)
@@ -804,7 +792,10 @@ hamstrApp <- function(input, output, session) {
 	
 	# get input fasta ==========================================================
 	getInputPath <- reactive({
-		shinyFileChoose(input, "hamstrInput", roots = volumes, session = session)
+		shinyFileChoose(
+		    input, "hamstrInput", roots = volumes, session = session,
+		    filetypes = c('', 'fa', 'fasta')
+		)
 		file_selected <- parseFilePaths(volumes, input$hamstrInput)
 		req(input$hamstrInput)
 		return(as.character(file_selected$datapath))
@@ -870,7 +861,8 @@ hamstrApp <- function(input, output, session) {
 	
 	# required options =========================================================
 	reqOptions <- reactive({
-		seqFile <- paste0("-seqFile=", "infile.fa") #paste0("-seqFile=", getInputPath())
+		seqFile <- paste0("-seqFile=", "infile.fa")
+		# seqFile <- paste0("-seqFile=", getInputPath())
 		seqId <- paste0("-seqId=", input$seqID)
 		refSpec <- paste0("-refSpec=", input$refSpec)
 		minDist <- paste0("-minDist=", input$minDist)
@@ -893,7 +885,9 @@ hamstrApp <- function(input, output, session) {
 		}
 		
 		seqName <- ""
-		if (!is.null(input$seqName)) seqName <- paste0("-seqName=", input$seqName)
+		if (!is.null(input$seqName)) {
+		    seqName <- paste0("-seqName=", input$seqName)
+		}
 		
 		coreTaxa <- ""
 		if(input$optOption == TRUE && !is.null(input$coreTaxa)) {
@@ -1027,8 +1021,9 @@ hamstrApp <- function(input, output, session) {
 			fasoff, seqName, coreTaxa, strict, coreStrict, checkCoorthologsRef,
 			corecheckCoorthologsRef, rbh, rep, coreRep, coreOnly, reuse_core,
 			blast, group, evalBlast, evalHmmer, evalRelaxfac, hitLimit,
-			coreHitLimit, autoLimit, scoreThreshold, scoreCutoff, ignoreDistance,
-			distDeviation, cpu, aligner, force, append, silent, cleanup
+			coreHitLimit, autoLimit, scoreThreshold, scoreCutoff, 
+			ignoreDistance, distDeviation, cpu, aligner, force, append, silent,
+			cleanup
 		)
 		return(
 			optOptionList[unlist(lapply(optOptionList, function (x) x != ""))]
@@ -1071,13 +1066,10 @@ hamstrApp <- function(input, output, session) {
 					),
 					actionButton(ns("stopHamstr"),label = "Stop"),
 					actionButton(ns("newHamstr"),label = "New job"),
+					textOutput(ns("hamstrLocation")),
+					
 					conditionalPanel(
-						condition = 'input.refSpec != "undefined"',
-						textOutput(ns("hamstrLocation"))
-					),
-					conditionalPanel(
-						condition = 'input.refSpec != "undefined" 
-                            	    && input.useFAS',
+						condition = 'input.useFAS', ns = ns,
 						textOutput(ns("fasLocation"))
 					)
 				)
@@ -1129,10 +1121,46 @@ hamstrApp <- function(input, output, session) {
 	observe({
 		rv$timer()
 		if (isolate(rv$started)) {
-			rv$textstream <- paste(readLines(paste0(input$seqName, ".log")), collapse = "<br/>")
+			rv$textstream <- suppressWarnings(
+			  paste(
+			      readLines(paste0(input$seqName, ".log")), collapse = "<br/>"
+			  )
+			)
 		}
 	})
 	output$hamstrLog <- renderUI({
 		HTML(rv$textstream)
+	})
+	
+	# report results ===========================================================
+	output$logLocation <- renderText({
+	    paste0(getwd(), "/", input$seqName, ".log")
+	})
+	
+	output$outputLocation <- renderText({
+	    # get default output folder of hamstr
+	    dataDir <- ""
+	    oneseqPath <- getOneseqPath()
+	    if (length(grep("oneSeq.pl", getOneseqPath()))) {
+	        dataDir <- stringr::str_replace(
+	            oneseqPath, "/bin/oneSeq.pl", "/data"
+	        )
+	    } else {
+	        dataDir <- stringr::str_replace(
+	            oneseqPath, "/bin/oneSeq", "/data"
+	        )
+	    }
+	    # return output files
+	    faOut <- paste0(dataDir, "/", input$seqName, ".extended.fa")
+	    if (input$useFAS == TRUE) {
+	        ppOut <- paste0(dataDir, "/", input$seqName, ".phyloprofile")
+	        domainFwOut <- paste0(dataDir, "/", input$seqName, "_1.domains")
+	        domainRvOut <- paste0(
+	            "[", dataDir, "/", input$seqName, "_1.domains", "]"
+	        )
+	        paste(faOut, ppOut, domainFwOut, domainRvOut, sep = "\n")
+	    } else {
+	        faOut
+	    }
 	})
 }
