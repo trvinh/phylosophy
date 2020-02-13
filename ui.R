@@ -43,7 +43,10 @@ shinyUI(
             # PHYLOPROFILE TAB =================================================
             tabPanel(
             	"PhyloProfile",
-            	bsButton("runPhyloProfile", "Run PhyloProfile"),
+            	bsButton(
+            	    "runPhyloProfile", "Run PhyloProfile",
+            	    onclick = "window.open('https://applbio.biologie.uni-frankfurt.de/phyloprofile/', '_blank')"
+            	),
             	htmlOutput("phyloprofile")
             ),
 
