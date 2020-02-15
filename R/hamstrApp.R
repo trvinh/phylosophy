@@ -385,7 +385,7 @@ hamstrAppUI <- function(id) {
 				),
 				
 				textInput(
-					ns("group"), "Limit search in systematic group",
+					ns("group"), strong("Limit search in systematic group"),
 					value = ""
 				),
 				bsPopover(
@@ -762,8 +762,8 @@ hamstrApp <- function(input, output, session) {
 			    input, "hamstrFile", roots = homePath, session = session
 			)
 			req(input$hamstrFile)
-			file_selected <- parseFilePaths(homePath, input$hamstrFile)
-			return(as.character(file_selected$datapath))
+			fileSelected <- parseFilePaths(homePath, input$hamstrFile)
+			return(replaceHomeCharacter(as.character(fileSelected$datapath)))
 		}
 	})
 	
@@ -796,8 +796,8 @@ hamstrApp <- function(input, output, session) {
 			    input, "greedyFasFile", roots = homePath, session = session
 			)
 			req(input$greedyFasFile)
-			file_selected <- parseFilePaths(homePath, input$greedyFasFile)
-			return(as.character(file_selected$datapath))
+			fileSelected <- parseFilePaths(homePath, input$greedyFasFile)
+			return(replaceHomeCharacter(as.character(fileSelected$datapath)))
 		}
 	})
 	
@@ -815,8 +815,8 @@ hamstrApp <- function(input, output, session) {
 		    filetypes = c('', 'fa', 'fasta')
 		)
 	    req(input$hamstrInput)
-		file_selected <- parseFilePaths(homePath, input$hamstrInput)
-		return(as.character(file_selected$datapath))
+		fileSelected <- parseFilePaths(homePath, input$hamstrInput)
+		return(replaceHomeCharacter(as.character(fileSelected$datapath)))
 	})
 	
 	# get list of sequence IDs =================================================
@@ -872,14 +872,14 @@ hamstrApp <- function(input, output, session) {
 		coreTaxaList <- "all"
 		coreTaxaList <- getRefspecList(getHamstrPath(), "blast_dir")
 		selectInput(
-			ns("coreTaxa"), "Core taxa",
+			ns("coreTaxa"), strong("Core taxa"),
 			choices = c("all", coreTaxaList),
 			selected = "all",
 			multiple = TRUE
 		)
 	})
 	
-	# get data dir =============================================================
+	# get data dir ???????????????=======================================
 	
 	
 	# required options =========================================================

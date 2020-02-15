@@ -39,6 +39,7 @@ fasAppUI <- function(id) {
 
 			# ** fasta input =======================================
 			h3("Input and configurations"),
+			em("(*) required options"),
 			hr(),
 			shinyFilesButton(
 				ns("seedInput"), "Input seed file!" ,
@@ -64,15 +65,24 @@ fasAppUI <- function(id) {
 			    value = FALSE,
 			    width = NULL
 			),
+			bsPopover(
+			    ns("addQueryCheck"),
+			    "",
+			    paste(
+			        "Add another sequences (required for calculating FAS)"
+			    ),
+			    "bottom"
+			),
 			hr(),
 			
 			# ** job ID ========================================================
-			textInput(ns("fasJob"), "Job ID", value = randFn(1)),
+			textInput(ns("fasJob"), strong("Job ID (*)"), value = randFn(1)),
 			bsPopover(
 			    ns("fasJob"),
 			    "",
 			    paste(
-			        "Name of job and log file(s)."
+			        "Name of job and log file(s). This will also be file name",
+			        "of greedyFAS outputs."
 			    ),
 			    "bottom"
 			),
@@ -80,9 +90,25 @@ fasAppUI <- function(id) {
 			hr(),
 
 			# ** annoFAS options ===============================================
-			strong("annoFAS options"),
+			strong("Annotation settings"),
+			br(), br(),
+			shinyDirButton(
+			    ns("outAnnoDir"), "Annotation directory (*)" ,
+			    title = "Please select a folder",
+			    buttonType = "default", class = NULL
+			),
+			bsPopover(
+			    ns("outAnnoDir"),
+			    "",
+			    paste(
+			        "Provide folder for output annotation"
+			    ),
+			    "left"
+			),
+			br(), br(),
+			
 			textInput(
-			    ns("seedName"), "Seed Name",
+			    ns("seedName"), "Seed Name (*)",
 			    value = "seed", placeholder = "seed"
 			),
 			bsPopover(
@@ -97,7 +123,7 @@ fasAppUI <- function(id) {
 			conditionalPanel(
 			    condition = "input.addQueryCheck", ns = ns,
 			    textInput(
-			        ns("queryName"), "Query Name",
+			        ns("queryName"), "Query Name (*)",
 			        value = "query", placeholder = "query"
 			    ),
 			    bsPopover(
@@ -110,26 +136,92 @@ fasAppUI <- function(id) {
 			    )
 			),
 			
-			shinyDirButton("outAnnoDir", "Output directory", "Upload"),
-
+			checkboxInput(
+			    ns("optAnnoOption"),
+			    strong("Other options"),
+			    value = FALSE,
+			    width = NULL
+			),
+			
+			conditionalPanel(
+			    condition = "input.optAnnoOption", ns = ns,
+			    checkboxInput(
+			        ns("force"), strong("Force override annotations"),
+			        value = FALSE
+			    ),
+			    bsPopover(
+			        ns("force"),
+			        "",
+			        paste(
+			            "Force override annotations"
+			        ),
+			        "bottom"
+			    ),
+			    
+			    selectInput(
+			        ns("redo"), 
+			        strong("Do annotation with"),
+			        choices = c(
+			            "all", "pfam", "smart", "cast", "coils", "seg", "tmhmm",
+			            "signalp"
+			        ),
+			        selected = "all"
+			    ),
+			    bsPopover(
+			        ns("redo"),
+			        "",
+			        paste(
+			            "Database(s)/Tool(s) used for annotation"
+			        ),
+			        "top"
+			    ),
+			    
+			    checkboxInput(
+			        ns("extract"), strong("Extract existing annotations"),
+			        value = FALSE
+			    ),
+			    bsPopover(
+			        ns("extract"),
+			        "",
+			        paste(
+			            "Extract annotation for input sequence"
+			        ),
+			        "bottom"
+			    )
+			),
 			hr(),
 			
-			# ** greedyFAS options ==================================
-			uiOutput(ns("seedID.ui")),
-			bsPopover(
-				ns("seedID"),
-				"",
-				paste(
-					"Specifie the sequence identifier of the seed",
-					"sequence in the reference protein set.",
-					"If not provided, the program will attempt to",
-					"determine it automatically."
-				),
-				"bottom"
-			),
-
+			# ** Reference annotation settings =================================
+			strong("Reference annotation"),
 			conditionalPanel(
-			    condition = "input.addQueryCheck", ns = ns,
+			    condition = "input.extract || input.addQueryCheck", ns = ns,
+			    shinyDirButton(
+			        ns("refAnnoDir"), "Reference annotation" ,
+			        title = "Please select a folder",
+			        buttonType = "default", class = NULL
+			    ),
+			    bsPopover(
+			        ns("refAnnoDir"),
+			        "",
+			        paste(
+			            "Provide folder for existing reference annotation"
+			        ),
+			        "left"
+			    ),
+			    
+			    uiOutput(ns("seedID.ui")),
+			    bsPopover(
+			        ns("seedID"),
+			        "",
+			        paste(
+			            "Specifie the sequence identifier of the seed",
+			            "sequence in the reference protein set.",
+			            "If not provided, the program will attempt to",
+			            "determine it automatically."
+			        ),
+			        "bottom"
+			    ),
+			    
 			    uiOutput(ns("queryID.ui")),
 			    bsPopover(
 			        ns("queryID"),
@@ -141,6 +233,316 @@ fasAppUI <- function(id) {
 			            "determine it automatically."
 			        ),
 			        "bottom"
+			    )
+			),
+			hr(),
+			
+			# ** greedyFAS options ==================================
+			strong("greedyFAS options"),
+			br(), br(),
+			conditionalPanel(
+			    condition = "input.addQueryCheck", ns = ns,
+			    
+			    uiOutput(ns("refProteome.ui")),
+			    bsPopover(
+			        ns("refProteome.ui"),
+			        "",
+			        paste(
+			            "Path to annotation of a reference proteome which can",
+			            "be used for the weighting of features, by default",
+			            "there is no reference proteome used, the weighting",
+			            "will be uniform."
+			        ),
+			        "bottom"
+			    ),
+			    
+			    conditionalPanel(
+			        condition = "
+			        input.bidirectional && input.refProteome != 'undefined'",
+			        ns = ns,
+			        uiOutput(ns("refProteome2.ui")),
+			        bsPopover(
+			            ns("refProteome2.ui"),
+			            "",
+			            paste(
+			                "Give a second reference for bidirectional mode,",
+			                "does not do anything if bidirectional mode is not",
+			                "active or if no main reference was given"
+			            ),
+			            "bottom"
+			        )
+			    ),
+			    
+			    checkboxInput(
+			        ns("bidirectional"), strong("Bi-directional FAS"),
+			        value = TRUE
+			    ),
+			    bsPopover(
+			        ns("bidirectional"),
+			        "",
+			        paste(
+			            "calculate both scoring directions (separate files),",
+			            "creates csv file with combined scores"
+			        ),
+			        "bottom"
+			    ),
+			    
+			    checkboxInput(
+			        ns("optOption"),
+			        strong("Other options"),
+			        value = FALSE,
+			        width = NULL
+			    ),
+			    
+			    conditionalPanel(
+			        condition = "input.optOption", ns = ns,
+			        selectInput(
+			            ns("rawOutput"), strong("Output type"),
+			            choices = c(0,1,2), selected = 2
+			        ),
+			        bsPopover(
+			            ns("rawOutput"),
+			            "",
+			            paste(
+			                "If set to 1, the FAS score will be printed to",
+			                "STDOUT. If 0, scores will be printed into output",
+			                "file (XML format). If 2, both output variants",
+			                "are conducted."
+			            ),
+			            "top"
+			        ),
+			        
+			        checkboxInput(
+			            ns("noArch"), strong("No architecture output"),
+			            value = FALSE
+			        ),
+			        bsPopover(
+			            ns("noArch"),
+			            "",
+			            paste(
+			                "Deactivate creation of architecture.xml file"
+			            ),
+			            "bottom"
+			        ),
+			        
+			        checkboxInput(
+			            ns("phyloprofile"), strong("PhyloProfile output"),
+			            value = FALSE
+			        ),
+			        bsPopover(
+			            ns("phyloprofile"),
+			            "",
+			            paste(
+			                "Activate phyloprofile output, needs mapping file",
+			                "for all query proteins, single seed only, will",
+			                "run with more but output won't work without",
+			                "editing"
+			            ),
+			            "bottom"
+			        ),
+			        
+			        checkboxInput(
+			            ns("featureInfo"), strong("Feature stat output"),
+			            value = FALSE
+			        ),
+			        bsPopover(
+			            ns("featureInfo"),
+			            "",
+			            paste(
+			                "Create a file with information on the abundance",
+			                "of all seed and query features in the reference"
+			            ),
+			            "bottom"
+			        ),
+			        
+			        numericInput(
+			            ns("priorityThreshold"),
+			            strong("Threshold for priority mode"),
+			            min = 0, max = 999, step = 1, value = 5
+			        ),
+			        bsPopover(
+			            ns("priorityThreshold"),
+			            "",
+			            paste(
+			                "Change to define the feature number threshold for",
+			                "activating priority mode in the path evaluation"
+			            ),
+			            "bottom"
+			        ),
+			        
+			        numericInput(
+			            ns("maxCardinality"), 
+			            strong("Threshold for maximal cardinality"),
+			            min = 0, max = 999, step = 1, value = 5
+			        ),
+			        bsPopover(
+			            ns("maxCardinality"),
+			            "",
+			            paste(
+			                "Change to define the threshold for the maximal",
+			                "cardinality of feature paths in a graph. If max.",
+			                "cardinality is exceeded the priority mode will be",
+			                "used to for the path evaluation."
+			            ),
+			            "bottom"
+			        ),
+			        
+			        numericInput(
+			            ns("efilter"),
+			            strong("HMM search e-value cutoff for feature (10^x)"),
+			            value = -5,
+			            min = -99,
+			            max = 0,
+			            step = 1
+			        ),
+			        bsPopover(
+			            ns("efilter"),
+			            "",
+			            paste(
+			                "E-value filter for hmm based search methods",
+			                "(feature based/complete sequence)."
+			            ),
+			            "bottom"
+			        ),
+			        
+			        numericInput(
+			            ns("instEfilter"),
+			            strong(
+			                "HMM search e-value cutoff for instances (10^x)"
+			            ),
+			            value = -5,
+			            min = -99,
+			            max = 0,
+			            step = 1
+			        ),
+			        bsPopover(
+			            ns("instEfilter"),
+			            "",
+			            paste(
+			                "E-value filter for hmm based search methods",
+			                "(instances based/complete sequence)."
+			            ),
+			            "bottom"
+			        ),
+			        
+			        selectInput(
+			            ns("weightcorrection"), 
+			            strong("Weight correction type"),
+			            choices = c(
+			                "linear", "loge", "log10", "root4", "root8"
+			            ),
+			            selected = "loge"
+			        ),
+			        bsPopover(
+			            ns("weightcorrection"),
+			            "",
+			            paste(
+			                "Function applied to the frequency of feature",
+			                "types during weighting, options are linear(no",
+			                "function), loge(natural logarithm[Default]),",
+			                "log10(base-10 logarithm), root4(4th root) and",
+			                "root8(8th root)"
+			            ),
+			            "top"
+			        ),
+			        
+			        shinyFilesButton(
+			            ns("weightConstraints"), "Weight constraints file!" ,
+			            title = "Please provide weight constraints file",
+			            multiple = FALSE,
+			            buttonType = "default", class = NULL
+			        ),
+			        bsPopover(
+			            ns("weightConstraints"),
+			            "",
+			            paste(
+			                "Provide weight constraints via constraints file.",
+			                "By default there are no constraints."
+			            ),
+			            "bottom"
+			        ),
+			        br(), br(),
+			        
+			        shinyFilesButton(
+			            ns("featureTypes"), "Feature types file!" ,
+			            title = "Please provide feature types file",
+			            multiple = FALSE,
+			            buttonType = "default", class = NULL
+			        ),
+			        bsPopover(
+			            ns("featureTypes"),
+			            "",
+			            paste(
+			                "Provide file that contains the tools/databases",
+			                "used to predict features"
+			            ),
+			            "bottom"
+			        ),
+			        
+			        numericInput(
+			            ns("maxOverlap"), 
+			            strong("Maximum overlape (number of amino acid)"),
+			            min = 0, max = 999, step = 1, value = 0
+			        ),
+			        bsPopover(
+			            ns("maxOverlap"),
+			            "",
+			            paste(
+			                "Maximum size overlap allowed, default is 0 amino",
+			                "acids"
+			            ),
+			            "bottom"
+			        ),
+			        
+			        numericInput(
+			            ns("maxOverlapPercentage"), 
+			            strong("Maximum overlape in percentage"),
+			            min = 0, max = 1, step = 0.01, value = 0.4
+			        ),
+			        bsPopover(
+			            ns("maxOverlapPercentage"),
+			            "",
+			            paste(
+			                "Maximum percent of a feature the overlap is",
+			                "allowed to cover, default is 0.4 (40%)"
+			            ),
+			            "bottom"
+			        ),
+			        
+			        numericInput(
+			            ns("timelimit"), 
+			            strong("Time limit"),
+			            min = 0, max = 999, step = 1, value = 2
+			        ),
+			        bsPopover(
+			            ns("timelimit"),
+			            "",
+			            paste(
+			                "Sets a maximum time-limit in seconds for the",
+			                "calculation between a pair of proteins,default is",
+			                "2 hours after which it will stop, set to 0 to",
+			                "deactivate; As FAS divides this time among",
+			                "multiple processes, this limit does not",
+			                "necessarily represent the actual runtime,",
+			                "especially if multiple cores are used"
+			            ),
+			            "bottom"
+			        ),
+			        
+			        numericInput(
+			            ns("cores"), 
+			            strong("Number of cores"),
+			            min = 0, max = 999, step = 1, value = 1
+			        ),
+			        bsPopover(
+			            ns("cores"),
+			            "",
+			            paste(
+			                "Number of cores available for calculation, only",
+			                "useful when not using priority_mode"
+			            ),
+			            "bottom"
+			        )
 			    )
 			)
 		),
@@ -160,7 +562,9 @@ fasAppUI <- function(id) {
 				strong("Output files"),
 				verbatimTextOutput(ns("outputAnnoLocation")),
 				hr(),
+				strong("Command"),
 				verbatimTextOutput(ns("annoCmdText")),
+				strong("Progress"),
 				verbatimTextOutput(ns("annoLog"))
 			),
 			column(
@@ -169,14 +573,16 @@ fasAppUI <- function(id) {
 				hr(),
 				strong("greedyFAS OPTIONS"),
 				br(), br(),
-				uiOutput(ns("greedyOptions.ui")),
+				uiOutput(ns("fasOptions.ui")),
 				hr(),
 				strong("Log file"),
 				verbatimTextOutput(ns("logFasLocation")),
 				strong("Output files"),
 				verbatimTextOutput(ns("outputFasLocation")),
 				hr(),
+				strong("Command"),
 				verbatimTextOutput(ns("fasCmdText")),
+				strong("Progress"),
 				verbatimTextOutput(ns("fasLog"))
 			)
 		)
@@ -241,9 +647,9 @@ fasApp <- function(input, output, session) {
 		    input, "seedInput", roots = homePath, session = session,
 		    filetypes = c('', 'fa', 'fasta')
 		)
-		file_selected <- parseFilePaths(homePath, input$seedInput)
+		fileSelected <- parseFilePaths(homePath, input$seedInput)
 		req(input$seedInput)
-		return(as.character(file_selected$datapath))
+		return(replaceHomeCharacter(as.character(fileSelected$datapath)))
 	})
 
 	getQueryPath <- reactive({
@@ -251,41 +657,96 @@ fasApp <- function(input, output, session) {
 	        input, "queryInput", roots = homePath, session = session,
 	        filetypes = c('', 'fa', 'fasta')
 	    )
-	    file_selected <- parseFilePaths(homePath, input$queryInput)
+	    fileSelected <- parseFilePaths(homePath, input$queryInput)
 	    req(input$queryInput)
-	    return(as.character(file_selected$datapath))
+	    return(replaceHomeCharacter(as.character(fileSelected$datapath)))
 	})
 
 	# get list of seed and query sequence IDs ==================================
 	output$seedID.ui <- renderUI({
 		seqIDs <- getSeqID(getSeedPath())
-		selectInput(
-			ns("seedID"), "Seed ID",
-			choices = seqIDs,
-			selected = seqIDs[1]
+		tagList(
+		    selectInput(
+		        ns("seedID"), "Seed ID",
+		        choices = c("all", seqIDs),
+		        selected = seqIDs[1]
+		    ),
+		    bsPopover(
+		        ns("seedID"),
+		        "",
+		        paste(
+		            "Sequence ID for extracting annotation",
+		            "OR for calculating FAS score"
+		        ),
+		        "top"
+		    )
 		)
 	})
 
 	output$queryID.ui <- renderUI({
 	    seqIDs <- getSeqID(getQueryPath())
+	    tagList(
+	        selectInput(
+	            ns("queryID"), "Query ID",
+	            choices = c("all", seqIDs),
+	            selected = seqIDs[1]
+	        ),
+	        bsPopover(
+	            ns("queryID"),
+	            "",
+	            paste(
+	                "Sequence ID for extracting annotation",
+	                "OR for calculating FAS score"
+	            ),
+	            "top"
+	        )
+	    )
+	})
+	
+	# get list of reference annotations ========================================
+	getRefDir <- reactive({
+	    shinyDirChoose(
+	        input, "refAnnoDir", roots = homePath, session = session
+	    )
+	    refPath <- parseDirPath(homePath, input$refAnnoDir)
+	    return(replaceHomeCharacter(refPath))
+	})
+	
+	getRefAnno <- reactive({
+	    refPath <- getRefDir()
+	    refPathSub <- list.dirs(
+	        path = refPath, full.names = TRUE, recursive = FALSE
+	    )
+	    refList <- stringr::str_replace(refPathSub, paste0(refPath, "/"), "")
+	    return(refList)
+	})
+	
+	output$refProteome.ui <- renderUI({
+	    refAnnoList <- c("undefined")
 	    selectInput(
-	        ns("queryID"), "Query ID",
-	        choices = seqIDs,
-	        selected = seqIDs[1]
+	        ns("refProteome"), "Reference annotation",
+	        choices = c("undefined", getRefAnno()),
+	        selected = "undefined"
+	    )
+	})
+	
+	output$refProteome2.ui <- renderUI({
+	    refAnnoList <- c("undefined")
+	    selectInput(
+	        ns("refProteome2"), "Reference annotation (backward)",
+	        choices = c("undefined", getRefAnno()),
+	        selected = "undefined"
 	    )
 	})
 
 	# get output path ==========================================================
-	# getOutputPath <- reactive({
-	#     shinyDirChoose(
-	#         input, 'outAnnoDir', roots=c(wd='.') #roots = homePath
-	#     )
-	#     outputPath <- parseDirPath(homePath, input$outAnnoDir)
-	#     # outputPath <-
-	#     #     file.path(home, paste(unlist(outAnnoDir()$path[-1]), collapse = .Platform$file.sep))
-	#     # req(input$queryInput)
-	#     return(as.character(outputPath))
-	# })
+	getOutputPath <- reactive({
+	    shinyDirChoose(
+	        input, "outAnnoDir", roots = homePath, session = session
+	    )
+	    outputPath <- parseDirPath(homePath, input$outAnnoDir)
+	    return(replaceHomeCharacter(as.character(outputPath)))
+	})
 	
 	# generate new job ID ======================================================
 	observeEvent(input$newFasJob.btn, {
@@ -296,16 +757,61 @@ fasApp <- function(input, output, session) {
 	# annoFAS options ==========================================================
 	annoOptions <- reactive({
 	    fasta <- paste0("--fasta=", getSeedPath())
-	    if (input$addQueryCheck == TRUE) {
+	    path <- ""
+	    if (length(getOutputPath()) > 0) 
+	        path <- paste0("--path=", getOutputPath())
+	    name <- ""
+	    if (input$seedName != "") name <- paste0("--name=", input$seedName)
+	    
+	    if (input$addQueryCheck == TRUE && !is.null(input$annoObj)) {
 	        if (input$annoObj == "query") {
 	            fasta <- paste0("--fasta=", getQueryPath())
+	            name <- ""
+	            if (input$queryName != "") 
+	                name <- paste0("--name=", input$queryName)
 	        }
 	    }
-		# path <- paste0("--path=", getOutputPath())
-		path <- paste0("--path=", "/Users/bemun/Desktop/bionf/trvinh_github/phylosophy/tmp")
-		name <- paste0("--name=", input$seedName)
+	    redo <- ""
+	    if (input$redo != "all") redo <- paste0("--redo=", input$redo)
+	    force <- ""
+	    if (input$force == TRUE) force <- paste0("--force=", input$force)
+	    
+	    annoOption <- c(fasta, path, name, redo, force)
+	    
+	    extract <- ""
+	    if (input$extract == TRUE) {
+	        req(getRefDir())
+	        # name of existing annotation folder (identified by seed name)
+	        path <- paste0(
+	            "--path=", 
+	            getRefDir(), "/", input$seedName
+	        )
+	        # ID of sequence need to get annotation
+	        name <- paste0("--name=", input$seedID)
+	        # extract is output dir
+	        extract <- paste0(
+	            "--extract=", 
+	            getOutputPath(), "/", input$seedName, "_", input$seedID
+	        )
+	        
+	        if (input$addQueryCheck == TRUE && !is.null(input$annoObj)) {
+	            if (input$annoObj == "query") {
+	                path <- paste0(
+	                    "--path=", 
+	                    getRefDir(), "/", input$queryName
+	                )
+	                name <- paste0("--name=", input$queryID)
+	                extract <- paste0(
+	                    "--extract=", getOutputPath(), "/", 
+	                    input$queryName, "_", input$queryID
+	                )
+	            }
+	        }
+	        annoOption <- c(fasta, path, name, extract)
+	    }
+	    
 		return(
-			c(fasta, path, name)
+		    annoOption[unlist(lapply(annoOption, function (x) x != ""))]
 		)
 	})
 
@@ -315,7 +821,7 @@ fasApp <- function(input, output, session) {
 
 	# RUN annFAS ===============================================================
 	output$annoBtn.ui <- renderUI({
-	    if (length(input$seedInput) > 1) {
+	    if (length(input$seedInput) > 1 && length(input$outAnnoDir) > 1) {
 	        tagList(
 	            bsButton(
 	                ns("doAnno"), "Run annoFAS",
@@ -359,6 +865,7 @@ fasApp <- function(input, output, session) {
 	    timer = reactiveTimer(1000),
 	    started = FALSE
 	)
+	
 	observeEvent(input$doAnno, {
 	    rvAnno$started <- TRUE
 	    cmd <- paste(
@@ -366,6 +873,7 @@ fasApp <- function(input, output, session) {
 	        ">>",
 	        paste0(input$fasJob, ".anno.log")
 	    )
+	    
 	    # system2("python", cmd, wait = FALSE)
 	    system(cmd, wait = FALSE)
 	    updateButton(session, ns("doAnno"), disabled = TRUE)
@@ -391,17 +899,36 @@ fasApp <- function(input, output, session) {
 	    rvAnno$textstream
 	})
 	
-	
 	# greedyFAS options ========================================================
 	fasOptions <- reactive({
+	    req(input$addQueryCheck)
+	    req(getOutputPath())
+	    query <- ""
+	    if (input$queryName != "") 
+	        query <- paste0("--query=", getOutputPath(), "/", input$queryName)
+	    seed <- ""
+	    if (input$seedName != "") 
+	        seed <- paste0("--seed=", getOutputPath(), "/", input$seedName)
+	    job <- ""
+	    if (input$fasJob != "") 
+	        job <- paste0("--job=", getOutputPath(), "/", input$fasJob)
+	    rawOutput <- ""
+	    # if (input$)
+	        rawOutput <- paste0("--raw_output=", 2)
+	    
+	    fasOption <- c(query, seed, job, rawOutput)
 	    return(
-	        c("blablabla")
+	        fasOption[unlist(lapply(fasOption, function (x) x != ""))]
 	    )
+	})
+	
+	output$fasOptions.ui <- renderUI({
+	    HTML(paste(fasOptions(), collapse = "<br/>"))
 	})
 	
 	# RUN greedyFAS ============================================================
 	output$fasBtn.ui <- renderUI({
-	    if (length(input$seedInput) > 1 && length(input$queryInput) > 1) {
+	    if (input$addQueryCheck == TRUE && length(input$outAnnoDir) > 1) {
 	        tagList(
 	            bsButton(
 	                ns("doFAS"), "Run greedyFAS",
@@ -466,39 +993,53 @@ fasApp <- function(input, output, session) {
 			)
 		}
 	})
-	output$fasLog <- renderUI({
-		HTML(rvFas$textstream)
+	output$fasLog <- renderText({
+		rvFas$textstream
 	})
 
 	# report results ===========================================================
-	# output$logLocation <- renderText({
-	#     paste0(getwd(), "/", input$fasJob, ".log")
-	# })
-	#
-	# output$outputLocation <- renderText({
-	#     # get default output folder of hamstr
-	#     dataDir <- ""
-	#     oneseqPath <- getOneseqPath()
-	#     if (length(grep("oneSeq.pl", getOneseqPath()))) {
-	#         dataDir <- stringr::str_replace(
-	#             oneseqPath, "/bin/oneSeq.pl", "/data"
-	#         )
-	#     } else {
-	#         dataDir <- stringr::str_replace(
-	#             oneseqPath, "/bin/oneSeq", "/data"
-	#         )
-	#     }
-	#     # return output files
-	#     faOut <- paste0(dataDir, "/", input$fasJob, ".extended.fa")
-	#     if (input$useFAS == TRUE) {
-	#         ppOut <- paste0(dataDir, "/", input$fasJob, ".phyloprofile")
-	#         domainFwOut <- paste0(dataDir, "/", input$fasJob, "_1.domains")
-	#         domainRvOut <- paste0(
-	#             "[", dataDir, "/", input$fasJob, "_1.domains", "]"
-	#         )
-	#         paste(faOut, ppOut, domainFwOut, domainRvOut, sep = "\n")
-	#     } else {
-	#         faOut
-	#     }
-	# })
+	output$logAnnoLocation <- renderText({
+	    paste0(getwd(), "/", input$fasJob, ".anno.log")
+	})
+	
+	output$outputAnnoLocation <- renderText({
+	    req(getOutputPath())
+	    annoOutPath <- getOutputPath()
+	    jobName <- input$seedName
+	    if (input$addQueryCheck == TRUE  && !is.null(input$annoObj)) {
+	        if (input$annoObj == "query") {
+	            jobName <- input$queryName
+	        }
+	    }
+	    outFiles <- paste0(annoOutPath, "/", jobName, "/*.xml")
+	    
+	    if (input$extract == TRUE) {
+	        outFiles <- paste0(
+	            getOutputPath(), "/", input$seedName, "_", input$seedID,
+	            "/*.xml"
+	        )
+	        if (input$addQueryCheck == TRUE  && !is.null(input$annoObj)) {
+	            if (input$annoObj == "query") {
+	                outFiles <- paste0(
+	                    getOutputPath(), "/", input$queryName, "_", 
+	                    input$queryID, "/*.xml"
+	                )
+	            }
+            }
+	    }
+	    
+	    return(outFiles)
+	})
+	
+	output$logFasLocation <- renderText({
+	    paste0(getwd(), "/", input$fasJob, "fas.log")
+	})
+	
+	output$outputFasLocation <- renderText({
+	    req(getOutputPath())
+	    annoOutPath <- getOutputPath()
+	    jobName <- input$seedName
+	    
+	    return(strong("BLABLABLABLA"))
+	})
 }

@@ -5,7 +5,7 @@
 #' @author Vinh Tran {tran@bio.uni-frankfurt.de}
 #' @examples 
 #' randFn(1)
-randFn <- function(n = 5000) {
+randFn <- function (n = 5000) {
     a <- do.call(paste0, replicate(5, sample(LETTERS, n, TRUE), FALSE))
     paste0(
         a, sprintf("%04d", sample(9999, n, TRUE)), sample(LETTERS, n, TRUE)
@@ -17,7 +17,7 @@ randFn <- function(n = 5000) {
 #' @return list object contains sequence IDs from input file
 #' @author Vinh Tran {tran@bio.uni-frankfurt.de}
 #' @import Biostrings
-getSeqID <- function(file = NULL){
+getSeqID <- function (file = NULL){
     if (is.null(file)) stop("Input fasta file not provided!")
     faFile <- Biostrings::readAAStringSet(file)
     return(names(faFile))
@@ -27,8 +27,17 @@ getSeqID <- function(file = NULL){
 #' @param filePath complete path to a file
 #' @return file name and its extension
 #' @author Vinh Tran {tran@bio.uni-frankfurt.de}
-getFileName <- function(filePath = NULL) {
+getFileName <- function (filePath = NULL) {
     if (is.null(filePath)) stop ("No complete path given!")
     tmp <- strsplit(filePath, "/")[[1]]
     return(tmp[length(tmp)])
+}
+
+#' Replace ~ symbol by the name of home folder
+#' @param fullPath complete path to input file or folder
+#' @return complete path of input file or folder without ~ symbol
+#' @author Vinh Tran {tran@bio.uni-frankfurt.de}
+replaceHomeCharacter <- function (fullPath = NULL) {
+    homeName <- system("echo $HOME", intern = TRUE)
+    stringr::str_replace(fullPath, "~", homeName)
 }
