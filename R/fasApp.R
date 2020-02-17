@@ -103,7 +103,7 @@ fasAppUI <- function(id) {
 			    paste(
 			        "Provide folder for output annotation"
 			    ),
-			    "left"
+			    "top"
 			),
 			br(), br(),
 			
@@ -206,7 +206,7 @@ fasAppUI <- function(id) {
 			        paste(
 			            "Provide folder for existing reference annotation"
 			        ),
-			        "left"
+			        "top"
 			    ),
 			    
 			    uiOutput(ns("seedID.ui")),
@@ -326,11 +326,20 @@ fasAppUI <- function(id) {
 			        ),
 			        
 			        checkboxInput(
-			            ns("phyloprofile"), strong("PhyloProfile output"),
+			            ns("outputPhyloprofile"), strong("PhyloProfile output"),
 			            value = FALSE
 			        ),
+			        conditionalPanel(
+			            condition = "input.outputPhyloprofile", ns = ns,
+			            shinyFilesButton(
+			                ns("phyloprofile"), "Mapping file for PhyloProfile!" ,
+			                title = "Please provide mapping file for PhyloProfile",
+			                multiple = FALSE,
+			                buttonType = "default", class = NULL
+			            )
+			        ),
 			        bsPopover(
-			            ns("phyloprofile"),
+			            ns("outputPhyloprofile"),
 			            "",
 			            paste(
 			                "Activate phyloprofile output, needs mapping file",
@@ -358,7 +367,7 @@ fasAppUI <- function(id) {
 			        numericInput(
 			            ns("priorityThreshold"),
 			            strong("Threshold for priority mode"),
-			            min = 0, max = 999, step = 1, value = 5
+			            min = 0, max = 999, step = 1, value = 50
 			        ),
 			        bsPopover(
 			            ns("priorityThreshold"),
@@ -373,7 +382,7 @@ fasAppUI <- function(id) {
 			        numericInput(
 			            ns("maxCardinality"), 
 			            strong("Threshold for maximal cardinality"),
-			            min = 0, max = 999, step = 1, value = 5
+			            min = 0, max = 99999999, step = 1, value = 5000
 			        ),
 			        bsPopover(
 			            ns("maxCardinality"),
@@ -390,7 +399,7 @@ fasAppUI <- function(id) {
 			        numericInput(
 			            ns("efilter"),
 			            strong("HMM search e-value cutoff for feature (10^x)"),
-			            value = -5,
+			            value = -3,
 			            min = -99,
 			            max = 0,
 			            step = 1
@@ -410,7 +419,7 @@ fasAppUI <- function(id) {
 			            strong(
 			                "HMM search e-value cutoff for instances (10^x)"
 			            ),
-			            value = -5,
+			            value = -2,
 			            min = -99,
 			            max = 0,
 			            step = 1
@@ -446,11 +455,19 @@ fasAppUI <- function(id) {
 			            "top"
 			        ),
 			        
-			        shinyFilesButton(
-			            ns("weightConstraints"), "Weight constraints file!" ,
-			            title = "Please provide weight constraints file",
-			            multiple = FALSE,
-			            buttonType = "default", class = NULL
+			        checkboxInput(
+			            ns("useWeightConstraints"), 
+			            strong("Use weight constraints"),
+			            value = FALSE
+			        ),
+			        conditionalPanel(
+			            condition = "input.useWeightConstraints", ns = ns,
+			            shinyFilesButton(
+			                ns("weightConstraints"), "Weight constraints file!",
+			                title = "Please provide weight constraints file",
+			                multiple = FALSE,
+			                buttonType = "default", class = NULL
+			            )
 			        ),
 			        bsPopover(
 			            ns("weightConstraints"),
@@ -461,13 +478,19 @@ fasAppUI <- function(id) {
 			            ),
 			            "bottom"
 			        ),
-			        br(), br(),
 			        
-			        shinyFilesButton(
-			            ns("featureTypes"), "Feature types file!" ,
-			            title = "Please provide feature types file",
-			            multiple = FALSE,
-			            buttonType = "default", class = NULL
+			        checkboxInput(
+			            ns("limitFeatureTypes"), strong("Limit feature types"),
+			            value = FALSE
+			        ),
+			        conditionalPanel(
+			            condition = "input.limitFeatureTypes", ns = ns,
+			            shinyFilesButton(
+			                ns("featureTypes"), "Feature types file!" ,
+			                title = "Please provide feature types file",
+			                multiple = FALSE,
+			                buttonType = "default", class = NULL
+			            )
 			        ),
 			        bsPopover(
 			            ns("featureTypes"),
@@ -482,7 +505,7 @@ fasAppUI <- function(id) {
 			        numericInput(
 			            ns("maxOverlap"), 
 			            strong("Maximum overlape (number of amino acid)"),
-			            min = 0, max = 999, step = 1, value = 0
+			            min = 0, max = 99999, step = 1, value = 0
 			        ),
 			        bsPopover(
 			            ns("maxOverlap"),
@@ -512,7 +535,7 @@ fasAppUI <- function(id) {
 			        numericInput(
 			            ns("timelimit"), 
 			            strong("Time limit"),
-			            min = 0, max = 999, step = 1, value = 2
+			            min = 0, max = 99999999, step = 1, value = 7200
 			        ),
 			        bsPopover(
 			            ns("timelimit"),
@@ -532,7 +555,7 @@ fasAppUI <- function(id) {
 			        numericInput(
 			            ns("cores"), 
 			            strong("Number of cores"),
-			            min = 0, max = 999, step = 1, value = 1
+			            min = 1, max = 999, step = 1, value = 1
 			        ),
 			        bsPopover(
 			            ns("cores"),
@@ -900,6 +923,34 @@ fasApp <- function(input, output, session) {
 	})
 	
 	# greedyFAS options ========================================================
+	getPhyloprofileMapping <- reactive({
+	    shinyFileChoose(
+	        input, "phyloprofile", roots = homePath, session = session
+	    )
+	    fileSelected <- parseFilePaths(homePath, input$phyloprofile)
+	    req(input$phyloprofile)
+	    return(replaceHomeCharacter(as.character(fileSelected$datapath)))
+	})
+	
+	getWeightConstraints <- reactive({
+	    shinyFileChoose(
+	        input, "weightConstraints", roots = homePath, session = session
+	    )
+	    fileSelected <- parseFilePaths(homePath, input$weightConstraints)
+	    req(input$weightConstraints)
+	    return(replaceHomeCharacter(as.character(fileSelected$datapath)))
+	})
+	
+	getFeatureTypes <- reactive({
+	    shinyFileChoose(
+	        input, "featureTypes", roots = homePath, session = session
+	    )
+	    fileSelected <- parseFilePaths(homePath, input$featureTypes)
+	    req(input$featureTypes)
+	    return(replaceHomeCharacter(as.character(fileSelected$datapath)))
+	})
+	
+	
 	fasOptions <- reactive({
 	    req(input$addQueryCheck)
 	    req(getOutputPath())
@@ -913,10 +964,109 @@ fasApp <- function(input, output, session) {
 	    if (input$fasJob != "") 
 	        job <- paste0("--job=", getOutputPath(), "/", input$fasJob)
 	    rawOutput <- ""
-	    # if (input$)
+	    if (input$rawOutput != 2)
 	        rawOutput <- paste0("--raw_output=", 2)
+	    queryID <- ""
+	    if (input$queryID != "all")
+	        queryID <- paste0("--query_id=", input$queryID)
+	    seedID <- ""
+	    if (input$seedID != "all")
+	        seedID <- paste0("--seed_id=", input$seedID)
 	    
-	    fasOption <- c(query, seed, job, rawOutput)
+	    refProteome <- ""
+	    if (input$refProteome != "undefined")
+	        refProteome <- paste0("--ref_proteome=", input$refProteome)
+	    refProteome2 <- ""
+	    if (input$refProteome2 != "undefined")
+	        refProteome2 <- paste0("--ref_2=", input$refProteome2)
+	    
+	    bidirectional <- ""
+	    if (input$bidirectional == TRUE)
+	        bidirectional <- paste0("--bidirectional")
+	    
+	    featureInfo <- ""
+	    if (input$featureInfo == TRUE)
+	        featureInfo <- paste0("--feature_info")
+	    
+	    priorityThreshold <- ""
+	    if (input$priorityThreshold != "50") {
+	        priorityThreshold <- paste0(
+	            "--priority_threshold=", input$priorityThreshold
+	        )
+	    }
+	    maxCardinality <- ""
+	    if (input$maxCardinality != "5000") {
+	        maxCardinality <- paste0(
+	            "--max_cardinality=", input$maxCardinality
+	        )
+	    }
+	    
+	    efilter <- ""
+	    if (input$efilter != "-3")
+	        efilter <- paste0("--efilter=", 10^input$efilter)
+	    instEfilter <- ""
+	    if (input$instEfilter != "-2")
+	        instEfilter <- paste0("--inst_efilter=", 10^input$instEfilter)
+	    
+	    weightcorrection <- ""
+	    if (input$weightcorrection != "loge") {
+	        weightcorrection <- paste0(
+	            "--weightcorrection=", input$weightcorrection
+	        )
+	    }
+	    
+	    phyloprofile <- ""
+	    if (input$outputPhyloprofile == TRUE) {
+	        if (length(getPhyloprofileMapping()) > 0)
+	            phyloprofile <- paste0(
+	                "--phyloprofile=", getPhyloprofileMapping()
+	            )
+	    }
+	     
+	    weightConstraints <- ""
+	    if (input$useWeightConstraints == TRUE) {
+	        if (length(getWeightConstraints()) > 0) {
+	            weightConstraints <- paste0(
+	                "--weight_constraints=", getWeightConstraints()
+	            )
+	        }
+	    }
+	    
+	    featureTypes <- ""
+	    if (input$limitFeatureTypes == TRUE) {
+	        if (length(getFeatureTypes()) > 0) {
+	            featureTypes <- paste0(
+	                "--featuretypes=", getFeatureTypes()
+	            )
+	        }
+	    }
+	    
+	    maxOverlap <- ""
+	    if (input$maxOverlap > 0)
+	        maxOverlap <- paste0("--max_overlap=", input$maxOverlap)
+	    
+	    maxOverlapPercentage <- ""
+	    if (input$maxOverlapPercentage != 0.4) {
+	        maxOverlapPercentage <- paste0(
+	            "--max_overlap_percentage=", input$maxOverlapPercentage
+	        )
+	    }
+	    
+	    timelimit <- ""
+	    if (input$timelimit != 7200)
+	        timelimit <- paste0("--timelimit=", input$timelimit)
+	    
+	    cores <- ""
+	    if (input$cores > 1)
+	        cores <- paste0("--cores=", input$cores)
+	    
+	    fasOption <- c(
+	        query, seed, job, rawOutput, queryID, seedID, refProteome, 
+	        refProteome2, bidirectional, featureInfo, phyloprofile, 
+	        priorityThreshold, maxCardinality, efilter, instEfilter, 
+	        weightcorrection, weightConstraints, featureTypes, maxOverlap, 
+	        maxOverlapPercentage, timelimit, cores
+	    )
 	    return(
 	        fasOption[unlist(lapply(fasOption, function (x) x != ""))]
 	    )
@@ -945,7 +1095,7 @@ fasApp <- function(input, output, session) {
 		updateButton(session, ns("doFAS"), disabled = FALSE)
 		updateButton(session, ns("stopFAS"), disabled = FALSE)
 	})
-
+	
 	fasCmd <- reactive({
 		return(
 			paste(
@@ -1040,6 +1190,6 @@ fasApp <- function(input, output, session) {
 	    annoOutPath <- getOutputPath()
 	    jobName <- input$seedName
 	    
-	    return(strong("BLABLABLABLA"))
+	    return("BLABLABLABLA")
 	})
 }

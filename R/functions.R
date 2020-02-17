@@ -41,3 +41,4 @@ replaceHomeCharacter <- function (fullPath = NULL) {
     homeName <- system("echo $HOME", intern = TRUE)
     stringr::str_replace(fullPath, "~", homeName)
 }
+
