@@ -1,0 +1,18 @@
+Package: phylosophy
+Version: 0.0.1
+Date: 2020-02-19
+Title: phylosophy
+Authors@R: c(
+    person("Vinh", "Tran", role = c("aut", "cre"), email = "tran@bio.uni-frankfurt.de"))
+Description: PhyloProfile is a toolkit for generating and exploring complex phylogenetic profiles. It provides solutions for searching orthologs for a set of genes of interest, enhancing the functional linkages between query genes and their orthologs with feature similarity scores, and finally visually exploring the phylogenetic profiles of query genes.
+URL: https://github.com/BIONF/phylosophy/
+BugReports: https://github.com/BIONF/phylosophy/issues
+License: GPL-3 + file LICENSE
+Depends: R (>= 3.6.0)
+Encoding: UTF-8
+Imports:
+    Biostrings, ggplot2, shiny, shinyBS, shinyjs, stringr, PhyloProfile
+RoxygenNote: 7.0.2
+Suggests: knitr, rmarkdown, testthat
+VignetteBuilder: knitr
+

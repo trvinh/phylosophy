@@ -32,6 +32,6 @@ lapply(packages, library, character.only = TRUE)
 system("rm *.log")
 
 # add path
-old_path <- Sys.getenv("PATH")
-Sys.setenv(PATH = paste(old_path, "/opt/anaconda3/bin:/Users/bemun/.local/bin:/Users/bemun/Desktop/bionf/HaMStR/bin", sep = ":"))
-Sys.setenv(PERL = "usr/bin/perl")
+# old_path <- Sys.getenv("PATH")
+# Sys.setenv(PATH = paste(old_path, "/opt/anaconda3/bin:/Users/bemun/.local/bin:/Users/bemun/Desktop/bionf/HaMStR/bin", sep = ":"))
+# Sys.setenv(PERL = "usr/bin/perl")
