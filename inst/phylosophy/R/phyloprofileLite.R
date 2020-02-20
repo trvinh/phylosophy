@@ -1,19 +1,28 @@
 #' PhyloProfile module
 library(PhyloProfile)
 
-phyloprofileAppUI <- function(id) {
+phyloprofileLiteUI <- function(id) {
     ns <- NS(id)
     fluidPage(
         wellPanel(
             fluidRow(
                 column(
-                    1,
-                    createPlotSize(ns("width"), "Width (px)", 600),
+                    2,
+                    radioButtons(
+                        inputId = ns("xAxis"),
+                        label = "Choose type of x-axis:",
+                        choices = list("taxa", "genes"),
+                        selected = "taxa",
+                        inline = TRUE
+                    ),
                     actionButton(ns("mainPlotConfig"), "Appearance")
                 ),
                 column(
-                    1, createPlotSize(ns("height"), "Height (px)", 600),
-                    actionButton(ns("setColor"), "Set color")
+                    1,
+                    createPlotSize(ns("width"), "Width (px)", 600)
+                ),
+                column(
+                    1, createPlotSize(ns("height"), "Height (px)", 600)
                 ),
                 column(
                     2, uiOutput(ns("var1Cutoff.ui"))
@@ -48,13 +57,12 @@ phyloprofileAppUI <- function(id) {
             # * sidebar panel for input/options -----------------
             sidebarPanel(
                 width = 3,
-                uiOutput(ns("runPP.btn")),
+                strong("Input files"),
+                fileInput(ns("mainInput"), "Upload phyloprofile input:"),
+                fileInput(ns("fileDomainInput"), "Upload domain file:"),
                 hr(),
-                
-                fileInput(ns("mainInput"), h5("Upload phyloprofile input:")),
-                fileInput(ns("fileDomainInput"), h5("Upload domain file:")),
-                hr(), 
-                
+
+                strong("Set variable names"),
                 fluidRow(
                     column(
                         6, uiOutput(ns("var1ID.ui"))
@@ -63,43 +71,38 @@ phyloprofileAppUI <- function(id) {
                         6, uiOutput(ns("var2ID.ui"))
                     )
                 ),
-                
+
                 conditionalPanel(
                     condition = "output.unkTaxaStatus == 0", ns = ns,
-                    strong(h4("Seed (super)taxon:")),
-                    br(),
-                    
-                    strong(h5("Select taxonomy rank:")),
+                    strong("Seed (super)taxon:"),
                     uiOutput(ns("rankSelect.ui")),
-                    br(),
-                    
-                    strong(h5("Choose (super)taxon of interest:")),
                     uiOutput(ns("taxSelect.ui")),
-                    br(),
-                    
                     bsButton(
                         ns("do"),
                         "PLOT",
                         type = "action",
-                        style = "danger",
+                        style = "success",
                         disabled = FALSE
-                    ),
-                    h5("")
-                ),
-                hr() 
+                    )
+                )
             ),
             # * main panel for FAS run ----------------------------
             mainPanel(
                 width = 9,
-                strong("a lite version of phyloprofile"),
-                uiOutput(ns("test")),
                 conditionalPanel(
                     condition = "output.unkTaxaStatus == 1", ns = ns,
-                    strong("PLEASE USE THE FULL VERSION OF PHYLOPROFILE")
+                    # uiOutput(ns("unkMsg.ui"))
+                    # strong("PLEASE USE THE FULL VERSION OF PHYLOPROFILE")
+                    htmlOutput(ns("unkMsg")),
+                    DT::dataTableOutput(ns("unkTaxaFull")),
+                    tags$head(tags$style("#unkTaxaFull{color: red;
+                                 font-size: 20px;
+                                         font-style: italic;}"
+                         )
+                    )
                 ),
                 conditionalPanel(
                     condition = "input.do > 0", ns = ns,
-                    # createProfilePlotUI(ns("mainProfile"))
                     uiOutput(ns("plot.ui")),
                     br(),
                     downloadButton(ns("profileDownload"),"Download profile",
@@ -109,6 +112,73 @@ phyloprofileAppUI <- function(id) {
                             ".butDL{background-color:#476ba3;} .butDL{color: white;}"))
                     )
                 )
+            )
+        ),
+        
+        # * popup for setting Main plot configurations -------------------------
+        bsModal(
+            "mainPlotConfigBs",
+            "Plot appearance configuration",
+            ns("mainPlotConfig"),
+            size = "small",
+            column(
+                6, createTextSize(ns("xSize"), "X-axis label size (px)", 8, 100)
+            ),
+            column(
+                6, createTextSize(ns("ySize"), "Y-axis label size (px)", 8, 100)
+            ),
+            column(
+                6,
+                createTextSize(ns("legendSize"), "Legend label size (px)", 8, 150)
+            ),
+            column(
+                6,
+                selectInput(
+                    ns("mainLegend"), label = "Legend position:",
+                    choices = list("Right" = "right",
+                                   "Left" = "left",
+                                   "Top" = "top",
+                                   "Bottom" = "bottom",
+                                   "Hide" = "none"),
+                    selected = "right",
+                    width = 150
+                )
+            ),
+            column(
+                12,
+                HTML("<strong>Angle for x-axis label</strong>:<br>"),
+                sliderInput(
+                    ns("xAngle"),
+                    "",
+                    min = 0,
+                    max = 90,
+                    step = 10,
+                    value = 60,
+                    width = 250
+                )#,
+                # br()
+            ),
+            column(
+                12,
+                HTML("<strong>Zooming factor (α) for dots on
+                     profile</strong>:<br>"),
+                sliderInput(
+                    ns("dotZoom"), "",
+                    min = -1,
+                    max = 3,
+                    step = 0.1,
+                    value = 0,
+                    width = 250
+                ),
+                HTML("<em>dot size = (1+α)*defaultSize<br>defaultSize
+                     =[0:5]</em>"),
+                uiOutput(ns("dotSizeInfo")),
+                br()
+            ),
+            column(
+                12,
+                HTML("<strong>Change default colors</strong>:<br>"),
+                actionButton(ns("setColor"), "Set color")
             )
         ),
         
@@ -162,73 +232,6 @@ phyloprofileAppUI <- function(id) {
             )
         ),
         
-        # * popup for setting Main plot configurations -------------------------
-        bsModal(
-            "mainPlotConfigBs",
-            "Plot appearance configuration",
-            ns("mainPlotConfig"),
-            size = "small",
-            column(
-                6, createTextSize(ns("xSize"), "X-axis label size (px)", 8, 100)
-            ),
-            column(
-                6, createTextSize(ns("ySize"), "Y-axis label size (px)", 8, 100)
-            ),
-            column(
-                6,
-                createTextSize(ns("legendSize"), "Legend label size (px)", 8, 150)
-            ),
-            column(
-                6,
-                selectInput(
-                    ns("mainLegend"), label = "Legend position:",
-                    choices = list("Right" = "right",
-                                   "Left" = "left",
-                                   "Top" = "top",
-                                   "Bottom" = "bottom",
-                                   "Hide" = "none"),
-                    selected = "right",
-                    width = 150
-                )
-            ),
-            column(
-                12,
-                HTML("<strong>Angle for x-axis label</strong>:<br>"),
-                sliderInput(
-                    ns("xAngle"),
-                    "",
-                    min = 0,
-                    max = 90,
-                    step = 10,
-                    value = 60,
-                    width = 250
-                ),
-                br()
-            ),
-            column(
-                12,
-                HTML("<strong>Zooming factor (α) for dots on
-                     profile</strong>:<br>"),
-                sliderInput(
-                    ns("dotZoom"), "",
-                    min = -1,
-                    max = 3,
-                    step = 0.1,
-                    value = 0,
-                    width = 250
-                ),
-                HTML("<em>dot size = (1+α)*defaultSize<br>defaultSize
-                     =[0:5]</em>"),
-                uiOutput(ns("dotSizeInfo")),
-                br()
-            )
-            # ,
-            # br(),
-            # hr(),
-            # bsButton(ns("resetMainConfig"), "Reset", style = "danger"),
-            # bsButton(ns("applyMainConfig"), "Done", style = "warning")
-        ),
-        
         # POINT INFO BOX =======================================================
         absolutePanel(
             bottom = 5, left = 30,
@@ -241,54 +244,9 @@ phyloprofileAppUI <- function(id) {
     )
 }
 
-phyloprofileApp <- function(input, output, session) {
+phyloprofileLite <- function(input, output, session) {
     homePath = c(wd='~/') # for shinyFileChoose
     ns <- session$ns
-    
-    # * run full version of PhyloProfile ---------------------------------------
-    # check if phylosophy is run using rstudio or not
-    output$runPP.btn <- renderUI({
-        if (rstudioapi::isAvailable() == FALSE) {
-            tagList(
-                bsButton(
-                    ns("runPhyloProfile"), "Run PhyloProfile full",
-                    onclick = "window.open('https://applbio.biologie.uni-frankfurt.de/phyloprofile/', '_blank')"
-                ),
-                br(),
-                em("You are not using RStudio. An online version of PhyloProfile will be opened!")
-            )
-        } else {
-            bsButton(
-                ns("runPhyloProfile"), "Run PhyloProfile full"
-            )
-        }
-    })
-    
-    # check runPhyloProfile btn status 
-    v <- reactiveValues(runPPapp = FALSE)
-    observeEvent(input$runPhyloProfile, {
-        v$runPPapp <- input$runPhyloProfile
-    })
-    
-    # run phyloprofile app and return job ID
-    runPhyloprofile <- reactive({
-        req(v$runPPapp)
-        if (rstudioapi::isAvailable() == TRUE) {
-            filePath <- system.file(
-                "runPhyloProfileApp.R", package = "phylosophy", mustWork = TRUE
-            )
-            # phyloprofileJob <- rstudioapi::jobRunScript(path = filePath)
-            phyloprofileJob <- "RUN RUN RUN"
-            return(phyloprofileJob)
-        } else {
-            return("abc")
-        }
-    })
-    
-    output$test <- renderUI({
-        jobID <- runPhyloprofile()
-        jobID
-    })
     
     # * check the status of unkTaxa --------------------------------------------
     unkTaxa <- reactive({
@@ -369,6 +327,22 @@ phyloprofileApp <- function(input, output, session) {
     })
     outputOptions(output, "unkTaxaStatus", suspendWhenHidden = FALSE)
     
+    output$unkMsg <- renderText({
+        msg <- paste(
+            "Invalid taxa found in your input file.",
+            "Please use the full version of PhyloProfile!"
+        )
+        paste("<font color=\"#FF0000\"><b>", msg, "</b></font>")
+    })
+
+    output$unkTaxaFull <- DT::renderDataTable(
+        options = list(searching = FALSE, pageLength = 10),{
+            if (length(unkTaxa()) > 0) {
+                tb <- unkTaxa()
+                tb[, c("TaxonID", "Source")]
+            }
+        }
+    )
     
     # * check if data is loaded and "plot" button is clicked -------------------
     v <- reactiveValues(doPlot = FALSE)
@@ -522,7 +496,7 @@ phyloprofileApp <- function(input, output, session) {
     # * render list of taxonomy ranks ------------------------------------------
     output$rankSelect.ui <- renderUI({
         selectInput(
-            ns("rankSelect"), label = "",
+            ns("rankSelect"), label = "Select taxonomy rank:",
             choices = getTaxonomyRanks(),
             selected = "species"
         )
@@ -533,7 +507,7 @@ phyloprofileApp <- function(input, output, session) {
         choice <- inputTaxonName()
         choice$fullName <- as.factor(choice$fullName)
         selectInput(
-            ns("inSelect"), "",
+            ns("inSelect"), "Choose (super)taxon of interest:",
             as.list(levels(choice$fullName)),
             levels(choice$fullName)[1]
         )
@@ -773,7 +747,7 @@ phyloprofileApp <- function(input, output, session) {
     # * parameters for the main profile plot -----------------------------------
     getParameterInputMain <- reactive({
         inputPara <- list(
-            "xAxis" = "taxa", #input$xAxis,
+            "xAxis" = input$xAxis,
             "var1ID" = input$var1ID,
             "var2ID"  = input$var2ID,
             "lowColorVar1" =  input$lowColorVar1,
@@ -971,13 +945,13 @@ phyloprofileApp <- function(input, output, session) {
         if (is.null(input$plotClick$x)) return()
         else {
             # get cooridiate point
-            # if (parameters()$xAxis == "genes") {
-            #     corX <- round(input$plotClick$y);
-            #     corY <- round(input$plotClick$x)
-            # } else {
+            if (input$xAxis == "genes") {
+                corX <- round(input$plotClick$y);
+                corY <- round(input$plotClick$x)
+            } else {
                 corX <- round(input$plotClick$x);
                 corY <- round(input$plotClick$y)
-            # }
+            }
             
             # get geneID
             genes <- levels(dataHeat$geneID)

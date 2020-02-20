@@ -42,9 +42,26 @@ shinyUI(
             ),
             
             # PHYLOPROFILE TAB =================================================
-            tabPanel(
-            	"PhyloProfile",
-            	phyloprofileAppUI("phyloprofileApp")
+            navbarMenu(
+                "PhyloProfile",
+                tabPanel(
+                    "PhyloProfile Lite",
+                    phyloprofileLiteUI("phyloprofileLite")
+                ),
+                tabPanel(
+                    "PhyloProfile Full",
+                    # phyloprofileFullUI("phyloprofileFull")
+                    h3(
+                        "Use the full version to utilize all the features and capabilities 
+                        of PhyloProfile"
+                    ),
+                    hr(),
+                    uiOutput("runPP.btn"),
+                    br(),
+                    verbatimTextOutput("jobID"),
+                    br(),
+                    uiOutput("stopPP.btn")
+                )
             ),
 
             # HELP TAB =========================================================
