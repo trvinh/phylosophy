@@ -49,7 +49,7 @@ shinyUI(
 
             # HELP TAB =========================================================
             tabPanel(
-                "Hep",
+                "Help",
                 a(
                     "Readme",
                     href = "https://BIONF.github.io/phylosophy/",

@@ -11,7 +11,7 @@ License: GPL-3 + file LICENSE
 Depends: R (>= 3.6.0)
 Encoding: UTF-8
 Imports:
-    Biostrings, ggplot2, shiny, shinyBS, shinyjs, stringr, PhyloProfile
+    Biostrings, data.table, ggplot2, shiny, shinyBS, shinyjs, stringr, PhyloProfile
 RoxygenNote: 7.0.2
 Suggests: knitr, rmarkdown, testthat
 VignetteBuilder: knitr
