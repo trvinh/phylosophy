@@ -1,6 +1,6 @@
 # phylosophy
 
-PhyloProfile is an R toolkit for generating and exploring complex phylogenetic profiles. It provides solutions for searching orthologs for a set of genes of interest, enhancing the functional linkages between query genes and their orthologs with feature similarity scores, and finally visually exploring the phylogenetic profiles of query genes.
+*phylosophy* is an R toolkit for generating and exploring complex phylogenetic profiles. It provides solutions for searching orthologs for a set of genes of interest, enhancing the functional linkages between query genes and their orthologs with feature similarity scores, and finally visually exploring the phylogenetic profiles of query genes.
 
 # Table of Contents
 * [Installation](#installation)
