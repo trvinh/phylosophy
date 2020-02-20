@@ -44,29 +44,25 @@ shinyUI(
             # PHYLOPROFILE TAB =================================================
             tabPanel(
             	"PhyloProfile",
-            	bsButton(
-            	    "runPhyloProfile", "Run PhyloProfile",
-            	    onclick = "window.open('https://applbio.biologie.uni-frankfurt.de/phyloprofile/', '_blank')"
-            	),
-            	htmlOutput("phyloprofile")
+            	phyloprofileAppUI("phyloprofileApp")
             ),
 
             # HELP TAB =========================================================
-            navbarMenu(
-                "Help",
-                tabPanel(
-                    a(
-                        "Wiki",
-                        href = "https://github.com/BIONF/PhyloProfile/wiki",
-                        target = "_blank"
-                    )
+            tabPanel(
+                "Hep",
+                a(
+                    "Readme",
+                    href = "https://BIONF.github.io/phylosophy/",
+                    target = "_blank"
                 ),
-                tabPanel(
-                    a(
-                        "About",
-                        href = "https://BIONF.github.io/PhyloProfile/",
-                        target = "_blank"
-                    )
+                br(),
+                a(
+                    "Contact us",
+                    href = paste0(
+                        "mailto:tran@bio.uni-frankfurt.de?",
+                        "subject=phylosophy question"
+                    ),
+                    target = "_blank"
                 )
             )
         )
