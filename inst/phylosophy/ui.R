@@ -50,17 +50,7 @@ shinyUI(
                 ),
                 tabPanel(
                     "PhyloProfile Full",
-                    # phyloprofileFullUI("phyloprofileFull")
-                    h3(
-                        "Use the full version to utilize all the features and capabilities 
-                        of PhyloProfile"
-                    ),
-                    hr(),
-                    uiOutput("runPP.btn"),
-                    br(),
-                    verbatimTextOutput("jobID"),
-                    br(),
-                    uiOutput("stopPP.btn")
+                    phyloprofileFullUI("phyloprofileFull")
                 )
             ),
 

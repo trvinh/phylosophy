@@ -31,12 +31,30 @@ phyloprofileFull <- function(input, output, session) {
                     onclick = "window.open('https://applbio.biologie.uni-frankfurt.de/phyloprofile/', '_blank')"
                 ),
                 br(), br(),
-                em("You are not using RStudio. An online version of PhyloProfile will be opened!")
+                em(
+                    "You are not using RStudio. An online version of 
+                    PhyloProfile will be opened!"
+                )
             )
         } else {
-            bsButton(
-                ns("runPhyloProfile"), "Run PhyloProfile full"
-            )
+            currentVersion <- rstudioapi::versionInfo()$version
+            if (currentVersion >= '1.2') {
+                bsButton(
+                    ns("runPhyloProfile"), "Run PhyloProfile full"
+                )
+            } else {
+                tagList(
+                    bsButton(
+                        ns("runPhyloProfile"), "Run PhyloProfile full",
+                        onclick = "window.open('https://applbio.biologie.uni-frankfurt.de/phyloprofile/', '_blank')"
+                    ),
+                    br(), br(),
+                    em(
+                        "You are using an older RStudio version than v1.2. 
+                        An online version of PhyloProfile will be opened!"
+                    )
+                )
+            }
         }
     })
     
@@ -47,16 +65,16 @@ phyloprofileFull <- function(input, output, session) {
     })
     
     # run phyloprofile app and return job ID
-    jobIDv <- reactiveValues()
+    # jobIDv <- reactiveValues()
     runPhyloprofile <- reactive({
         req(v$runPPapp)
         if (rstudioapi::isAvailable() == TRUE) {
             filePath <- system.file(
                 "runPhyloProfileApp.R", package = "phylosophy", mustWork = TRUE
             )
-            jobIDv <- rstudioapi::jobRunScript(path = filePath)
+            v$jobID <- rstudioapi::jobRunScript(path = filePath)
             # phyloprofileJob <- "RUN RUN RUN"
-            return(jobIDv)
+            return(v$jobID)
         } else {
             return(NULL)
         }
@@ -65,6 +83,7 @@ phyloprofileFull <- function(input, output, session) {
     # get job ID for local phyloprofile job
     output$jobID <- renderText({
         jobID <- runPhyloprofile()
+        updateButton(session, ns("runPhyloProfile"), disabled = TRUE)
         if (!is.null(jobID)) {
             return(paste("Job ID:", jobID))
         }
@@ -81,7 +100,8 @@ phyloprofileFull <- function(input, output, session) {
     })
     
     observeEvent(input$stopPhyloProfile, {
-        jobRemove(jobIDv)
+        rstudioapi::jobRemove(v$jobID)
+        updateButton(session, ns("stopPhyloProfile"), disabled = TRUE)
     })
 }
 

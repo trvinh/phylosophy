@@ -1,4 +1,3 @@
-# FUNCTIONS FOR RENDER UI ELEMENTS ============================================
 createSliderCutoff <- function(id, title, start, stop, varID){
     if (is.null(varID)) return()
     if (varID == "") {
