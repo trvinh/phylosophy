@@ -848,7 +848,7 @@ fasApp <- function(input, output, session) {
             tagList(
                 bsButton(
                     ns("doAnno"), "Run annoFAS",
-                    style = "warning", disabled = FALSE
+                    style = "success", disabled = FALSE
                 ),
                 actionButton(ns("stopAnno"),label = "Stop"),
                 actionButton(ns("newAnno"),label = "New job"),
@@ -1080,7 +1080,7 @@ fasApp <- function(input, output, session) {
             tagList(
                 bsButton(
                     ns("doFAS"), "Run greedyFAS",
-                    style = "warning", disabled = FALSE
+                    style = "success", disabled = FALSE
                 ),
                 actionButton(ns("stopFAS"),label = "Stop"),
                 actionButton(ns("newFAS"),label = "New job"),

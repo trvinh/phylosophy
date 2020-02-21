@@ -8,20 +8,19 @@ phyloprofileFullUI <- function(id) {
             "Use the full version to utilize all the features and capabilities 
             of PhyloProfile"
         ),
+        tags$img(src="posterSub.png"),
         hr(),
         uiOutput(ns("runPP.btn")),
         br(),
         verbatimTextOutput(ns("jobID")),
         br(),
         uiOutput(ns("stopPP.btn"))
-        
     )
 }
 
 phyloprofileFull <- function(input, output, session) {
     ns <- session$ns
     
-    # * run full version of PhyloProfile ---------------------------------------
     # check if phylosophy is run using rstudio or not
     output$runPP.btn <- renderUI({
         if (rstudioapi::isAvailable() == FALSE) {
@@ -40,12 +39,14 @@ phyloprofileFull <- function(input, output, session) {
             currentVersion <- rstudioapi::versionInfo()$version
             if (currentVersion >= '1.2') {
                 bsButton(
-                    ns("runPhyloProfile"), "Run PhyloProfile full"
+                    ns("runPhyloProfile"), "Run PhyloProfile full",
+                    style = "success"
                 )
             } else {
                 tagList(
                     bsButton(
                         ns("runPhyloProfile"), "Run PhyloProfile full",
+                        style = "success",
                         onclick = "window.open('https://applbio.biologie.uni-frankfurt.de/phyloprofile/', '_blank')"
                     ),
                     br(), br(),
@@ -73,7 +74,6 @@ phyloprofileFull <- function(input, output, session) {
                 "runPhyloProfileApp.R", package = "phylosophy", mustWork = TRUE
             )
             v$jobID <- rstudioapi::jobRunScript(path = filePath)
-            # phyloprofileJob <- "RUN RUN RUN"
             return(v$jobID)
         } else {
             return(NULL)
@@ -93,8 +93,10 @@ phyloprofileFull <- function(input, output, session) {
     output$stopPP.btn <- renderUI({
         req(v$runPPapp)
         if (rstudioapi::isAvailable() == TRUE) {
-            bsButton(
-                ns("stopPhyloProfile"), "Kill job!"
+            tagList(
+                bsButton(ns("stopPhyloProfile"), "Kill job!"),
+                br(),
+                em("Remember to close the PhyloProfile tab on your browser!")
             )
         }
     })

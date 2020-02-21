@@ -1082,7 +1082,7 @@ hamstrApp <- function(input, output, session) {
                 tagList(
                     bsButton(
                         ns("doHamstr"), "Run HaMStR",
-                        style = "warning", disabled = FALSE
+                        style = "success", disabled = FALSE
                     ),
                     actionButton(ns("stopHamstr"),label = "Stop"),
                     actionButton(ns("newHamstr"),label = "New job"),

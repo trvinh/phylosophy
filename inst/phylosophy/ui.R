@@ -21,7 +21,8 @@ shinyUI(
             # DCC TAB ==========================================================
             tabPanel(
               "INTRODUCTION",
-              h1("WELCOME TO PHYLOSOPHY WORLD!")
+              h1("WELCOME TO PHYLOSOPHY WORLD!"),
+              tags$img(src="wordcloud.png")
             ),
             
             # FAS TAB ==========================================================
