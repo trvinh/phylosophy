@@ -326,6 +326,19 @@ fasAppUI <- function(id) {
                     ),
                     
                     checkboxInput(
+                        ns("outputDomain"), strong("Domain tabular output"),
+                        value = TRUE
+                    ),
+                    bsPopover(
+                        ns("outputDomain"),
+                        "",
+                        paste(
+                            "Activate domain tabular output"
+                        ),
+                        "bottom"
+                    ),
+                    
+                    checkboxInput(
                         ns("outputPhyloprofile"), strong("PhyloProfile output"),
                         value = FALSE
                     ),
@@ -569,7 +582,7 @@ fasAppUI <- function(id) {
                 )
             )
         ),
-        # * main panel for FAS run ----------------------------
+        # * main panel for annoFAS and greedyFAS -------------------------------
         mainPanel(
             width = 9,
             column(
@@ -606,7 +619,32 @@ fasAppUI <- function(id) {
                 strong("Command"),
                 verbatimTextOutput(ns("fasCmdText")),
                 strong("Progress"),
-                verbatimTextOutput(ns("fasLog"))
+                verbatimTextOutput(ns("fasLog")),
+                hr(),
+                bsButton(
+                    ns("doPlot"), "Plot feature architecture", 
+                    style = "info", disabled = TRUE
+                )
+            ),
+            
+            # * popup for domain plot ------------------------------------------
+            bsModal(
+                "domainPlot",
+                "Protein feature architecture plot",
+                ns("doPlot"),
+                size = "large",
+                wellPanel(
+                    column(
+                        6,
+                        uiOutput(ns("seedIDplot.ui")),
+                    ),
+                    column(
+                        6,
+                        uiOutput(ns("queryIDplot.ui")),
+                    )
+                ),
+                hr(),
+                uiOutput(ns("archiPlot.ui"))
             )
         )
     )
@@ -797,7 +835,7 @@ fasApp <- function(input, output, session) {
         redo <- ""
         if (input$redo != "all") redo <- paste0("--redo=", input$redo)
         force <- ""
-        if (input$force == TRUE) force <- paste0("--force=", input$force)
+        if (input$force == TRUE) force <- paste0("--force")
         
         annoOption <- c(fasta, path, name, redo, force)
         
@@ -966,10 +1004,10 @@ fasApp <- function(input, output, session) {
         rawOutput <- paste0("--raw_output=", input$rawOutput)
         queryID <- ""
         if (input$queryID != "all")
-            queryID <- paste0("--query_id=", input$queryID)
+            queryID <- paste0("--query_id=\"", input$queryID, "\"")
         seedID <- ""
         if (input$seedID != "all")
-            seedID <- paste0("--seed_id=", input$seedID)
+            seedID <- paste0("--seed_id=\"", input$seedID, "\"")
         
         refProteome <- ""
         if (input$refProteome != "undefined")
@@ -1021,6 +1059,9 @@ fasApp <- function(input, output, session) {
                 )
         }
         
+        domain <- paste("--domain")
+        if (input$outputDomain == FALSE) domain <- ""
+        
         weightConstraints <- ""
         if (input$useWeightConstraints == TRUE) {
             if (length(getWeightConstraints()) > 0) {
@@ -1060,7 +1101,7 @@ fasApp <- function(input, output, session) {
         
         fasOption <- c(
             query, seed, job, rawOutput, queryID, seedID, refProteome, 
-            refProteome2, bidirectional, featureInfo, phyloprofile, 
+            refProteome2, bidirectional, featureInfo, phyloprofile, domain,
             priorityThreshold, maxCardinality, efilter, instEfilter, 
             weightcorrection, weightConstraints, featureTypes, maxOverlap, 
             maxOverlapPercentage, timelimit, cores
@@ -1124,6 +1165,7 @@ fasApp <- function(input, output, session) {
         system(cmd, wait = FALSE)
         updateButton(session, ns("doFAS"), disabled = TRUE)
         updateButton(session, ns("newFasJob.btn"), disabled = TRUE)
+        updateButton(session, ns("doPlot"), disabled = FALSE)
     })
     
     observeEvent(input$stopFAS, {
@@ -1143,6 +1185,85 @@ fasApp <- function(input, output, session) {
     })
     output$fasLog <- renderText({
         rvFas$textstream
+    })
+    
+    # render domain plot =======================================================
+    output$seedIDplot.ui <- renderUI({
+        req(input$seedID)
+        seqIDs <- getSeqID(getSeedPath())
+        if (input$seedID == "all") {
+            selectInput(
+                ns("seedIDplot"), "Seed ID",
+                choices = seqIDs,
+                selected = seqIDs[1]
+            )
+        } else {
+            selectInput(
+                ns("seedIDplot"), "Seed ID",
+                choices = seqIDs,
+                selected = input$seedID
+            )
+        }
+    })
+    
+    output$queryIDplot.ui <- renderUI({
+        req(input$queryID)
+        seqIDs <- getSeqID(getQueryPath())
+        if (input$queryID == "all") {
+            selectInput(
+                ns("queryIDplot"), "Query ID",
+                choices = seqIDs,
+                selected = seqIDs[1]
+            )
+        } else {
+            selectInput(
+                ns("queryIDplot"), "Query ID",
+                choices = seqIDs,
+                selected = input$queryID
+            )
+        }
+    })
+        
+    getDomainInformation <- reactive({
+        req(input$doFAS)
+        req(input$doPlot)
+        inputDomain <- paste0(
+            getOutputPath(), "/", input$fasJob, "_forward.domains"
+        )
+        withProgress(message = 'Reading domain input...', value = 0.5, {
+            domainDf <- parseDomainInput(
+                NULL,
+                inputDomain,
+                "file"
+            )
+            return(domainDf)
+        })
+    })
+
+    output$archiPlot <- renderPlot({
+        if (input$doPlot > 0) {
+            seedID <- input$fasJob
+            orthoID <- input$queryID #plot
+            orthoID <- gsub("\\|", ":", orthoID)
+            info <- c(seedID, orthoID)
+            g <- createArchiPlot(
+                info, getDomainInformation(), 12, 12
+            )
+            if (any(g == "No domain info available!")) {
+                return("No domain info available!")
+            } else {
+                grid::grid.draw(g)
+            }
+        }
+    })
+
+    output$archiPlot.ui <- renderUI({
+        ns <- session$ns
+        plotOutput(
+            ns("archiPlot"),
+            height = 400,
+            width = 800
+        )
     })
     
     # report results ===========================================================
@@ -1175,7 +1296,6 @@ fasApp <- function(input, output, session) {
                 }
             }
         }
-        
         return(outFiles)
     })
     
@@ -1186,7 +1306,7 @@ fasApp <- function(input, output, session) {
     output$outputFasLocation <- renderText({
         req(getOutputPath())
         annoOutPath <- getOutputPath()
-        jobName <- input$seedName
+        jobName <- input$fasJob
         
         if (input$addQueryCheck == TRUE) {
             fasFile <- paste0(
@@ -1195,14 +1315,27 @@ fasApp <- function(input, output, session) {
             archiFile <- paste0(
                 getOutputPath(), "/", jobName, "_architecture.xml"
             )
+            revFile <- ""
             if (input$bidirectional == TRUE) {
                 revFile <- paste0(
                     getOutputPath(), "/", jobName, "_reverse.xml"
                 )
-            } else {
-                revFile <- ""
             }
-            return(paste(fasFile, archiFile, revFile, sep = "\n"))
+            domainOut <- ""
+            if (input$outputDomain == TRUE) {
+                domainOut <- paste0(
+                    getOutputPath(), "/", jobName, "_*.domains"
+                )
+            }
+            ppOut <- ""
+            if (input$phyloprofile == TRUE) {
+                ppOut <- paste0(
+                    getOutputPath(), "/", jobName, ".phyloprofile"
+                )
+            }
+            return(
+                paste(fasFile, archiFile, revFile, ppOut, domainOut, sep = "\n")
+            )
         } else {
             return("")
         }
