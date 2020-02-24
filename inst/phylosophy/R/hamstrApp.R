@@ -1145,12 +1145,14 @@ hamstrApp <- function(input, output, session) {
     observe({
         rv$timer()
         if (isolate(rv$started)) {
-            rv$textstream <- suppressWarnings(
-                paste(
-                    readLines(paste0(input$seqName, ".log"),  n = -1) %>% 
-                        tail(50) %>% paste(collapse = "\n")
+            if (file.exists(paste0(input$seqName, ".log"))) {
+                rv$textstream <- suppressWarnings(
+                    paste(
+                        readLines(paste0(input$seqName, ".log"),  n = -1) %>% 
+                            tail(50) %>% paste(collapse = "\n")
+                    )
                 )
-            )
+            }
         }
     })
     output$hamstrLog <- renderText({

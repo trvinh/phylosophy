@@ -633,18 +633,19 @@ fasAppUI <- function(id) {
                 "Protein feature architecture plot",
                 ns("doPlot"),
                 size = "large",
-                wellPanel(
-                    column(
-                        6,
-                        uiOutput(ns("seedIDplot.ui")),
-                    ),
-                    column(
-                        6,
-                        uiOutput(ns("queryIDplot.ui")),
-                    )
+                column(
+                    6,
+                    uiOutput(ns("seedIDplot.ui")),
+                ),
+                column(
+                    6,
+                    uiOutput(ns("queryIDplot.ui")),
                 ),
                 hr(),
-                uiOutput(ns("archiPlotFas.ui"))
+                column(
+                    12,
+                    uiOutput(ns("archiPlotFas.ui"))
+                )
             )
         )
     )
@@ -950,10 +951,12 @@ fasApp <- function(input, output, session) {
     observe({
         rvAnno$timer()
         if (isolate(rvAnno$started)) {
-            rvAnno$textstream <- suppressWarnings(
-                readLines(paste0(input$fasJob, ".anno.log"),  n = -1) %>% 
-                    tail(50) %>% paste(collapse = "\n")
-            )
+            if (file.exists(paste0(input$fasJob, ".anno.log"))) {
+                rvAnno$textstream <- suppressWarnings(
+                    readLines(paste0(input$fasJob, ".anno.log"),  n = -1) %>% 
+                        tail(50) %>% paste(collapse = "\n")
+                )
+            }
         }
     })
     output$annoLog <- renderText({
@@ -1177,10 +1180,12 @@ fasApp <- function(input, output, session) {
     observe({
         rvFas$timer()
         if (isolate(rvFas$started)) {
-            rvFas$textstream <- suppressWarnings(
-                readLines(paste0(input$fasJob, ".fas.log"),  n = -1) %>% 
-                    tail(50) %>% paste(collapse = "\n")
-            )
+            if (file.exists(paste0(input$fasJob, ".fas.log"))) {
+                rvFas$textstream <- suppressWarnings(
+                    readLines(paste0(input$fasJob, ".fas.log"),  n = -1) %>% 
+                        tail(50) %>% paste(collapse = "\n")
+                )
+            }
         }
     })
     output$fasLog <- renderText({
@@ -1200,7 +1205,7 @@ fasApp <- function(input, output, session) {
         } else {
             selectInput(
                 ns("seedIDplot"), "Seed ID",
-                choices = seqIDs,
+                choices = input$seedID, #seqIDs,
                 selected = input$seedID
             )
         }
@@ -1218,7 +1223,7 @@ fasApp <- function(input, output, session) {
         } else {
             selectInput(
                 ns("queryIDplot"), "Query ID",
-                choices = seqIDs,
+                choices = input$queryID, #seqIDs,
                 selected = input$queryID
             )
         }
@@ -1242,8 +1247,9 @@ fasApp <- function(input, output, session) {
 
     output$archiPlot <- renderPlot({
         if (input$doPlot > 0) {
-            seedID <- input$fasJob
-            orthoID <- input$queryID #plot
+            seedID <- input$seedIDplot
+            seedID <- gsub("\\|", ":", seedID)
+            orthoID <- input$queryIDplot
             orthoID <- gsub("\\|", ":", orthoID)
             info <- c(seedID, orthoID)
             g <- createArchiPlot(
