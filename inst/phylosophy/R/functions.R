@@ -45,3 +45,28 @@ createTextSize <- function(id, title, value, width) {
                  value = value,
                  width = width)
 }
+
+msgPlot <- function() {
+    msg <- paste(
+        "No information about domain architecture!",
+        "Please check:","if you uploaded the correct domain file/folder; or ",
+        "if the selected genes (seed & ortholog) do exist in the uploaded file",
+        "(please search for the corresponding seedID and hitID)",
+        sep = "\n"
+    )
+    x <- c(1,2,3,4,5)
+    y <- c(1,2,3,4,5)
+    g <- ggplot(data.frame(x, y), aes(x,y)) +
+        geom_point(color = "white") +
+        annotate(
+            "text", label = msg, x = 3.5, y = 0.5, size = 5, colour = "red"
+        ) +
+        theme(axis.line = element_blank(), axis.text = element_blank(),
+              axis.ticks = element_blank(), axis.title = element_blank(),
+              panel.background = element_blank(),
+              panel.border = element_blank(),
+              panel.grid = element_blank(),
+              plot.background = element_blank()) +
+        ylim(0,1)
+    return(g)
+}

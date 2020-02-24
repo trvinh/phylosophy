@@ -644,7 +644,7 @@ fasAppUI <- function(id) {
                     )
                 ),
                 hr(),
-                uiOutput(ns("archiPlot.ui"))
+                uiOutput(ns("archiPlotFas.ui"))
             )
         )
     )
@@ -1250,14 +1250,14 @@ fasApp <- function(input, output, session) {
                 info, getDomainInformation(), 12, 12
             )
             if (any(g == "No domain info available!")) {
-                return("No domain info available!")
+                msgPlot()
             } else {
                 grid::grid.draw(g)
             }
         }
     })
 
-    output$archiPlot.ui <- renderUI({
+    output$archiPlotFas.ui <- renderUI({
         ns <- session$ns
         plotOutput(
             ns("archiPlot"),

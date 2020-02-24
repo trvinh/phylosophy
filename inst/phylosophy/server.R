@@ -12,10 +12,10 @@ shinyServer(function(input, output, session) {
     callModule(fasApp, "fasApp")
 	
 	# HaMStR app
-	callModule(hamstrApp, "hamstrApp")
+	hamstrOut <- callModule(hamstrApp, "hamstrApp")
 	
 	# PhyloProfile lite
-	callModule(phyloprofileLite, "phyloprofileLite")
+	callModule(phyloprofileLite, "phyloprofileLite", hamstrOut)
 	
 	# PhyloProfile full
 	callModule(phyloprofileFull, "phyloprofileFull")

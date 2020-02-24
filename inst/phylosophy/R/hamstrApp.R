@@ -887,7 +887,10 @@ hamstrApp <- function(input, output, session) {
         req(getInputPath())
         # copy input file to hamstr/data folder
         dataDir <- getSubFolderDir(getHamstrPath(), "data")
-        system2("cp", paste(getInputPath(), dataDir, sep = " "), wait = TRUE)
+        system2(
+            "rsync", paste("-aq", getInputPath(), dataDir, sep = " "), 
+            wait = TRUE
+        )
         
         # seqFile <- paste0("-seqFile=", "infile.fa")
         seqFile <- paste0("-seqFile=", getFileName(getInputPath()))
@@ -1159,23 +1162,43 @@ hamstrApp <- function(input, output, session) {
         paste0(getwd(), "/", input$seqName, ".log")
     })
     
-    output$outputLocation <- renderText({
+    returnOutput <- reactive({
         req(getHamstrPath())
         req(getInputPath())
         # get default output folder of hamstr
         dataDir <- getSubFolderDir(getHamstrPath(), "data")
         # return output files
         faOut <- paste0(dataDir, "/", input$seqName, ".extended.fa")
+        ppOut <- paste0(dataDir, "/", input$seqName, ".phyloprofile")
         if (input$useFAS == TRUE) {
-            inFaOut <- paste0(dataDir, "/", getFileName(getInputPath()))
-            ppOut <- paste0(dataDir, "/", input$seqName, ".phyloprofile")
             domainFwOut <- paste0(dataDir, "/", input$seqName, "_1.domains")
-            domainRvOut <- paste0(
-                "[", dataDir, "/", input$seqName, "_1.domains", "]"
-            )
-            paste(inFaOut, faOut, ppOut, domainFwOut, domainRvOut, sep = "\n")
+            return(c(faOut, ppOut, domainFwOut))
         } else {
-            faOut
+            return(c(faOut, ppOut, NULL))
         }
     })
+    
+    output$outputLocation <- renderText({
+        # req(getHamstrPath())
+        # req(getInputPath())
+        # # get default output folder of hamstr
+        # dataDir <- getSubFolderDir(getHamstrPath(), "data")
+        # # return output files
+        # faOut <- paste0(dataDir, "/", input$seqName, ".extended.fa")
+        # ppOut <- paste0(dataDir, "/", input$seqName, ".phyloprofile")
+        # if (input$useFAS == TRUE) {
+        #     inFaOut <- paste0(dataDir, "/", getFileName(getInputPath()))
+        #     domainFwOut <- paste0(dataDir, "/", input$seqName, "_1.domains")
+        #     domainRvOut <- paste0(
+        #         "[", dataDir, "/", input$seqName, "_0.domains", "]"
+        #     )
+        #     paste(inFaOut, faOut, ppOut, domainFwOut, domainRvOut, sep = "\n")
+        # } else {
+        #     paete(faOut, ppOut, sep = "\n")
+        # }
+        return(paste(returnOutput(), collapse = "\n"))
+    })
+    
+    # return
+    return(returnOutput)
 }

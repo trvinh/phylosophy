@@ -54,14 +54,24 @@ phyloprofileLiteUI <- function(id) {
             )
         ),
         sidebarLayout(
-            # * sidebar panel for input/options -----------------
+            # sidebar panel for input/options -----------------
             sidebarPanel(
                 width = 3,
                 strong("Input files"),
-                fileInput(ns("mainInput"), "Upload phyloprofile input:"),
-                fileInput(ns("fileDomainInput"), "Upload domain file:"),
+                checkboxInput(
+                    ns("useHamstr"), em("Use HaMStR output"),
+                    value = FALSE
+                ),
+                conditionalPanel(
+                    condition = "input.useHamstr", ns = ns,
+                    "PhyloProfile input",
+                    verbatimTextOutput(ns("inputPP")),
+                    "Domain input",
+                    verbatimTextOutput(ns("inputDomain"))
+                ),
+                uiOutput(ns("input.ui")),
                 hr(),
-
+                
                 strong("Set variable names"),
                 fluidRow(
                     column(
@@ -86,7 +96,7 @@ phyloprofileLiteUI <- function(id) {
                     )
                 )
             ),
-            # * main panel for FAS run ----------------------------
+            # main panel for FAS run ----------------------------
             mainPanel(
                 width = 9,
                 conditionalPanel(
@@ -115,7 +125,7 @@ phyloprofileLiteUI <- function(id) {
             )
         ),
         
-        # * popup for setting Main plot configurations -------------------------
+        # popup for setting Main plot configurations -------------------------
         bsModal(
             "mainPlotConfigBs",
             "Plot appearance configuration",
@@ -182,7 +192,7 @@ phyloprofileLiteUI <- function(id) {
             )
         ),
         
-        # * popup for setting plot colors (profiles) ---------------------------
+        # popup for setting plot colors (profiles) ---------------------------
         bsModal(
             "color",
             "Set colors for profile",
@@ -239,16 +249,129 @@ phyloprofileLiteUI <- function(id) {
             draggable = TRUE,
             h5("Point's info:"),
             verbatimTextOutput(ns("pointInfo")),
+            conditionalPanel(
+                condition = "output.pointInfoStatus == 0", ns = ns,
+                bsButton(
+                    ns("doDomainPlot"),
+                    "Show domain architecture",
+                    style = "success",
+                    disabled = FALSE
+                )
+            ),
             style = "opacity: 0.80"
+        ),
+        
+        # popup for plotting domain architecture plot ------------------------
+        bsModal(
+            "plotArchi",
+            "Domain architecture",
+            ns("doDomainPlot"),
+            size = "large",
+            fluidRow(
+                column(
+                    3, 
+                    createPlotSize(ns("archiHeight"), "Plot height(px)", 400),
+                    createPlotSize(ns("archiWidth"), "Plot width(px)", 800)
+                ),
+                column(
+                    3,
+                    createTextSize(
+                        ns("titleArchiSize"), "Title size(px)", 11, 150
+                    ),
+                    createTextSize(
+                        ns("labelArchiSize"), "SeqID size(px)", 11, 150
+                    )
+                ),
+                column(
+                    6,
+                    uiOutput(ns("seedID.ui")),
+                    uiOutput(ns("queryID.ui"))
+                )
+            ),
+            hr(),
+            uiOutput(ns("archiPlot.ui"))
         )
     )
 }
 
-phyloprofileLite <- function(input, output, session) {
+phyloprofileLite <- function(input, output, session, hamstrOut) {
     homePath = c(wd='~/') # for shinyFileChoose
     ns <- session$ns
     
-    # * check the status of unkTaxa --------------------------------------------
+    # type of input (manually or directly obtained from hamstr output) -------
+    output$input.ui <- renderUI({
+        if (input$useHamstr == FALSE) {
+            tagList(
+                fileInput(ns("mainInput"), "Upload phyloprofile input:"),
+                fileInput(ns("fileDomainInput"), "Upload domain file:")
+            )
+        }
+    })
+    output$inputPP <- renderText({
+        if (file.exists(hamstrOut()[2])) return(hamstrOut()[2])
+    })
+    output$inputDomain <- renderText({
+        if (file.exists(hamstrOut()[3])) return(hamstrOut()[3])
+    })
+    
+    # get main input ---------------------------------------------------------
+    getMainInput <- reactive({
+        withProgress(message = 'Reading main input...', value = 0.5, {
+            if (input$useHamstr == TRUE) {
+                inputPP <- hamstrOut()[2]
+                if (!file.exists(inputPP)) return()
+            } else {
+                filein <- input$mainInput
+                if (is.null(filein)) return()
+                inputPP <- filein$datapath
+            }
+            inputType <- checkInputValidity(inputPP)
+            if (inputType == "oma") {
+                if (input$getDataOma[1] == 0) return()
+                longDataframe <- createProfileFromOma(finalOmaDf())
+                longDataframe <- as.data.frame(unclass(longDataframe))
+            } else longDataframe <- createLongMatrix(inputPP)
+            
+            # convert geneID, ncbiID and orthoID into factor and
+            # var1, var2 into numeric
+            for (i in seq_len(3)) {
+                longDataframe[, i] <- as.factor(longDataframe[, i])
+            }
+            if (ncol(longDataframe) > 3) {
+                for (j in seq(4, ncol(longDataframe))){
+                    longDataframe[,j] <- suppressWarnings(
+                        as.numeric(as.character(longDataframe[,j]))
+                    )
+                }
+            }
+            
+            # remove duplicated lines
+            longDataframe <- longDataframe[!duplicated(longDataframe),]
+            return(longDataframe)
+        })
+    })
+    
+    # get domain input -------------------------------------------------------
+    getDomainInformation <- reactive({
+        withProgress(message = 'Reading domain input...', value = 0.5, {
+            if (input$useHamstr == TRUE) {
+                inputDomain <- hamstrOut()[3]
+                if (!file.exists(inputDomain)) return()
+            } else {
+                filein <- input$fileDomainInput
+                if (is.null(filein)) return()
+                inputDomain <- filein$datapath
+            }
+            domainDf <- parseDomainInput(
+                NULL,
+                inputDomain,
+                "file"
+            )
+            return(domainDf)
+        })
+    })
+    
+    # check the status of unkTaxa --------------------------------------------
     unkTaxa <- reactive({
         withProgress(message = 'Checking for unknown taxa...', value = 0.5, {
             longDataframe <- getMainInput()
@@ -344,65 +467,26 @@ phyloprofileLite <- function(input, output, session) {
         }
     )
     
-    # * check if data is loaded and "plot" button is clicked -------------------
+    # check if data is loaded and "plot" button is clicked -------------------
     v <- reactiveValues(doPlot = FALSE)
     observeEvent(input$do, {
         v$doPlot <- input$do
-        filein <- input$mainInput
-        if (is.null(filein)) {
-            v$doPlot <- FALSE
-            updateButton(session, ns("do"), disabled = TRUE)
+        if (input$useHamstr == TRUE) {
+            inputPP <- hamstrOut()[2]
+            if (!file.exists(inputPP)) {
+                v$doPlot <- FALSE
+                updateButton(session, ns("do"), disabled = TRUE)
+            }
+        } else {
+            filein <- input$mainInput
+            if (is.null(filein)) {
+                v$doPlot <- FALSE
+                updateButton(session, ns("do"), disabled = TRUE)
+            }
         }
     })
     
-    # * get main input ---------------------------------------------------------
-    getMainInput <- reactive({
-        withProgress(message = 'Reading main input...', value = 0.5, {
-            filein <- input$mainInput
-            if (is.null(filein)) return()
-            inputType <- checkInputValidity(filein$datapath)
-            if (inputType == "oma") {
-                if (input$getDataOma[1] == 0) return()
-                longDataframe <- createProfileFromOma(finalOmaDf())
-                longDataframe <- as.data.frame(unclass(longDataframe))
-            } else longDataframe <- createLongMatrix(filein$datapath)
-            
-            # convert geneID, ncbiID and orthoID into factor and
-            # var1, var2 into numeric
-            for (i in seq_len(3)) {
-                longDataframe[, i] <- as.factor(longDataframe[, i])
-            }
-            if (ncol(longDataframe) > 3) {
-                for (j in seq(4, ncol(longDataframe))){
-                    longDataframe[,j] <- suppressWarnings(
-                        as.numeric(as.character(longDataframe[,j]))
-                    )
-                }
-            }
-            
-            # remove duplicated lines
-            longDataframe <- longDataframe[!duplicated(longDataframe),]
-            return(longDataframe)
-        })
-    })
-    
-    # * get domain input -------------------------------------------------------
-    getDomainInformation <- reactive({
-        withProgress(message = 'Reading domain input...', value = 0.5, {
-            # if (v$doPlot == FALSE) return()
-            mainInput <- getMainInput()
-            inputDomain <- input$fileDomainInput
-            domainDf <- parseDomainInput(
-                NULL,
-                inputDomain$datapath,
-                "file"
-            )
-    print(head(domainDf))
-            return(domainDf)
-        })
-    })
-    
-    # * get ID list of input taxa from main input ------------------------------
+    # get ID list of input taxa from main input ------------------------------
     inputTaxonID <- reactive({
         if (length(unkTaxa()) == 0) {
             withProgress(message = 'Getting input taxon IDs...', value = 0.5, {
@@ -412,10 +496,9 @@ phyloprofileLite <- function(input, output, session) {
         } else return()
     })
     
-    # * get NAME list of all (super)taxa ---------------------------------------
+    # get NAME list of all (super)taxa ---------------------------------------
     inputTaxonName <- reactive({
         req(input$rankSelect)
-        if (is.null(input$mainInput)) return()
         if (length(unkTaxa()) > 0) return()
         if (input$rankSelect == "") return()
         withProgress(message = 'Getting input taxon names...', value = 0.5, {
@@ -424,8 +507,7 @@ phyloprofileLite <- function(input, output, session) {
         })
     })
     
-    
-    # * render textinput for Variable 1 & 2 ------------------------------------
+    # render textinput for Variable 1 & 2 ------------------------------------
     output$var1ID.ui <- renderUI({
         longDataframe <- getMainInput()
         if (is.null(longDataframe)) {
@@ -466,7 +548,7 @@ phyloprofileLite <- function(input, output, session) {
         }
     })
     
-    # * render filter slidebars for Main plot ----------------------------------
+    # render filter slidebars for Main plot ----------------------------------
     output$var1Cutoff.ui <- renderUI({
         createSliderCutoff(
             ns("var1"), paste(input$var1ID, "cutoff:"), 0.0, 1.0, input$var1ID
@@ -485,7 +567,7 @@ phyloprofileLite <- function(input, output, session) {
         )
     })
     
-    # * reset cutoffs of Main plot ---------------------------------------------
+    # reset cutoffs of Main plot ---------------------------------------------
     observeEvent(input$resetMain, {
         shinyjs::reset("var1")
         shinyjs::reset("var2")
@@ -493,7 +575,7 @@ phyloprofileLite <- function(input, output, session) {
         shinyjs::reset("coortholog")
     })
     
-    # * render list of taxonomy ranks ------------------------------------------
+    # render list of taxonomy ranks ------------------------------------------
     output$rankSelect.ui <- renderUI({
         selectInput(
             ns("rankSelect"), label = "Select taxonomy rank:",
@@ -502,7 +584,7 @@ phyloprofileLite <- function(input, output, session) {
         )
     })
     
-    # * render list of (super)taxa ---------------------------------------------
+    # render list of (super)taxa ---------------------------------------------
     output$taxSelect.ui <- renderUI({
         choice <- inputTaxonName()
         choice$fullName <- as.factor(choice$fullName)
@@ -513,18 +595,7 @@ phyloprofileLite <- function(input, output, session) {
         )
     })
     
-    # # * enable "PLOT" button ---------------------------------------------------
-    # observeEvent(input$rankSelect,  ({
-    #     if (input$rankSelect == "") updateButton(session, ns("do"), disabled = TRUE)
-    #     else {
-    #         unkTaxa <- unkTaxa()
-    #         if (length(unkTaxa) == 0) {
-    #             updateButton(session, ns("do"), disabled = FALSE)
-    #         }
-    #     }
-    # }))
-    
-    # * sort taxonomy data of input taxa ---------------------------------------
+    # sort taxonomy data of input taxa ---------------------------------------
     sortedtaxaList <- reactive({
         req(v$doPlot)
         withProgress(message = 'Sorting input taxa...', value = 0.5, {
@@ -547,38 +618,12 @@ phyloprofileLite <- function(input, output, session) {
         })
     })
     
-    # * get subset data (default: first 30 genes) for plotting -----------------
+    # get subset data (default: first 30 genes) for plotting -----------------
     preData <- reactive({
         req(v$doPlot)
-        # isolate start and end gene index
-        # input$updateBtn
-        # 
-        # if (input$autoUpdate == TRUE) {
-        #     startIndex <- input$stIndex
-        #     endIndex <- input$endIndex
-        # } else {
-        #     startIndex <- isolate(input$stIndex)
-        #     endIndex <- isolate(input$endIndex)
-        # }
-        # if (is.na(endIndex)) endIndex <- 30
-        
         longDataframe <- getMainInput()
         req(longDataframe)
         withProgress(message = 'Subseting data...', value = 0.5, {
-            # longDataframe <- unsortID(longDataframe, input$ordering)
-            # listIn <- input$list
-            # if (!is.null(listIn)) {
-            #     list <- read.table(file = listIn$datapath, header = FALSE)
-            #     listGeneOri <- list$V1
-            #     if (startIndex <= length(listGeneOri)) {
-            #         listGene <- listGeneOri[listGeneOri[startIndex:endIndex]]
-            #     } else listGene <- listGeneOri
-            #     data <- longDataframe[longDataframe$geneID %in% listGene, ]
-            # } else {
-            #     subsetID <-
-            #         levels(longDataframe$geneID)[startIndex:endIndex]
-            #     data <- longDataframe[longDataframe$geneID %in% subsetID, ]
-            # }
             data <- longDataframe
             
             if (ncol(data) < 5) {
@@ -594,10 +639,10 @@ phyloprofileLite <- function(input, output, session) {
         })
     })
     
-    # * creating main dataframe for subset taxa (in species/strain level) ------
-    # * get (super)taxa names (1)
-    # * calculate percentage of presence (2),
-    # * max/min/mean/median VAR1 (3) and VAR2 (4)
+    # creating main dataframe for subset taxa (in species/strain level) ------
+    # get (super)taxa names (1)
+    # calculate percentage of presence (2),
+    # max/min/mean/median VAR1 (3) and VAR2 (4)
     getDataFiltered <- reactive({
         req(v$doPlot)
         req(preData())
@@ -613,9 +658,9 @@ phyloprofileLite <- function(input, output, session) {
         })
     })
     
-    # * reduce data from lowest level to supertaxon (e.g. phylum) --------------
-    # * This data set contain only supertaxa
-    # * and their value (%present, mVar1 & mVar2) for each gene
+    # reduce data from lowest level to supertaxon (e.g. phylum) --------------
+    # This data set contain only supertaxa
+    # and their value (%present, mVar1 & mVar2) for each gene
     dataSupertaxa <- reactive({
         req(v$doPlot)
         fullMdData <- getDataFiltered()
@@ -625,54 +670,18 @@ phyloprofileLite <- function(input, output, session) {
         })
     })
     
-    # * heatmap data input -----------------------------------------------------
+    # heatmap data input -----------------------------------------------------
     dataHeat <- reactive({
         req(v$doPlot)
-        # {
-        #     input$plotCustom
-        #     input$updateBtn
-        # }
-        # check input file
-        filein <- input$mainInput
-        # if (input$demoData == "arthropoda" | input$demoData == "ampk-tor") {
-        #     filein <- 1
-        # }
-        req(filein)
         withProgress(message = 'Creating data for plotting...', value = 0.5, {
-            # get all cutoffs
-            # if (input$autoUpdate == TRUE) {
-                percentCutoff <- input$percent
-                coorthologCutoffMax <- input$coortholog
-                var1Cutoff <- input$var1
-                var2Cutoff <- input$var2
-            # } else {
-                # percentCutoff <- isolate(input$percent)
-                # coorthologCutoffMax <- isolate(input$coortholog)
-                # var1Cutoff <- isolate(input$var1)
-                # var2Cutoff <- isolate(input$var2)
-            # }
+            percentCutoff <- input$percent
+            coorthologCutoffMax <- input$coortholog
+            var1Cutoff <- input$var1
+            var2Cutoff <- input$var2
             
             # get selected supertaxon name
             split <- strsplit(as.character(input$inSelect), "_")
             inSelect <- as.character(split[[1]][1])
-            
-            # # get gene categories
-            # inputCatDt <- NULL
-            # if (input$colorByGroup == TRUE) {
-            #     # get gene category
-            #     geneCategoryFile <- input$geneCategory
-            #     if (!is.null(geneCategoryFile)) {
-            #         inputCatDt <- read.table(
-            #             file = geneCategoryFile$datapath,
-            #             sep = "\t",
-            #             header = TRUE,
-            #             check.names = FALSE,
-            #             comment.char = "",
-            #             fill = TRUE
-            #         )
-            #         colnames(inputCatDt) <- c("geneID","group")
-            #     } else inputCatDt <- NULL
-            # }
             
             # create data for heatmap plotting
             dataHeat <- filterProfileData(
@@ -714,7 +723,7 @@ phyloprofileLite <- function(input, output, session) {
         })
     })
     
-    # * clustered heatmap data -------------------------------------------------
+    # clustered heatmap data -------------------------------------------------
     clusteredDataHeat <- reactive({
         req(v$doPlot)
         dataHeat <- dataHeat()
@@ -739,12 +748,7 @@ phyloprofileLite <- function(input, output, session) {
         })
     })
     
-    # # * close configuration windows of Main plot -------------------------------
-    # observeEvent(input$applyMainConfig, {
-    #     toggleModal(session, ns("mainPlotConfigBs"), toggle = "close")
-    # })
-    
-    # * parameters for the main profile plot -----------------------------------
+    # parameters for the main profile plot -----------------------------------
     getParameterInputMain <- reactive({
         inputPara <- list(
             "xAxis" = input$xAxis,
@@ -769,7 +773,7 @@ phyloprofileLite <- function(input, output, session) {
         return(inputPara)
     })
     
-    # * reset profile plot colors ----------------------------------------------
+    # reset profile plot colors ----------------------------------------------
     observeEvent(input$defaultColorVar2, {
         shinyjs::reset("lowColorVar2")
         shinyjs::reset("highColorVar2")
@@ -784,16 +788,7 @@ phyloprofileLite <- function(input, output, session) {
         shinyjs::reset("paraColor")
     })
     
-    # # * reset configuration windows of Main plot -------------------------------
-    # observeEvent(input$resetMainConfig, {
-    #     shinyjs::reset("xSize")
-    #     shinyjs::reset("ySize")
-    #     shinyjs::reset("legendSize")
-    #     shinyjs::reset("xAngle")
-    #     shinyjs::reset("dotZoom")
-    # })
-    
-    # * render dot size to dotSizeInfo ---------------------------------------
+    # render dot size to dotSizeInfo ---------------------------------------
     output$dotSizeInfo <- renderUI({
         req(v$doPlot)
         
@@ -807,50 +802,16 @@ phyloprofileLite <- function(input, output, session) {
         em(paste0("current point's size: ", minDot, " - ", maxDot))
     })
     
-    # * plot main profile ------------------------------------------------------
-    # mainpointInfo <- callModule(
-    #     createProfilePlot, ns("mainProfile"),
-    #     data = dataHeat,
-    #     clusteredDataHeat = clusteredDataHeat,
-    #     applyCluster = reactive(input$applyCluster),
-    #     parameters = getParameterInputMain,
-    #     inSeq = reactive(input$inSeq),
-    #     inTaxa = reactive(input$inTaxa),
-    #     rankSelect = reactive(input$rankSelect),
-    #     inSelect = reactive(input$inSelect),
-    #     taxonHighlight = reactive(input$taxonHighlight),
-    #     geneHighlight = reactive(input$geneHighlight),
-    #     typeProfile = reactive("mainProfile")
-    # )
-    # data for heatmap ---------------------------------------------------------
+    # plot main profile ------------------------------------------------------
     dataPlot <- reactive({
         if (is.null(dataHeat())) stop("Profile data is NULL!")
-        
-        # if (typeProfile() == "customizedProfile") {
-        #     if (is.null(inTaxa()) | is.null(inSeq())) return()
-        #     
-        #     dataHeat <- dataCustomizedPlot(data(), inTaxa(), inSeq())
-        #     if (applyCluster() == TRUE) {
-        #         dataHeat <- dataCustomizedPlot(
-        #             clusteredDataHeat(), inTaxa(), inSeq()
-        #         )
-        #     }
-        # } else {
-            dataPlot <- dataMainPlot(dataHeat())
-            # if (applyCluster() == TRUE) {
-            #     dataHeat <- dataMainPlot(clusteredDataHeat())
-            # }
-        # }
+        dataPlot <- dataMainPlot(dataHeat())
         return(dataPlot)
     })
     
     # render heatmap profile ---------------------------------------------------
     output$plot <- renderPlot({
         if (is.null(dataHeat())) stop("Profile data is NULL!")
-        # if (typeProfile() == "customizedProfile") {
-        #     if (inSeq()[1] == "all" & inTaxa()[1] == "all") return()
-        # }
-        # print(getParameterInputMain())
         withProgress(message = 'PLOTTING...', value = 0.5, {
             highlightProfilePlot(
                 dataPlot(),
@@ -860,17 +821,10 @@ phyloprofileLite <- function(input, output, session) {
                 "none"
             )
         })
-        
     })
     
     output$plot.ui <- renderUI({
         ns <- session$ns
-        
-        # if (typeProfile() == "customizedProfile") {
-        #     if (is.null(inSeq()[1]) | is.null(inTaxa()[1])) return()
-        #     else if (inSeq()[1] == "all" & inTaxa()[1] == "all")  return()
-        # }
-        
         # shinycssloaders::withSpinner(
         plotOutput(
             ns("plot"),
@@ -905,7 +859,6 @@ phyloprofileLite <- function(input, output, session) {
     
     # get info of clicked point on heatmap plot --------------------------------
     selectedpointInfo <- reactive({
-        
         # get selected supertaxon name
         taxaList <- getNameList()
         rankName <- input$rankSelect
@@ -913,33 +866,6 @@ phyloprofileLite <- function(input, output, session) {
         
         dataHeat <- dataPlot()
         if (is.null(dataHeat)) stop("Data for heatmap is NULL!")
-        
-        # if (typeProfile() == "customizedProfile") {
-        #     # get sub-dataframe of selected taxa and sequences
-        #     dataHeat$supertaxonMod <- substr(
-        #         dataHeat$supertaxon,
-        #         6,
-        #         nchar(as.character(dataHeat$supertaxon))
-        #     )
-        #     
-        #     if (is.null(inSeq()[1]) | is.null(inTaxa()[1]))  
-        #         stop("Subset taxa or genes is NULL!")
-        #     if (inTaxa()[1] == "all" & inSeq()[1] != "all") {
-        #         # select data from dataHeat for selected sequences only
-        #         dataHeat <- subset(dataHeat, geneID %in% inSeq())
-        #     } else if (inSeq()[1] == "all" & inTaxa()[1] != "all") {
-        #         # select data from dataHeat for selected taxa only
-        #         dataHeat <- subset(dataHeat, supertaxonMod %in% inTaxa())
-        #     } else {
-        #         # select data from dataHeat for selected sequences and taxa
-        #         dataHeat <- subset(dataHeat, geneID %in% inSeq()
-        #                            & supertaxonMod %in% inTaxa())
-        #     }
-        #     
-        #     # drop all other supertaxon that are not in sub-dataframe
-        #     dataHeat$supertaxon <- factor(dataHeat$supertaxon)
-        #     dataHeat$geneID <- factor(dataHeat$geneID)
-        # }
         
         # get values
         if (is.null(input$plotClick$x)) return()
@@ -993,7 +919,7 @@ phyloprofileLite <- function(input, output, session) {
             orthoID <- dataHeat$orthoID[dataHeat$geneID == geneID
                                         & dataHeat$supertaxon == spec]
             if (length(orthoID) > 1) {
-                orthoID <- paste0(orthoID[1], ",...")
+                orthoID <- paste(orthoID, collapse = ",") #paste0(orthoID[1], ",...")
             }
             
             if (is.na(Percent)) return()
@@ -1009,18 +935,13 @@ phyloprofileLite <- function(input, output, session) {
         }
     })
     
-    # * show info into "point's info" box --------------------------------------
+    # show info into "point's info" box --------------------------------------
     output$pointInfo <- renderText({
-        # GET INFO BASED ON CURRENT TAB
-        # if (input$tabs == "Main profile") {
-            # info contains groupID,orthoID,supertaxon,mVar1,%spec,var2
-            info <- selectedpointInfo()
-        # } else if (input$tabs == "Customized profile") {
-        #     info <- selectedpointInfo()
-        # } else return()
-        
+        info <- selectedpointInfo()
         req(info)
-        orthoID <- info[2]
+        orthoIDlist <- unlist(strsplit(info[2], ",")) # info[2]
+        if (length(orthoIDlist) > 1) orthoID <- paste0(orthoIDlist[1], ",...")
+        else orthoID <- as.character(info[2])
         
         if (is.na(orthoID)) return()
         else {
@@ -1044,6 +965,52 @@ phyloprofileLite <- function(input, output, session) {
             e <- toString(paste("% present taxa:", info[5]))
             paste(a, b, c, d, e, sep = "\n")
         }
+    })
+    
+    # get status of pointInfo for activating Domain Plot button --------------
+    output$pointInfoStatus <- reactive({
+        if (file.exists(hamstrOut()[3])) {
+            return(is.null(selectedpointInfo()))
+        }
+    })
+    outputOptions(output, "pointInfoStatus", suspendWhenHidden = FALSE)
+
+    output$seedID.ui <- renderUI({
+        info <- selectedpointInfo()
+        req(info)
+        selectInput(
+            ns("seedID"), "Seed ID", choices = c(info[1])
+        )
+    })
+    output$queryID.ui <- renderUI({
+        info <- selectedpointInfo()
+        req(info)
+        selectInput(
+            ns("queryID"), "Query ID", choices = unlist(strsplit(info[2], ","))
+        )
+    })
+    
+    # plot domain architectur --------------------------------------------------
+    output$archiPlot <- renderPlot({
+        req(selectedpointInfo())
+        g <- createArchiPlot(
+            c(input$seedID, input$queryID), 
+            getDomainInformation(), input$labelArchiSize, input$titleArchiSize
+        )
+        if (any(g == "No domain info available!")) {
+            msgPlot()
+        } else {
+            grid.draw(g)
+        }
+    })
+    
+    output$archiPlot.ui <- renderUI({
+        ns <- session$ns
+        plotOutput(
+            ns("archiPlot"),
+            height = input$archiHeight,
+            width = input$archiWidth
+        )
     })
 }
 
