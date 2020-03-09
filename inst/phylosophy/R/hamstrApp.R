@@ -142,7 +142,6 @@ hamstrAppUI <- function(id) {
                 "top"
             ),
             
-            # textInput(ns("seqName"), "Job name", value = ""),
             uiOutput(ns("seqName.ui")),
             bsPopover(
                 ns("seqName"),
@@ -154,10 +153,9 @@ hamstrAppUI <- function(id) {
                 "bottom"
             ),
             bsButton(ns("newSeqName.btn"), "New job name"),
-            
             hr(),
             
-            # ** FAS on/off ========================================
+            # ** FAS option ========================================
             checkboxInput(
                 ns("useFAS"),
                 strong("Use FAS"),
@@ -185,6 +183,26 @@ hamstrAppUI <- function(id) {
                 ),
                 "right"
             ),
+            
+            conditionalPanel(
+                condition = "input.useFAS", ns = ns,
+                numericInput(
+                    ns("annoCores"),
+                    strong("Number of CPUs for annotation"),
+                    value = 4,
+                    min = 1,
+                    max = 99,
+                    step = 1
+                ),
+                bsPopover(
+                    ns("annoCores"),
+                    "",
+                    paste(
+                        "Determine the number of CPUs used for doing annotation"
+                    ),
+                    "bottom"
+                ),
+            ),
             hr(),
             
             # ** optional options ==================================
@@ -198,6 +216,37 @@ hamstrAppUI <- function(id) {
             conditionalPanel(
                 condition = "input.optOption", ns = ns,
                 strong("Additional options"),
+                
+                checkboxInput(
+                    ns("otherOutpath"),
+                    strong("Set output directory"),
+                    value = FALSE,
+                    width = NULL
+                ),
+                conditionalPanel(
+                    condition = "input.otherOutpath", ns = ns,
+                    shinyDirButton(
+                        ns("outHamstrDir"), "Output directory" ,
+                        title = "Please select a folder",
+                        buttonType = "default", class = NULL
+                    ),
+                    bsPopover(
+                        ns("outHamstrDir"),
+                        "",
+                        paste(
+                            "Provide output directory"
+                        ),
+                        "top"
+                    )
+                ),
+                bsPopover(
+                    ns("otherOutpath"),
+                    "",
+                    paste(
+                        "Default output path is the current working directory"
+                    ),
+                    "bottom"
+                ),
                 
                 uiOutput(ns("coreTaxa.ui")),
                 bsPopover(
@@ -349,13 +398,13 @@ hamstrAppUI <- function(id) {
                 ),
                 
                 checkboxInput(
-                    ns("reuse_core"),
+                    ns("reuseCore"),
                     strong("Reuse existing core-set"),
                     value = FALSE,
                     width = NULL
                 ),
                 bsPopover(
-                    ns("reuse_core"),
+                    ns("reuseCore"),
                     "",
                     paste(
                         "Set this flag if the core set for your",
@@ -604,7 +653,7 @@ hamstrAppUI <- function(id) {
                 numericInput(
                     ns("cpu"),
                     strong("Number of CPUs"),
-                    value = 1,
+                    value = 4,
                     min = 1,
                     max = 99,
                     step = 1
@@ -634,6 +683,25 @@ hamstrAppUI <- function(id) {
                         "Choose between mafft-linsi or muscle for",
                         "the multiple sequence alignment.",
                         "DEFAULT: muscle"
+                    ),
+                    "top"
+                ),
+                
+                selectInput(
+                    ns("alignStrategy"), "Alignment strategy",
+                    choices = c(
+                        "local",
+                        "glocal",
+                        "global"
+                    ),
+                    selected = "local"
+                ),
+                bsPopover(
+                    ns("alignStrategy"),
+                    "",
+                    paste(
+                        "Choose alignment strategy for core ortholog",
+                        "compilation. DEFAULT: local"
                     ),
                     "top"
                 ),
@@ -879,8 +947,14 @@ hamstrApp <- function(input, output, session) {
         )
     })
     
-    # get data dir ???????????????=======================================
-    
+    # get output path ==========================================================
+    getOutputPath <- reactive({
+        shinyDirChoose(
+            input, "outHamstrDir", roots = homePath, session = session
+        )
+        outputPath <- parseDirPath(homePath, input$outHamstrDir)
+        return(replaceHomeCharacter(as.character(outputPath)))
+    })
     
     # required options =========================================================
     reqOptions <- reactive({
@@ -910,9 +984,19 @@ hamstrApp <- function(input, output, session) {
     
     # optional options =========================================================
     optOptions <- reactive({
+        outpath <- ""
+        if (length(getOutputPath()) > 0) {
+            outpath <- paste0("-outpath=", getOutputPath())
+        }
+        
         fasoff <- ""
         if (input$useFAS == FALSE) {
             fasoff <- paste0("-fasoff")
+        }
+        
+        annoCores <- ""
+        if (input$annoCores != "1") {
+            annoCores <- paste0("-annoCores=", input$annoCores)
         }
         
         seqName <- ""
@@ -963,9 +1047,9 @@ hamstrApp <- function(input, output, session) {
         if (input$coreOnly == TRUE) {
             coreOnly <- paste0("-coreOnly")
         }
-        reuse_core <- ""
-        if (input$reuse_core == TRUE) {
-            reuse_core <- paste0("-reuse_core")
+        reuseCore <- ""
+        if (input$reuseCore == TRUE) {
+            reuseCore <- paste0("-reuseCore")
         }
         blast <- ""
         if (input$blast == TRUE) {
@@ -1030,6 +1114,10 @@ hamstrApp <- function(input, output, session) {
         if (input$aligner != "muscle") {
             aligner <- paste0("-aligner=", input$aligner)
         }
+        alignStrategy <- ""
+        if (input$alignStrategy != "local") {
+            alignStrategy <- paste0("-", input$alignStrategy)
+        }
         
         force <- ""
         if (input$force == TRUE) {
@@ -1049,12 +1137,12 @@ hamstrApp <- function(input, output, session) {
         }
         
         optOptionList <- c(
-            fasoff, seqName, coreTaxa, strict, coreStrict, checkCoorthologsRef,
-            corecheckCoorthologsRef, rbh, rep, coreRep, coreOnly, reuse_core,
-            blast, group, evalBlast, evalHmmer, evalRelaxfac, hitLimit,
-            coreHitLimit, autoLimit, scoreThreshold, scoreCutoff, 
-            ignoreDistance, distDeviation, cpu, aligner, force, append, silent,
-            cleanup
+            outpath, fasoff, annoCores, seqName, coreTaxa, strict, coreStrict, 
+            checkCoorthologsRef, corecheckCoorthologsRef, rbh, rep, coreRep, 
+            coreOnly, reuseCore, blast, group, evalBlast, evalHmmer, 
+            evalRelaxfac, hitLimit, coreHitLimit, autoLimit, scoreThreshold, 
+            scoreCutoff,ignoreDistance, distDeviation, cpu, aligner, 
+            alignStrategy, force, append, silent, cleanup
         )
         return(
             optOptionList[unlist(lapply(optOptionList, function (x) x != ""))]
@@ -1167,13 +1255,18 @@ hamstrApp <- function(input, output, session) {
     returnOutput <- reactive({
         req(getHamstrPath())
         req(getInputPath())
-        # get default output folder of hamstr
-        dataDir <- getSubFolderDir(getHamstrPath(), "data")
+        # get output path
+        if (input$otherOutpath == TRUE && length(getOutputPath()) > 0) {
+            outpath <- paste0(getOutputPath(), "/", input$seqName)
+        } else {
+            outpath <- paste0(getwd(), "/", input$seqName)
+        }
+        # dataDir <- getSubFolderDir(getHamstrPath(), "data")
         # return output files
-        faOut <- paste0(dataDir, "/", input$seqName, ".extended.fa")
-        ppOut <- paste0(dataDir, "/", input$seqName, ".phyloprofile")
+        faOut <- paste0(outpath, "/", input$seqName, ".extended.fa")
+        ppOut <- paste0(outpath, "/", input$seqName, ".phyloprofile")
         if (input$useFAS == TRUE) {
-            domainFwOut <- paste0(dataDir, "/", input$seqName, "_1.domains")
+            domainFwOut <- paste0(outpath, "/", input$seqName, "_1.domains")
             return(c(faOut, ppOut, domainFwOut))
         } else {
             return(c(faOut, ppOut, NULL))

@@ -33,7 +33,7 @@ shinyUI(
             # DCC TAB ==========================================================
             tabPanel(
             	"DCC",
-            	h3("Hey Hannah, where is the DCC?")
+            	h3("Hey Kai, where is the DCC?")
             ),
             
             # HAMSTR TAB =======================================================
