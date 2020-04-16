@@ -31,7 +31,9 @@ def main():
     groupsFile = open("tmp/commonOmaGroups.txt", "r")
     pool = mp.Pool(mp.cpu_count())
 
+    print("Creating pHMMs...")
     results = [pool.apply(makingHmm, args=(gettingId(line), path)) for line in groupsFile]
+    print("finished!")
 
     pool.close()
     #print(results)

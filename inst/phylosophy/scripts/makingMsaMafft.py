@@ -27,7 +27,9 @@ def main():
     groupsFile = open("tmp/commonOmaGroups.txt", "r")
     pool = mp.Pool(mp.cpu_count())
 
+    print("Doing alignment with Mafft...")
     results = [pool.apply(makingMSA, args=(gettingId(line), path)) for line in groupsFile]
+    print("finished!")
 
     pool.close()
     #print(results)

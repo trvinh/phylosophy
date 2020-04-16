@@ -57,16 +57,15 @@ dccAppUI <- function(id) {
         # * main panel for annoFAS and greedyFAS -------------------------------
         mainPanel(
             width = 9,
-            
             conditionalPanel(
                 condition = "output.checkPython == 1", ns = ns,
                 htmlOutput(ns("pythonMsg"))
             ),
-
             conditionalPanel(
                 condition = "output.checkPython == 0", ns = ns,
                 # oma version
                 verbatimTextOutput(ns("version")),
+                hr(), hr(),
                 
                 # list of taxa selected by names ir IDs
                 DT::dataTableOutput(ns("speciesTable")),
@@ -85,8 +84,8 @@ dccAppUI <- function(id) {
                 verbatimTextOutput(ns("nrOmaGroups")),
                 
                 # finishing msg
-                uiOutput(ns("annoOptions.ui")),
-                uiOutput(ns("end"))
+                uiOutput(ns("end")),
+                uiOutput(ns("annoOptions.ui"))
             )
         )
     )
@@ -345,6 +344,36 @@ dccApp <- function (input, output, session) {
     output$speciesTable <- DT::renderDataTable({
         speciesTable <- createTableOutput()
     })
+
+    # get OmaCode for chosen species ==========================================
+    findOmaCode <- function(outputSpecies, speciesTable) {
+        if (input$inputTyp == "ncbiID") {
+            omaCode <- speciesTable$OMAcode[
+                speciesTable$TaxonID %in% outputSpecies]
+        } else if (input$inputTyp == "speciesName") {
+            omaCode <- speciesTable$OMAcode[
+                speciesTable$ScientificName %in% outputSpecies]
+        } else {
+            omaCode <- speciesTable$OMAcode[
+                speciesTable$TaxonID %in% outputSpecies]
+        }
+        return(omaCode)
+    }
+    
+    # get taxonomy Ids for chosen species ====================================
+    findTaxId <- function(outputSpecies, speciesTable) {
+        if (input$inputTyp == "ncbiID") {
+            omaCode <- speciesTable$TaxonID[
+                speciesTable$TaxonID %in% outputSpecies]
+        } else if (input$inputTyp == "speciesName") {
+            omaCode <- speciesTable$TaxonID[
+                speciesTable$ScientificName %in% outputSpecies]
+        } else {
+            omaCode <- speciesTable$TaxonID[
+                speciesTable$TaxonID %in% outputSpecies]
+        }
+        return(omaCode)
+    }
     
     # get output path ==========================================================
     getOutputPath <- reactive({
@@ -360,7 +389,7 @@ dccApp <- function (input, output, session) {
     observe({
         if (length(getOutputPath()) > 0) enable("submit")
     })
-
+    
     # run DCC ==================================================================
     startPythonScript <- observeEvent(input$submit, {
         disable("submit")
@@ -393,21 +422,32 @@ dccApp <- function (input, output, session) {
         inputTaxId <- gsub(" ", "", toString(taxIds))
         path <- getOutputPath()
 
+        # * get data set ======================================================
         getDatasets(inputOmaCode, inputTaxId, path)
-
         updateProgress(
             detail = paste(
-                "Dataset collection is finished.",
-                "Start to compile commonOmaGroups"
+                "Gene set collection is finished.",
+                "Start to compile Oma Groups"
             )
         )
 
+        # * get oma groups ====================================================
         if (input$inputTyp == "OmaId") {
-            y <- getOmaGroup(inputOmaCode, inputTaxId, path)
+            y <- getOmaGroup(inputOmaCode, inputTaxId, input$omaGroupId, path)
         } else {
-            y <- getCommonOmaGroups(inputOmaCode, inputTaxId, path)
+            y <- getCommonOmaGroups(
+                inputOmaCode, inputTaxId, input$nrMissingSpecies, path, 
+                input$update
+            )
         }
+        updateProgress(
+            detail = paste(
+                "OMA groups collection is finished.",
+                "Start to compile MSA using", input$MSA
+            )
+        )
 
+        # * create sequence alignments ========================================
         if (input$MSA == "MAFFT") {
             fileMSA <- "python scripts/makingMsaMafft.py"
         } else {
@@ -416,54 +456,27 @@ dccApp <- function (input, output, session) {
         updateProgress(detail = y)
         system(paste(fileMSA, path), intern = TRUE)
 
+        # * create pHMMs ======================================================
         fileHmm <- "python scripts/makingHmms.py"
-        updateProgress(detail = "Computing hMMs with HMMER")
+        updateProgress(detail = "Computing pHMMs with HMMER")
         system(paste(fileHmm, path), intern = TRUE)
 
+        #* create BLASTDB =====================================================
         fileBlastDb <- "python scripts/makingBlastdb.py"
-        updateProgress(detail = "Computing Blastdbs")
+        updateProgress(detail = "Computing blastDBs")
         system(paste(fileBlastDb, path), inter = TRUE)
 
+        #* finished ===========================================================
         output$end <- renderText(
-            paste("The calculation is finished!", path, y)
+            paste("The calculation is finished!")
         )
     })
 
     # output msg ==========================================================
     output$annoOptions.ui <- renderUI({
         req(input$submit)
-        paste("Your output will be saved under: ", getOutputPath())
+        paste("Your output is saved under: ", getOutputPath())
     })
-}
-
-# returns the OmaCode of the species chosen from the user
-findOmaCode <- function(outputSpecies, speciesTable) {
-    if (input$inputTyp == "ncbiID") {
-        omaCode <- speciesTable$OMAcode[
-            speciesTable$TaxonID %in% outputSpecies]
-    } else if (input$inputTyp == "speciesName") {
-        omaCode <- speciesTable$OMAcode[
-            speciesTable$ScientificName %in% outputSpecies]
-    } else {
-        omaCode <- speciesTable$OMAcode[
-            speciesTable$TaxonID %in% outputSpecies]
-    }
-    return(omaCode)
-}
-
-# returns the taxonomy Ids from the species choosen from the user
-findTaxId <- function(outputSpecies, speciesTable) {
-    if (input$inputTyp == "ncbiID") {
-        omaCode <- speciesTable$TaxonID[
-            speciesTable$TaxonID %in% outputSpecies]
-    } else if (input$inputTyp == "speciesName") {
-        omaCode <- speciesTable$TaxonID[
-            speciesTable$ScientificName %in% outputSpecies]
-    } else {
-        omaCode <- speciesTable$TaxonID[
-            speciesTable$TaxonID %in% outputSpecies]
-    }
-    return(omaCode)
 }
 
 # collects the datasets of the chossen species
@@ -474,12 +487,13 @@ getDatasets <- function(inputOmaCode, inputTaxId, path) {
 }
 
 # collects the common Oma Groups of the choosen species
-getCommonOmaGroups <- function(inputOmaCode, inputTaxId, path) {
+getCommonOmaGroups <- function(inputOmaCode, inputTaxId, nrMissingSpecies, path, update) {
     fileGettingOmaGroups <- "python scripts/gettingOmaGroups.py"
-    y <- cat(system(paste(fileGettingOmaGroups, inputOmaCode, inputTaxId, input$nrMissingSpecies, path, input$update), inter = TRUE))
+    y <- cat(system(paste(fileGettingOmaGroups, inputOmaCode, inputTaxId, nrMissingSpecies, path, update), inter = TRUE))
     return(y)
 }
-getOmaGroup <- function(inputOmaCode, inputTaxId, path) {
+getOmaGroup <- function(inputOmaCode, inputTaxId, omaGroupId, path) {
     fileGettingOmaGroup <- "python scripts/gettingOmaGroup.py"
-    y <- cat(system(paste(fileGettingOmaGroup, inputOmaCode, inputTaxId, input$omaGroupId, path)))
+    y <- cat(system(paste(fileGettingOmaGroup, inputOmaCode, inputTaxId, omaGroupId, path)))
+    return(y)
 }
