@@ -9,7 +9,6 @@ fasAppUI <- function(id) {
             # ** FAS location ===================================
             conditionalPanel(
                 condition = "output.checkFasStatus == 0", ns = ns,
-                
                 selectInput(
                     ns("whereFas"), "FAS not found! Please:",
                     choice = c("Install FAS", "Provide FAS path"),
