@@ -12,7 +12,7 @@ Depends: R (>= 3.6.0)
 Encoding: UTF-8
 Imports:
     Biostrings, data.table, DT, ggplot2, grid, shiny, shinyBS, shinyFiles, 
-    shinyjs, shinythemes, stringr, PhyloProfile
+    shinyjs, shinyalert, shinythemes, stringr, PhyloProfile
 RoxygenNote: 7.0.2
 Suggests: knitr, rmarkdown, testthat
 VignetteBuilder: knitr

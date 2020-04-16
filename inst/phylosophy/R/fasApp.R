@@ -651,7 +651,7 @@ fasAppUI <- function(id) {
     )
 }
 
-fasApp <- function(input, output, session) {
+fasApp <- function (input, output, session) {
     homePath = c(wd='~/') # for shinyFileChoose
     ns <- session$ns
     
