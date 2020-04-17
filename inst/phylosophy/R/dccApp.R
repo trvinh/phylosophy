@@ -15,31 +15,73 @@ dccAppUI <- function(id) {
                 condition = "output.checkPython == 0", ns = ns,
                 # type of inputs
                 radioButtons(
-                    ns("inputTyp"), "Select your input type",
+                    ns("inputTyp"), strong("Select your input type"),
                     choices = list(
                         "NCBI Taxonomy ID" = "ncbiID",
                         "Scientific name" = "speciesName",
-                        "File input" = "inputFile",
-                        "OMA Group ID" = "OmaId"
+                        "Input taxa list" = "inputFile",
+                        "OMA Group ID" = "OmaId",
+                        "OMA standalone file" = "omaFile"
                     ),
                     selected = "ncbiID"
                 ),
-                uiOutput(ns("omaSpec")),
                 
-                # No. of missing species allowed a common OmaGroup
-                uiOutput(ns("nrMissingSpecies")),
-                
-                # update mode or the normal mode should be used
-                uiOutput(ns("update")),
                 conditionalPanel(
-                    condition = "input.inputTyp != 'OmaId'", ns = ns,
-                    checkboxInput(ns("update"), label = "update Mode")
+                    condition = "input.inputTyp == 'omaFile'", ns = ns,
+                    fileInput(ns("omaFileInput"), "Upload OMA file (orthoXML)"),
+                    
+                    selectInput(
+                        ns("taxType"), "Get genne sets from:",
+                        c("Local directory", "OMA Database"),
+                        selected = "Local directory"
+                    ),
+                    
+                    conditionalPanel(
+                        condition = "input.taxType == 'Local directory'", 
+                        ns = ns,
+                        shinyDirButton(
+                            ns("genomeDir"), "Gene set directory" ,
+                            title = "Please select gene set directory",
+                            buttonType = "default", class = NULL
+                        ),
+                        br(), br(),
+                    ),
+                    
+                    conditionalPanel(
+                        condition = "input.taxType == 'OMA Database'", 
+                        ns = ns,
+                        fileInput(ns("taxMappingFile"), "Taxa mapping file")
+                    )
                 ),
-                
-                # MSA tool selection
-                radioButtons(
-                    ns("MSA"),
-                    "MSA tool", choices = c("MAFFT", "MUSCLE"), selected = "MAFFT"
+
+                conditionalPanel(
+                    condition = "input.inputTyp != 'omaFile'", ns = ns,
+                    # oma data path
+                    shinyDirButton(
+                        ns("omaDataDir"), "OMA data directory" ,
+                        title = "Please select OMA data directory",
+                        buttonType = "default", class = NULL
+                    ),
+                    br(), br(),
+                    # list of avail oma spec
+                    uiOutput(ns("omaSpec")),
+                    
+                    # No. of missing species allowed a common OmaGroup
+                    uiOutput(ns("nrMissingSpecies")),
+                    
+                    # update mode or the normal mode should be used
+                    uiOutput(ns("update")),
+                    conditionalPanel(
+                        condition = "input.inputTyp == 'ncbiID' || input.inputTyp == 'speciesName' || input.inputTyp == 'inputFile'", 
+                        ns = ns,
+                        checkboxInput(ns("update"), label = "update Mode")
+                    ),
+                    
+                    # MSA tool selection
+                    radioButtons(
+                        ns("MSA"),
+                        "MSA tool", choices = c("MAFFT", "MUSCLE"), selected = "MAFFT"
+                    )
                 ),
                 
                 br(),
@@ -63,9 +105,10 @@ dccAppUI <- function(id) {
             ),
             conditionalPanel(
                 condition = "output.checkPython == 0", ns = ns,
+                
                 # oma version
                 verbatimTextOutput(ns("version")),
-                hr(), hr(),
+                hr(),
                 
                 # list of taxa selected by names ir IDs
                 DT::dataTableOutput(ns("speciesTable")),
@@ -113,15 +156,37 @@ dccApp <- function (input, output, session) {
         )
     })
     
+    # get OMA data path =======================================================
+    getOmaPath <- reactive({
+        shinyDirChoose(
+            input, "omaDataDir", roots = homePath, session = session
+        )
+        omaPath <- parseDirPath(homePath, input$omaDataDir)
+        return(replaceHomeCharacter(as.character(omaPath)))
+    })
+    
     # render oma version =======================================================
     output$version <- renderPrint({
-        y <- cat(system(paste("python scripts/getVersion.py"), intern = TRUE))
+        req(getOmaPath())
+        y <- cat(
+            system(
+                paste("python scripts/getVersion.py", getOmaPath()), 
+                intern = TRUE
+            )
+        )
+    })
+    
+    # process standalone OMA ==================================================
+    getOmaXmlFile <- reactive({
+        
     })
 
-    # load the oma-species file from OmaDb ====================================
+    # process dowloaded OMA database ==========================================
+    # * load the oma-species file from OmaDb ===================================
     readOmaSpec <- reactive({
+        req(getOmaPath())
         taxTable <- fread(
-            "data/oma-species.txt", header = FALSE, skip = 2, sep = "\t"
+            paste0(getOmaPath(), "/oma-species.txt"), header = FALSE, skip = 2, sep = "\t"
         )
         colnames(taxTable) <- c(
             "OMAcode", "TaxonID", "ScientificName", "GenomeSource",
@@ -130,13 +195,15 @@ dccApp <- function (input, output, session) {
         return(taxTable)
     })
 
-    # load the transformed oma-groups-tmp.txt =================================
+    # * load the transformed oma-groups-tmp.txt ================================
     readOmaGroup <- reactive({
-        groupTable <- fread("data/oma-groups-tmp.txt")
+        req(getOmaPath())
+        groupTable <- fread(paste0(getOmaPath(), "/oma-groups-tmp.txt"))
         return(groupTable)
     })
 
-    # render list of taxa info based on selected input type ====================
+    # * render list of avail taxa based on selected input type =================
+    # * except OMA standalone
     output$omaSpec <- renderUI({
         omaSpecTable <- readOmaSpec()
         if (input$inputTyp == "ncbiID") {
@@ -168,7 +235,8 @@ dccApp <- function (input, output, session) {
         }
     })
 
-    # render number of allowed missing species =================================
+    # * render number of allowed missing species ===============================
+    # * except OMA standalone
     output$nrMissingSpecies <- renderUI({
         if (input$inputTyp != "OmaId") {
             if (input$inputTyp != "inputFile") {
@@ -198,7 +266,8 @@ dccApp <- function (input, output, session) {
         }
     })
 
-    # create list of taxa from input FILE ======================================
+    # render table of selected taxa ===========================================
+    # * from taxa FILE ========================================================
     # load input file
     getFileTable <- reactive({
         inFile <- input$taxFile
@@ -261,7 +330,7 @@ dccApp <- function (input, output, session) {
         fileTable <- getTaxaFromFile()
     })
 
-    # create list of taxa from input OMA group ID ==============================
+    # * from OMA group ID =====================================================
     createOmaIdOutput <- reactive({
         tableGroup <- readOmaGroup()
         speciesTable <- readOmaSpec()
@@ -301,7 +370,7 @@ dccApp <- function (input, output, session) {
         }
     })
 
-    # create list of taxa from selected taxon NAMES or IDs =================
+    # * from selected taxon NAMES or IDs ======================================
     createTableOutput <- reactive({
         speciesTable <- readOmaSpec()
         DF <- NULL
@@ -417,13 +486,13 @@ dccApp <- function (input, output, session) {
 
         taxTable <- readOmaSpec()
         OmaCodes <- findOmaCode(speciesInput, taxTable)
-        taxIds <-    findTaxId(speciesInput, taxTable)
+        taxIds <- findTaxId(speciesInput, taxTable)
         inputOmaCode <- gsub(" ", "", toString(OmaCodes))
         inputTaxId <- gsub(" ", "", toString(taxIds))
         path <- getOutputPath()
 
         # * get data set ======================================================
-        getDatasets(inputOmaCode, inputTaxId, path)
+        getDatasets(getOmaPath(), inputOmaCode, inputTaxId, path)
         updateProgress(
             detail = paste(
                 "Gene set collection is finished.",
@@ -433,11 +502,13 @@ dccApp <- function (input, output, session) {
 
         # * get oma groups ====================================================
         if (input$inputTyp == "OmaId") {
-            y <- getOmaGroup(inputOmaCode, inputTaxId, input$omaGroupId, path)
+            y <- getOmaGroup(
+                getOmaPath(), inputOmaCode, inputTaxId, input$omaGroupId, path
+            )
         } else {
             y <- getCommonOmaGroups(
-                inputOmaCode, inputTaxId, input$nrMissingSpecies, path, 
-                input$update
+                getOmaPath(), inputOmaCode, inputTaxId, input$nrMissingSpecies, 
+                path, input$update
             )
         }
         updateProgress(
@@ -480,20 +551,20 @@ dccApp <- function (input, output, session) {
 }
 
 # collects the datasets of the chossen species
-getDatasets <- function(inputOmaCode, inputTaxId, path) {
+getDatasets <- function(omdDataDir, inputOmaCode, inputTaxId, path) {
     fileGettingDataset <- "python scripts/gettingDataset.py"
-    system(paste(fileGettingDataset, inputOmaCode,inputTaxId, path))
+    system(paste(fileGettingDataset, omdDataDir, inputOmaCode,inputTaxId, path))
     return(0)
 }
 
 # collects the common Oma Groups of the choosen species
-getCommonOmaGroups <- function(inputOmaCode, inputTaxId, nrMissingSpecies, path, update) {
+getCommonOmaGroups <- function(omdDataDir, inputOmaCode, inputTaxId, nrMissingSpecies, path, update) {
     fileGettingOmaGroups <- "python scripts/gettingOmaGroups.py"
-    y <- cat(system(paste(fileGettingOmaGroups, inputOmaCode, inputTaxId, nrMissingSpecies, path, update), inter = TRUE))
+    y <- cat(system(paste(fileGettingOmaGroups, omdDataDir, inputOmaCode, inputTaxId, nrMissingSpecies, path, update), inter = TRUE))
     return(y)
 }
-getOmaGroup <- function(inputOmaCode, inputTaxId, omaGroupId, path) {
+getOmaGroup <- function(omdDataDir, inputOmaCode, inputTaxId, omaGroupId, path) {
     fileGettingOmaGroup <- "python scripts/gettingOmaGroup.py"
-    y <- cat(system(paste(fileGettingOmaGroup, inputOmaCode, inputTaxId, omaGroupId, path)))
+    y <- cat(system(paste(fileGettingOmaGroup, omdDataDir, inputOmaCode, inputTaxId, omaGroupId, path)))
     return(y)
 }

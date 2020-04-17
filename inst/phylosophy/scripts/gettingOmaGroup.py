@@ -34,8 +34,8 @@ def openFileToAppend(location):
     file = open(location, "a+")
     return file
 
-def gettingOmaGroupProteins(omaGroupId):
-    fileGroups = openFileToRead("data/oma-groups.txt")
+def gettingOmaGroupProteins(dataPath, omaGroupId):
+    fileGroups = openFileToRead(dataPath + "/oma-groups.txt")
     allGroups = fileGroups.readlines()
     fileGroups.close()
 
@@ -104,19 +104,21 @@ def main():
     ###################### Input from R #####################################
 
     parameter = sys.argv[1:]
-    speciesList = str(parameter[0]).split(",")
+
+    dataPath = parameter[0]
+    speciesList = str(parameter[1]).split(",")
     speciesSet = set(speciesList)
-    speciesTaxId = str(parameter[1]).split(",")
+    speciesTaxId = str(parameter[2]).split(",")
     for i in range(0, len(speciesTaxId)):
         speciesTaxId[i] = int(speciesTaxId[i])
-    omaGroupId = parameter[2]
-    path = parameter[3]
+    omaGroupId = parameter[3]
+    path = parameter[4]
     tmpListSpecies = []
 
 
 
     speciesDic = getSpeciesDic(speciesList, speciesTaxId)
-    proteinIds = gettingOmaGroupProteins(omaGroupId)
+    proteinIds = gettingOmaGroupProteins(dataPath, omaGroupId)
     SequenceDic = {}
 
 

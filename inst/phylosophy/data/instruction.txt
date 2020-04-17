@@ -1,7 +1,0 @@
-1: Download the OMA files from https://omabrowser.org/oma/current/
-Required files:
-- OMA groups in Text format (https://omabrowser.org/All/oma-groups.txt.gz)
-- Protein sequences in Fasta format (https://omabrowser.org/All/oma-seqs.fa.gz)
-- Species information Text format (https://omabrowser.org/All/oma-species.txt)
-
-2: run /scripts/createDic.py

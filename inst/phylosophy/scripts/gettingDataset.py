@@ -52,11 +52,11 @@ def createFolder(path, folder_name):
 #
 #     tmp.write(species + "\n")
 
-def getDataset(speciesCode, speciesTaxId, path):
+def getDataset(dataPath, speciesCode, speciesTaxId, path):
     start = time.time()
     print(speciesCode)
     print(speciesTaxId)
-    allProteins = SeqIO.parse("data/oma-seqs.fa", "fasta")
+    allProteins = SeqIO.parse(dataPath + "/oma-seqs.fa", "fasta")
     for j in range(0, len(speciesCode)):
 
         name = makeOneSeqSpeciesName(speciesCode[j], speciesTaxId[j])
@@ -111,29 +111,24 @@ def getDataset2(speciesCode, speciesTaxId, path):
     ende = time.time()
     print('{:5.3f}s'.format(ende - start), end='  ')
 
-def getDataset3(speciesCode, speciesTaxId, path):
+def getDataset3(dataPath, speciesCode, speciesTaxId, path):
     createFolder(path, "genome_dir")
     start = time.time()
-
     toDo = []
 
-    with open("data/oma-seqs-dic.fa") as f:
+    with open(dataPath + "/oma-seqs-dic.fa") as f:
         sequence_dic = json.load(f)
 
     for i in range(0,len(speciesCode)):
-        #print(len(speciesCode))
         name = makeOneSeqSpeciesName(speciesCode[i], speciesTaxId[i])
-        #print(name)
-
         try:
             os.mkdir(path + "/genome_dir/" + name)
             toDo.append(i)
         except FileExistsError:
             print("File exists already for species " + speciesCode[i])
 
-
     if toDo != []:
-        allProteins = openFileToRead("data/oma-seqs.fa")
+        allProteins = openFileToRead(dataPath + "/oma-seqs.fa")
         allProteinsLines = allProteins.readlines()
         allProteins.close()
 
@@ -141,13 +136,7 @@ def getDataset3(speciesCode, speciesTaxId, path):
         name = makeOneSeqSpeciesName(speciesCode[toDo[j]], speciesTaxId[toDo[j]])
         newFile = openFileToWrite(path + "/genome_dir/" + name + "/" + name + ".fa")
         startLine = sequence_dic[speciesCode[toDo[j]]][0]
-        #print(startLine)
         endLine = sequence_dic[speciesCode[toDo[j]]][1]
-
-
-        #print(allProteinsLines[startLine])
-        #print(type(sequence_dic))
-
 
         for z in range(startLine, endLine + 1):
             if allProteinsLines[z] == allProteinsLines[startLine]:
@@ -162,22 +151,21 @@ def getDataset3(speciesCode, speciesTaxId, path):
                 newFile.write("\n" + newLine)
 
         newFile.close()
-
     ende = time.time()
     print('{:5.3f}s'.format(ende - start), end='  ')
-
 
 def main():
     ########################### Input from R ############################
 
     parameter = sys.argv[1:]
 
-    speciesCode = str(parameter[0]).split(",")
-    speciesTaxId = str(parameter[1]).split(",")
-    path = parameter[2]
+    dataPath = parameter[0]
+    speciesCode = str(parameter[1]).split(",")
+    speciesTaxId = str(parameter[2]).split(",")
+    path = parameter[3]
 
     ########################## Function call ##############################
-    getDataset3(speciesCode, speciesTaxId, path)
+    getDataset3(dataPath, speciesCode, speciesTaxId, path)
     #getDataset(speciesCode,speciesTaxId,path)
 
 
@@ -188,4 +176,3 @@ if __name__ == '__main__':
 # Doppelte Funktionen in den scripten: openFile Funktionen, createFolder
 # Pfade müssen noch ersetzt werden
 # testen!
-

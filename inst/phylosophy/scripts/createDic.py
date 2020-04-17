@@ -2,9 +2,9 @@
 from Bio import SeqIO
 import time
 import json
+import sys
 
-#path = "/Users/hannahmuelbaier/Desktop/Bachelorarbeit"
-
+dataPath = sys.argv[1]
 
 def createDicSpecies(proteins, file):
     start = time.time()
@@ -28,26 +28,18 @@ def createDicSpecies(proteins, file):
     ende = time.time()
     print('{:5.3f}s'.format(ende - start), end='  ')
 
-
 def createDicOmaGroup(omaGroups, file):
     start = time.time()
-
     groupDic = {}
-
     for i in omaGroups:
         if i[0] != "#":
-
             line = i.split("\t")
             speciesSet = set()
             groupId = line[0]
-
             for j in range(2, len(line)):
                 species = str(line[j])[0:5]
                 speciesSet.add(species)
-
-
             groupDic[groupId] = tuple(speciesSet)
-
 
     for key in groupDic:
         speciesStr = str(groupDic[key]).replace("(", "")
@@ -55,16 +47,14 @@ def createDicOmaGroup(omaGroups, file):
         speciesStr = speciesStr.replace("'", "")
         speciesStr = speciesStr.replace(" ", "")
         file.write(key + "\t" + speciesStr + "\n")
-
     ende = time.time()
     print('{:5.3f}s'.format(ende - start), end='  ')
 
-
 def main():
-    allProteins = open("../data/oma-seqs.fa", "r")
-    newFileSpecies = open("../data/oma-seqs-dic.fa", "w")
-    omaGroups = open("../data/oma-groups.txt", "r")
-    newFileOmaGroup = open("../data/oma-groups-tmp.txt", "w")
+    allProteins = open(dataPath + "/oma-seqs.fa", "r")
+    newFileSpecies = open(dataPath + "/oma-seqs-dic.fa", "w")
+    omaGroups = open(dataPath + "/oma-groups.txt", "r")
+    newFileOmaGroup = open(dataPath + "/oma-groups-tmp.txt", "w")
 
     createDicSpecies(allProteins, newFileSpecies)
     createDicOmaGroup(omaGroups, newFileOmaGroup)

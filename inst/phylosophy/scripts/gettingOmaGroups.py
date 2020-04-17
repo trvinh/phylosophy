@@ -35,8 +35,8 @@ def openFileToAppend(location):
     file = open(location, "a+")
     return file
 
-def gettingOmaGroups(speciesSet, nr):
-    omaGroups = openFileToRead("data/oma-groups.txt")
+def gettingOmaGroups(dataPath, speciesSet, nr):
+    omaGroups = openFileToRead(dataPath + "/oma-groups.txt")
     commonOmaGroups = []
     speciesDic = {}
     for i in omaGroups:
@@ -199,19 +199,21 @@ def main():
     ###################### Input from R #####################################
     start = time.time()
     parameter = sys.argv[1:]
-    speciesList = str(parameter[0]).split(",")
+
+    dataPath = parameter[0]
+    speciesList = str(parameter[1]).split(",")
     speciesSet = set(speciesList)
-    speciesTaxId = str(parameter[1]).split(",")
+    speciesTaxId = str(parameter[2]).split(",")
     for i in range(0, len(speciesTaxId)):
         speciesTaxId[i] = int(speciesTaxId[i])
-    nrMissingSpecies = parameter[2]
-    path = parameter[3]
-    mode = parameter[4]
+    nrMissingSpecies = parameter[3]
+    path = parameter[4]
+    mode = parameter[5]
 
     ##########################################################################
 
 
-    commonOmaGroups, speciesDic = gettingOmaGroups(speciesSet, nrMissingSpecies)
+    commonOmaGroups, speciesDic = gettingOmaGroups(dataPath, speciesSet, nrMissingSpecies)
 
     createFolder(path, "core_orthologs")
     createFolder(path, "blast_dir")
