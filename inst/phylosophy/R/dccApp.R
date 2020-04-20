@@ -28,10 +28,17 @@ dccAppUI <- function(id) {
                 
                 conditionalPanel(
                     condition = "input.inputTyp == 'omaFile'", ns = ns,
-                    fileInput(ns("omaFileInput"), "Upload OMA file (orthoXML)"),
+                    shinyFilesButton(
+                        ns("omaFileInput"),
+                        "Upload OMA file (orthoXML)" ,
+                        title = "Please provide OMA file in orthoXML format",
+                        multiple = FALSE,
+                        buttonType = "default"
+                    ),
+                    br(), br(),
                     
                     selectInput(
-                        ns("taxType"), "Get genne sets from:",
+                        ns("taxType"), strong("Get genne sets from:"),
                         c("Local directory", "OMA Database"),
                         selected = "Local directory"
                     ),
@@ -47,11 +54,14 @@ dccAppUI <- function(id) {
                         br(), br(),
                     ),
                     
-                    conditionalPanel(
-                        condition = "input.taxType == 'OMA Database'", 
-                        ns = ns,
-                        fileInput(ns("taxMappingFile"), "Taxa mapping file")
-                    )
+                    shinyFilesButton(
+                        ns("taxMappingFile"),
+                        "TaxID mapping file" ,
+                        title = "Please provide taxon ID mapping file",
+                        multiple = FALSE,
+                        buttonType = "default"
+                    ),
+                    br(), br(),
                 ),
 
                 conditionalPanel(
@@ -75,13 +85,13 @@ dccAppUI <- function(id) {
                         condition = "input.inputTyp == 'ncbiID' || input.inputTyp == 'speciesName' || input.inputTyp == 'inputFile'", 
                         ns = ns,
                         checkboxInput(ns("update"), label = "update Mode")
-                    ),
-                    
-                    # MSA tool selection
-                    radioButtons(
-                        ns("MSA"),
-                        "MSA tool", choices = c("MAFFT", "MUSCLE"), selected = "MAFFT"
                     )
+                ),
+                
+                # MSA tool selection
+                radioButtons(
+                    ns("MSA"),
+                    strong("MSA tool"), choices = c("MAFFT", "MUSCLE"), selected = "MAFFT"
                 ),
                 
                 br(),
@@ -125,6 +135,14 @@ dccAppUI <- function(id) {
                 
                 # number of obtained common oma groups
                 verbatimTextOutput(ns("nrOmaGroups")),
+                
+                # arguments of orthoxmlParser 
+                conditionalPanel(
+                    condition = "input.inputTyp == 'omaFile'", ns = ns,
+                    strong("Standalone OMA parser options:"),
+                    uiOutput(ns("omaParserOptions")),
+                    br(), br(),
+                ),
                 
                 # finishing msg
                 uiOutput(ns("end")),
@@ -176,9 +194,76 @@ dccApp <- function (input, output, session) {
         )
     })
     
-    # process standalone OMA ==================================================
-    getOmaXmlFile <- reactive({
-        
+    # get standalone OMA info ==================================================
+    # * oma input path ========================================================
+    getLocalOma <- reactive({
+        shinyFileChoose(
+            input, "omaFileInput", roots = homePath, session = session
+        )
+        req(input$omaFileInput)
+        file_selected <- parseFilePaths(homePath, input$omaFileInput)
+        return(as.character(file_selected$datapath))
+    })
+    # * data set directory ===================================================
+    getLocalDataset <- reactive({
+        shinyDirChoose(
+            input, "genomeDir", roots = homePath, session = session
+        )
+        outputPath <- parseDirPath(homePath, input$genomeDir)
+        return(replaceHomeCharacter(as.character(outputPath)))
+    })
+    # * mapping file path =====================================================
+    getTaxMapping <- reactive({
+        shinyFileChoose(
+            input, "taxMappingFile", roots = homePath, session = session
+        )
+        # req(input$taxMappingFile)
+        file_selected <- parseFilePaths(homePath, input$taxMappingFile)
+        return(as.character(file_selected$datapath))
+    })
+    
+    observe({
+        if (input$inputTyp == "omaFile") {
+            if (length(getLocalOma()) == 0) disable("submit")
+            if (length(getLocalDataset()) == 0) disable("submit")
+            if (length(getTaxMapping()) == 0) disable("submit")
+        }
+    })
+    
+    # * read taxonomy info from mapping file ==================================
+    readTaxMapping <- reactive({
+        req(getTaxMapping())
+        taxFile <- read.table(
+            getTaxMapping(), sep = "\t", header = FALSE, comment.char = "", 
+            stringsAsFactors = FALSE
+        )
+        colnames(taxFile) <- c("NCBI ID", "Gene set name", "Abbr specices name")
+        return(taxFile)
+    })
+    
+    # * render orthoxmlParser options =========================================
+    omaParserOptions <- reactive({
+        inFile <- ""
+        if (length(getLocalOma()) > 0) 
+            inFile <- paste("--inFile", getLocalOma())
+        outPath <- ""
+        if (length(getOutputPath()) > 0) 
+            outPath <- paste("--outPath", getOutputPath())
+        data <- ""
+        if (length(getLocalDataset()) > 0) 
+            data <- paste("--geneSet", getLocalDataset())
+        mapping <- ""
+        if (length(getTaxMapping()) > 0) 
+            mapping <- paste("--mappingFile", getTaxMapping())
+        tool <- paste("--alignTool", input$MSA)
+        parserOption <- c(inFile, outPath, data, mapping, tool)
+        return(
+            parserOption[unlist(lapply(parserOption, function (x) x != ""))]
+        )
+    })
+    
+    output$omaParserOptions <- renderUI({
+        HTML(paste(omaParserOptions(), collapse = "<br/>"))
     })
 
     # process dowloaded OMA database ==========================================
@@ -241,8 +326,8 @@ dccApp <- function (input, output, session) {
         if (input$inputTyp != "OmaId") {
             if (input$inputTyp != "inputFile") {
                 selectInput(
-                    inputId = ns("nrMissingSpecies"),
-                    label = "How many species can be missed in an OmaGroup",
+                    ns("nrMissingSpecies"),
+                    strong("How many species can be missed in an OmaGroup"),
                     choices = seq(0,(length(input$species)-1))
                 )
             } else if (input$inputTyp == "inputFile") {
@@ -257,8 +342,8 @@ dccApp <- function (input, output, session) {
                     # } else {
                     taxaInFile <- read.table(inFile$datapath, header = FALSE)
                     selectInput(
-                        inputId = ns("nrMissingSpecies"),
-                        label = "How many species can be missed in an OmaGroup",
+                        ns("nrMissingSpecies"),
+                        strong("How many species can be missed in an OmaGroup"),
                         choices = seq(0,(nrow(taxaInFile)-1))
                     )
                 }
@@ -370,7 +455,7 @@ dccApp <- function (input, output, session) {
         }
     })
 
-    # * from selected taxon NAMES or IDs ======================================
+    # * from selected taxon NAMES or IDs or standalone OMA ====================
     createTableOutput <- reactive({
         speciesTable <- readOmaSpec()
         DF <- NULL
@@ -411,7 +496,11 @@ dccApp <- function (input, output, session) {
     })
 
     output$speciesTable <- DT::renderDataTable({
-        speciesTable <- createTableOutput()
+        if (input$inputTyp == "omaFile") {
+            readTaxMapping()
+        } else {
+            speciesTable <- createTableOutput()
+        }
     })
 
     # get OmaCode for chosen species ==========================================
@@ -473,77 +562,89 @@ dccApp <- function (input, output, session) {
             }
             progress$set(value = value, detail = detail)
         }
-
-        if (input$inputTyp == "inputFile") {
-            inFile <- input$taxFile
-            taxa <- fread(inFile$datapath, header = FALSE)
-            speciesInput <- taxa$V1
-        } else if (input$inputTyp == "OmaId") {
-            speciesInput <- input$GroupSpecies
-        } else {
-            speciesInput <- input$species
-        }
-
-        taxTable <- readOmaSpec()
-        OmaCodes <- findOmaCode(speciesInput, taxTable)
-        taxIds <- findTaxId(speciesInput, taxTable)
-        inputOmaCode <- gsub(" ", "", toString(OmaCodes))
-        inputTaxId <- gsub(" ", "", toString(taxIds))
+        
         path <- getOutputPath()
-
-        # * get data set ======================================================
-        getDatasets(getOmaPath(), inputOmaCode, inputTaxId, path)
-        updateProgress(
-            detail = paste(
-                "Gene set collection is finished.",
-                "Start to compile Oma Groups"
+        
+        if (input$inputTyp == 'omaFile') {
+            # * parse standalone OMA ==========================================
+            parseOmaCmd <- paste(
+                "python scripts/orthoxmlParser.py",
+                paste(omaParserOptions(), collapse = " "),
+                "-l", 5
             )
-        )
-
-        # * get oma groups ====================================================
-        if (input$inputTyp == "OmaId") {
-            y <- getOmaGroup(
-                getOmaPath(), inputOmaCode, inputTaxId, input$omaGroupId, path
-            )
+            print(parseOmaCmd)
+            system(parseOmaCmd, intern = TRUE)
         } else {
-            y <- getCommonOmaGroups(
-                getOmaPath(), inputOmaCode, inputTaxId, input$nrMissingSpecies, 
-                path, input$update
+            if (input$inputTyp == "inputFile") {
+                inFile <- input$taxFile
+                taxa <- fread(inFile$datapath, header = FALSE)
+                speciesInput <- taxa$V1
+            } else if (input$inputTyp == "OmaId") {
+                speciesInput <- input$GroupSpecies
+            } else {
+                speciesInput <- input$species
+            }
+            
+            taxTable <- readOmaSpec()
+            OmaCodes <- findOmaCode(speciesInput, taxTable)
+            taxIds <- findTaxId(speciesInput, taxTable)
+            inputOmaCode <- gsub(" ", "", toString(OmaCodes))
+            inputTaxId <- gsub(" ", "", toString(taxIds))
+            
+            # * get data set ======================================================
+            getDatasets(getOmaPath(), inputOmaCode, inputTaxId, path)
+            updateProgress(
+                detail = paste(
+                    "Gene set collection is finished.",
+                    "Start to compile Oma Groups"
+                )
             )
-        }
-        updateProgress(
-            detail = paste(
-                "OMA groups collection is finished.",
-                "Start to compile MSA using", input$MSA
+            
+            # * get oma groups ====================================================
+            if (input$inputTyp == "OmaId") {
+                y <- getOmaGroup(
+                    getOmaPath(), inputOmaCode, inputTaxId, input$omaGroupId, path
+                )
+            } else {
+                y <- getCommonOmaGroups(
+                    getOmaPath(), inputOmaCode, inputTaxId, input$nrMissingSpecies, 
+                    path, input$update
+                )
+            }
+            updateProgress(
+                detail = paste(
+                    "OMA groups collection is finished.",
+                    "Start to compile MSA using", input$MSA
+                )
             )
-        )
-
-        # * create sequence alignments ========================================
-        if (input$MSA == "MAFFT") {
-            fileMSA <- "python scripts/makingMsaMafft.py"
-        } else {
-            fileMSA <- "python scripts/makingMsaMuscle.py"
+            
+            # * create sequence alignments ========================================
+            if (input$MSA == "MAFFT") {
+                fileMSA <- "python scripts/makingMsaMafft.py"
+            } else {
+                fileMSA <- "python scripts/makingMsaMuscle.py"
+            }
+            updateProgress(detail = y)
+            system(paste(fileMSA, path), intern = TRUE)
+            
+            # * create pHMMs ======================================================
+            fileHmm <- "python scripts/makingHmms.py"
+            updateProgress(detail = "Computing pHMMs with HMMER")
+            system(paste(fileHmm, path), intern = TRUE)
+            
+            #* create BLASTDB =====================================================
+            fileBlastDb <- "python scripts/makingBlastdb.py"
+            updateProgress(detail = "Computing blastDBs")
+            system(paste(fileBlastDb, path), inter = TRUE)
+            
         }
-        updateProgress(detail = y)
-        system(paste(fileMSA, path), intern = TRUE)
-
-        # * create pHMMs ======================================================
-        fileHmm <- "python scripts/makingHmms.py"
-        updateProgress(detail = "Computing pHMMs with HMMER")
-        system(paste(fileHmm, path), intern = TRUE)
-
-        #* create BLASTDB =====================================================
-        fileBlastDb <- "python scripts/makingBlastdb.py"
-        updateProgress(detail = "Computing blastDBs")
-        system(paste(fileBlastDb, path), inter = TRUE)
-
-        #* finished ===========================================================
-        output$end <- renderText(
-            paste("The calculation is finished!")
+        
+        output$end <- renderUI(
+            strong("The calculation is finished!")
         )
     })
 
-    # output msg ==========================================================
+    # finishing msg ==========================================================
     output$annoOptions.ui <- renderUI({
         req(input$submit)
         paste("Your output is saved under: ", getOutputPath())

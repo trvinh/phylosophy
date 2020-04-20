@@ -98,7 +98,7 @@ def main():
 		my_abs_path = Path(outFol).resolve(strict=True)
 	except FileNotFoundError:
 		Path(outFol).mkdir(parents = True, exist_ok = True)
-	aligTool = args.alignTool
+	aligTool = args.alignTool.lower()
 	if not aligTool == "mafft" or aligTool == "muscle":
 		sys.exit("alignment tool must be either mafft or muscle")
 	limit = args.maxGroups
