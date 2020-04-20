@@ -22,13 +22,13 @@
 
 import os
 import sys
-import getopt
-import glob
+import argparse
 import time
 from bs4 import BeautifulSoup
 from pathlib import Path
 import subprocess
 from Bio import SeqIO
+import multiprocessing as mp
 
 def readFileToDict(file):
 	name2id = {}
@@ -44,49 +44,67 @@ def concatFasta(fileIn, fileOut):
 	 cmd = "awk \'/^>/ { print (NR==1 ? \"\" : RS) $0; next } { printf \"%s\", $0 } END { printf RS }\' " + fileIn + " > " + fileOut
 	 subprocess.call([cmd], shell = True)
 
-def main(argv):
-	inFile = ''
+def checkFileExist(file):
 	try:
-		opts, args = getopt.getopt(argv,"i:g:m:a:o:h",["inFile", "genesets", "mappingfile" "tool", "outPath","help"])
-	except getopt.GetoptError:
-		print('orthoxmlParser.py -i input -g path_to_genesets -m tax_id_mapping_file -a mafft -o output_path')
-		sys.exit(2)
+		my_abs_path = Path(file).resolve(strict=True)
+	except FileNotFoundError:
+		sys.exit("%s not found" % file)
 
-	for opt,arg in opts:
-		if opt in ('-h','--help'):
-			print('orthoxmlParser.py -i <orthoxml file> -g <absolute path to genesets> -m <mapping file> -a <alignment tool (mafft|muscle)> -o <output directory>')
-			sys.exit()
-		elif opt in ('-i','--inFile'):
-			inFile = arg
-			try:
-			    my_abs_path = Path(inFile).resolve(strict=True)
-			except FileNotFoundError:
-				sys.exit("%s not found" % inFile)
-		elif opt in ('-g','--genesets'):
-			dataPath = arg
-			try:
-			    my_abs_path = Path(dataPath).resolve(strict=True)
-			except FileNotFoundError:
-				sys.exit("%s not found" % dataPath)
-		elif opt in ('-m','--mappingfile'):
-			mappingFile = arg
-			try:
-			    my_abs_path = Path(mappingFile).resolve(strict=True)
-			except FileNotFoundError:
-				sys.exit("%s not found" % mappingFile)
-		elif opt in ('-a','--tool'):
-			aligTool = arg
-			if not aligTool == "mafft" or aligTool == "muscle":
-				sys.exit("alignment tool must be either mafft or muscle")
-		elif opt in ('-o','--outPath'):
-			outFol = arg
-			try:
-			    my_abs_path = Path(outFol).resolve(strict=True)
-			except FileNotFoundError:
-				sys.exit("%s not found" % outFol)
+def runBlast(args):
+	(specName, specFile, outFol) = args
+	blastCmd = 'makeblastdb -dbtype prot -in %s -out %s/blast_dir/%s/%s' % (specFile, outFol, specName, specName)
+	subprocess.call([blastCmd], shell = True)
+
+def runHmm(args):
+	(hmmFile, fastaFile, id) = args
+	hmmCmd = 'hmmbuild --amino -o %s.tmp %s  %s.aln' % (id, hmmFile, fastaFile)
+	subprocess.call([hmmCmd], shell = True)
+	subprocess.call(['rm ' + id + '.tmp'], shell = True)
+	print(id + ".hmm")
+
+def runMsa(args):
+	(fastaFile, aligTool, id) = args
+	if aligTool == "mafft":
+		alignCmd = 'mafft --quiet --localpair --maxiterate 1000 %s.fa > %s.aln' % (fastaFile, fastaFile)
+	elif aligTool == "muscle":
+		alignCmd = 'muscle -quiet -in %s.fa -out %s.aln' % (fastaFile, fastaFile)
+	else:
+		sys.exit("Invalid alignment tool given!")
+	if not Path(fastaFile + ".aln").exists():
+		subprocess.call([alignCmd], shell = True)
+	print(id + ".aln")
+
+def main():
+	version = "1.0.0"
+	parser = argparse.ArgumentParser(description="You are running orthoxmlParser version " + str(version) + ".")
+	required = parser.add_argument_group('required arguments')
+	optional = parser.add_argument_group('additional arguments')
+	required.add_argument('-i', '--inFile', help='Input sequence in orthoXML format', action='store', default='', required=True)
+	required.add_argument('-o', '--outPath', help='Output directory', action='store', default='', required=True)
+	required.add_argument('-g', '--geneSet', help='Path to gene set folder', action='store', default='', required=True)
+	required.add_argument('-m', '--mappingFile', help='NCBI taxon ID mapping file', action='store', default='', required=True)
+	optional.add_argument('-a', '--alignTool', help='Alignment tool (mafft|muscle). Default: mafft', action='store', default='mafft')
+	optional.add_argument('-l', '--maxGroups', help='Maximum ortholog groups taken into account.', type=int, action='store', default=999999999)
+	args = parser.parse_args()
+
+	inFile = args.inFile
+	checkFileExist(inFile)
+	dataPath = args.geneSet
+	checkFileExist(dataPath)
+	mappingFile = args.mappingFile
+	checkFileExist(mappingFile)
+	outFol = args.outPath
+	try:
+		my_abs_path = Path(outFol).resolve(strict=True)
+	except FileNotFoundError:
+		Path(outFol).mkdir(parents = True, exist_ok = True)
+	aligTool = args.alignTool
+	if not aligTool == "mafft" or aligTool == "muscle":
+		sys.exit("alignment tool must be either mafft or muscle")
+	limit = args.maxGroups
 
 	start = time.time()
-
+	pool = mp.Pool(mp.cpu_count())
 	##### read mapping file
 	(name2id, name2abbr) = readFileToDict(mappingFile)
 
@@ -106,7 +124,8 @@ def main(argv):
 	Path(outFol + "/core_orthologs").mkdir(parents = True, exist_ok = True)
 
 	### copy species to genome_dir, blast_dir and create blastDBs
-	print("Getting gene sets and creating BLAST databases...")
+	print("Getting gene sets...")
+	blastJobs = []
 	for spec in xmlIn.findAll("species"):
 		specNameOri = spec.get("name")
 		if not specNameOri in name2abbr:
@@ -129,11 +148,10 @@ def main(argv):
 		if not Path(fileInBlast).exists():
 			lnCmd = 'ln -fs %s %s' % (fileInGenome, fileInBlast)
 			subprocess.call([lnCmd], shell = True)
-		# make blastDB and save in blast_dir/specName
+		# get info for blast
 		blastDbFile = "%s/blast_dir/%s/%s.phr" % (outFol, specName, specName)
 		if not Path(blastDbFile).exists():
-			blastCmd = 'makeblastdb -dbtype prot -in %s -out %s/blast_dir/%s/%s' % (specFile, outFol, specName, specName)
-			subprocess.call([blastCmd], shell = True)
+			blastJobs.append([specName, specFile, outFol])
 
 		# save OG members and their spec name to dict
 		for gene in spec.findAll("gene"):
@@ -141,13 +159,22 @@ def main(argv):
 			orthoID = gene.get("protId")
 			taxonName[orthoID] = specName
 			protID[groupID] = orthoID
-		print("*** " + specNameOri)
 
-	### parse ortholog groups, create MSA and pHMMs
-	print("Calculating alignment and pHMM for OGs...")
+	# make blastDB
+	print("Creating BLAST databases...")
+	msa = pool.map(runBlast, blastJobs)
+
+	### parse ortholog groups
+	print("Parsing ortholog groups...")
+	alignJobs = []
+	hmmJobs = []
+	n = 0
 	for orthogroup in xmlIn.findAll("orthologGroup"):
 		groupID = orthogroup.get("id")
 		if groupID:
+			n = n + 1
+			if (n > limit):
+				break
 			if groupID.isdigit():
 				groupID = "OG_"+str(groupID)
 			Path(outFol + "/core_orthologs/" + groupID).mkdir(parents = True, exist_ok = True)
@@ -160,37 +187,31 @@ def main(argv):
 					orthoSeq = str(fasta[spec][orthoID].seq)
 					myfile.write(">" + groupID + "|" + spec + "|" + orthoID + "\n" + orthoSeq + "\n")
 
-			# do MSA
+			# get info for MSA
 			ogFasta = outFol + "/core_orthologs/" + groupID + "/" + groupID
-			if aligTool == "mafft":
-				alignCmd = 'mafft --quiet --localpair --maxiterate 1000 %s.fa > %s.aln' % (ogFasta, ogFasta)
-			elif aligTool == "muscle":
-				alignCmd = 'muscle -quiet -in %s.fa -out %s.aln' % (ogFasta, ogFasta)
-			else:
-				sys.exit("Invalid alignment tool given!")
-			if not Path(ogFasta + ".aln").exists():
-				subprocess.call([alignCmd], shell = True)
+			alignJobs.append([ogFasta, aligTool, groupID])
 
-			# do pHMM
+			# get info for pHMM
 			Path(outFol + "/core_orthologs/" + groupID + "/hmm_dir").mkdir(parents = True, exist_ok = True)
 			hmmFile = "%s/core_orthologs/%s/hmm_dir/%s.hmm" % (outFol, groupID, groupID)
-			hmmCmd = 'hmmbuild --amino -o hmmbuild.tmp %s  %s.aln' % (hmmFile, ogFasta)
+			flag = 0
 			try:
 				if os.path.getsize(hmmFile) == 0:
-					subprocess.call([hmmCmd], shell = True)
-					subprocess.call(['rm hmmbuild.tmp'], shell = True)
+					flag = 1
 			except OSError as e:
-				subprocess.call([hmmCmd], shell = True)
-				subprocess.call(['rm hmmbuild.tmp'], shell = True)
+					flag = 1
+			if flag == 1:
+				hmmJobs.append([hmmFile, ogFasta, groupID])
 
-			print("*** " + groupID)
+	### create MSAs and pHMMs
+	print("Calculating MSAs and pHMMs for %s OGs..." % (len(alignJobs)))
+	msa = pool.map(runMsa, alignJobs)
+	phmm = pool.map(runHmm, hmmJobs)
+	pool.close()
 
 	ende = time.time()
 	print("Finished in " + '{:5.3f}s'.format(ende-start))
+	print("Output can be found in %s" % outFol)
 
 if __name__ == "__main__":
-	if len(sys.argv[1:]) < 10:
-		print('orthoxmlParser.py -i input -g path_to_genesets -m id_mapping_file -a mafft -o output_path')
-		sys.exit(2)
-	else:
-		main(sys.argv[1:])
+	main()
