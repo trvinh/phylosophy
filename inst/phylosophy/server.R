@@ -8,6 +8,9 @@ shinyServer(function(input, output, session) {
     # Automatically stop a Shiny app when closing the browser tab
     session$allowReconnect(TRUE)
     
+    # DCC app
+    callModule(dccApp, "dccApp")
+    
     # FAS app
     callModule(fasApp, "fasApp")
 	

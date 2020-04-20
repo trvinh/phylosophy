@@ -5,7 +5,8 @@ shinyUI(
         theme = shinytheme("yeti"),
         tags$style(type = "text/css", "body {padding-top: 80px;}"),
         useShinyjs(),
-
+        useShinyalert(),
+        
         # Application title
         titlePanel("", windowTitle = "Phylosophy"),
         
@@ -32,8 +33,7 @@ shinyUI(
             
             # DCC TAB ==========================================================
             tabPanel(
-            	"DCC",
-            	h3("Hey Kai, where is the DCC?")
+            	"DCC", dccAppUI("dccApp")
             ),
             
             # HAMSTR TAB =======================================================
