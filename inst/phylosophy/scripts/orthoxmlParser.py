@@ -22,6 +22,7 @@
 
 import os
 import sys
+import errno
 import argparse
 import time
 from bs4 import BeautifulSoup
@@ -50,6 +51,16 @@ def checkFileExist(file):
 	except FileNotFoundError:
 		sys.exit("%s not found" % file)
 
+def is_tool(name):
+	try:
+		devnull = open(os.devnull)
+		subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
+	except OSError as e:
+		if e.errno == errno.ENOENT:
+			print('\x1b[6;30;42m' + '*** tool \'' + name + '\' not found"' + '\x1b[0m')
+			return False
+	return True
+
 def runBlast(args):
 	(specName, specFile, outFol) = args
 	blastCmd = 'makeblastdb -dbtype prot -in %s -out %s/blast_dir/%s/%s' % (specFile, outFol, specName, specName)
@@ -57,9 +68,10 @@ def runBlast(args):
 
 def runHmm(args):
 	(hmmFile, fastaFile, id) = args
-	hmmCmd = 'hmmbuild --amino -o %s.tmp %s  %s.aln' % (id, hmmFile, fastaFile)
-	subprocess.call([hmmCmd], shell = True)
-	subprocess.call(['rm ' + id + '.tmp'], shell = True)
+	hmmCmd = 'hmmbuild --amino -o %s.tmp %s %s.aln' % (id, hmmFile, fastaFile)
+	if not Path(hmmFile).exists():
+		subprocess.call([hmmCmd], shell = True)
+		subprocess.call(['rm ' + id + '.tmp'], shell = True)
 	print(id + ".hmm")
 
 def runMsa(args):
@@ -73,6 +85,11 @@ def runMsa(args):
 	if not Path(fastaFile + ".aln").exists():
 		subprocess.call([alignCmd], shell = True)
 	print(id + ".aln")
+
+def calcAnnoFas(args):
+	(specName, specFile, outFol) = args
+	annoCmd = 'annoFAS --fasta %s --path %s/weight_dir --name %s ' % (specFile, outFol, specName)
+	subprocess.call([annoCmd], shell = True)
 
 def main():
 	version = "1.0.0"
@@ -99,7 +116,7 @@ def main():
 	except FileNotFoundError:
 		Path(outFol).mkdir(parents = True, exist_ok = True)
 	aligTool = args.alignTool.lower()
-	if not aligTool == "mafft" or aligTool == "muscle":
+	if not (aligTool == "mafft" or aligTool == "muscle"):
 		sys.exit("alignment tool must be either mafft or muscle")
 	limit = args.maxGroups
 
@@ -122,10 +139,12 @@ def main():
 	Path(outFol + "/genome_dir").mkdir(parents = True, exist_ok = True)
 	Path(outFol + "/blast_dir").mkdir(parents = True, exist_ok = True)
 	Path(outFol + "/core_orthologs").mkdir(parents = True, exist_ok = True)
+	Path(outFol + "/weight_dir").mkdir(parents = True, exist_ok = True)
 
-	### copy species to genome_dir, blast_dir and create blastDBs
+	### copy species to genome_dir, blast_dir, weight_dir
 	print("Getting gene sets...")
 	blastJobs = []
+	annoJobs = []
 	for spec in xmlIn.findAll("species"):
 		specNameOri = spec.get("name")
 		if not specNameOri in name2abbr:
@@ -140,18 +159,23 @@ def main():
 		# read fasta file to dictionary
 		fasta[specName] = SeqIO.to_dict(SeqIO.parse(open(specFile),'fasta'))
 
-		# copy to genome_dir/specName/specName.fa and make smybolic link to blast_dir/specName
+		# copy to genome_dir/specName/specName.fa and make smybolic link to blast_dir/specName, weight_dir/specName
 		fileInGenome = "%s/genome_dir/%s/%s.fa" % (outFol, specName, specName)
 		if not Path(fileInGenome).exists():
 			concatFasta(specFile, fileInGenome)
 		fileInBlast = "%s/blast_dir/%s/%s.fa" % (outFol, specName, specName)
 		if not Path(fileInBlast).exists():
-			lnCmd = 'ln -fs %s %s' % (fileInGenome, fileInBlast)
-			subprocess.call([lnCmd], shell = True)
+			lnCmd1 = 'ln -fs %s %s' % (fileInGenome, fileInBlast)
+			subprocess.call([lnCmd1], shell = True)
+		Path(outFol + "/weight_dir/" + specName).mkdir(parents = True, exist_ok = True)
 		# get info for blast
 		blastDbFile = "%s/blast_dir/%s/%s.phr" % (outFol, specName, specName)
 		if not Path(blastDbFile).exists():
 			blastJobs.append([specName, specFile, outFol])
+		# get info for FAS annotation
+		annoPfamFile = "%s/weight_dir/%s/pfam.xml" % (outFol, specName)
+		if not Path(annoPfamFile).exists():
+			annoJobs.append([specName, specFile, outFol])
 
 		# save OG members and their spec name to dict
 		for gene in spec.findAll("gene"):
@@ -162,7 +186,10 @@ def main():
 
 	# make blastDB
 	print("Creating BLAST databases...")
-	msa = pool.map(runBlast, blastJobs)
+	if is_tool('makeblastdb'):
+		msa = pool.map(runBlast, blastJobs)
+	else:
+		print("makeblastdb not found!".format(err))
 
 	### parse ortholog groups
 	print("Parsing ortholog groups...")
@@ -205,10 +232,17 @@ def main():
 
 	### create MSAs and pHMMs
 	print("Calculating MSAs and pHMMs for %s OGs..." % (len(alignJobs)))
+	# if is_tool(aligTool + " -h"):
 	msa = pool.map(runMsa, alignJobs)
-	phmm = pool.map(runHmm, hmmJobs)
-	pool.close()
+	if is_tool('hmmbuild'):
+		phmm = pool.map(runHmm, hmmJobs)
 
+	# do FAS annotation
+	print("Doing FAS annotation...")
+	if is_tool('annoFAS'):
+		anno = pool.map(calcAnnoFas, annoJobs)
+
+	pool.close()
 	ende = time.time()
 	print("Finished in " + '{:5.3f}s'.format(ende-start))
 	print("Output can be found in %s" % outFol)
