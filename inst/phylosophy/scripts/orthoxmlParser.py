@@ -84,11 +84,11 @@ def runMsa(args):
 		sys.exit("Invalid alignment tool given!")
 	if not Path(fastaFile + ".aln").exists():
 		subprocess.call([alignCmd], shell = True)
-	print(id + ".aln")
+		print(id + ".aln")
 
 def calcAnnoFas(args):
 	(specName, specFile, outFol) = args
-	annoCmd = 'annoFAS --fasta %s --path %s/weight_dir --name %s ' % (specFile, outFol, specName)
+	annoCmd = 'annoFAS --fasta %s --path %s/weight_dir --name %s --cores 4' % (specFile, outFol, specName)
 	subprocess.call([annoCmd], shell = True)
 
 def main():
@@ -101,6 +101,7 @@ def main():
 	required.add_argument('-g', '--geneSet', help='Path to gene set folder', action='store', default='', required=True)
 	required.add_argument('-m', '--mappingFile', help='NCBI taxon ID mapping file', action='store', default='', required=True)
 	optional.add_argument('-a', '--alignTool', help='Alignment tool (mafft|muscle). Default: mafft', action='store', default='mafft')
+	optional.add_argument('-f', '--annoFas', help='Perform FAS annotation', action='store_true')
 	optional.add_argument('-l', '--maxGroups', help='Maximum ortholog groups taken into account.', type=int, action='store', default=999999999)
 	args = parser.parse_args()
 
@@ -119,6 +120,7 @@ def main():
 	if not (aligTool == "mafft" or aligTool == "muscle"):
 		sys.exit("alignment tool must be either mafft or muscle")
 	limit = args.maxGroups
+	doAnno = args.annoFas
 
 	start = time.time()
 	pool = mp.Pool(mp.cpu_count())
@@ -238,9 +240,10 @@ def main():
 		phmm = pool.map(runHmm, hmmJobs)
 
 	# do FAS annotation
-	print("Doing FAS annotation...")
-	if is_tool('annoFAS'):
-		anno = pool.map(calcAnnoFas, annoJobs)
+	if doAnno:
+		print("Doing FAS annotation...")
+		if is_tool('annoFAS'):
+			anno = pool.map(calcAnnoFas, annoJobs)
 
 	pool.close()
 	ende = time.time()

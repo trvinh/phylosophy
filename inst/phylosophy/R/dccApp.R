@@ -82,7 +82,10 @@ dccAppUI <- function(id) {
                     # update mode or the normal mode should be used
                     uiOutput(ns("update")),
                     conditionalPanel(
-                        condition = "input.inputTyp == 'ncbiID' || input.inputTyp == 'speciesName' || input.inputTyp == 'inputFile'", 
+                        condition = "
+                        input.inputTyp == 'ncbiID' || 
+                        input.inputTyp == 'speciesName' || 
+                        input.inputTyp == 'inputFile'", 
                         ns = ns,
                         checkboxInput(ns("update"), label = "update Mode")
                     )
@@ -91,7 +94,13 @@ dccAppUI <- function(id) {
                 # MSA tool selection
                 radioButtons(
                     ns("MSA"),
-                    strong("MSA tool"), choices = c("MAFFT", "MUSCLE"), selected = "MAFFT"
+                    strong("MSA tool"), choices = c("MAFFT", "MUSCLE"), 
+                    selected = "MAFFT"
+                ),
+                
+                # option for running FAS annotation
+                checkboxInput(
+                    ns("doAnno"), strong("Include FAS annotation"), value = TRUE
                 ),
                 
                 br(),
@@ -256,7 +265,10 @@ dccApp <- function (input, output, session) {
         if (length(getTaxMapping()) > 0) 
             mapping <- paste("--mappingFile", getTaxMapping())
         tool <- paste("--alignTool", input$MSA)
-        parserOption <- c(inFile, outPath, data, mapping, tool)
+        anno <- ""
+        if (input$doAnno  == TRUE)
+            anno <- "--annoFas"
+        parserOption <- c(inFile, outPath, data, mapping, tool, anno)
         return(
             parserOption[unlist(lapply(parserOption, function (x) x != ""))]
         )
@@ -271,7 +283,8 @@ dccApp <- function (input, output, session) {
     readOmaSpec <- reactive({
         req(getOmaPath())
         taxTable <- fread(
-            paste0(getOmaPath(), "/oma-species.txt"), header = FALSE, skip = 2, sep = "\t"
+            paste0(getOmaPath(), "/oma-species.txt"), header = FALSE, skip = 2, 
+            sep = "\t"
         )
         colnames(taxTable) <- c(
             "OMAcode", "TaxonID", "ScientificName", "GenomeSource",
@@ -569,8 +582,8 @@ dccApp <- function (input, output, session) {
             # * parse standalone OMA ==========================================
             parseOmaCmd <- paste(
                 "python scripts/orthoxmlParser.py",
-                paste(omaParserOptions(), collapse = " "),
-                "-l", 5
+                paste(omaParserOptions(), collapse = " ")
+                # , "-l", 5 # for testing purpose
             )
             print(parseOmaCmd)
             system(parseOmaCmd, intern = TRUE)
@@ -591,7 +604,7 @@ dccApp <- function (input, output, session) {
             inputOmaCode <- gsub(" ", "", toString(OmaCodes))
             inputTaxId <- gsub(" ", "", toString(taxIds))
             
-            # * get data set ======================================================
+            # * get data set ===================================================
             getDatasets(getOmaPath(), inputOmaCode, inputTaxId, path)
             updateProgress(
                 detail = paste(
@@ -600,15 +613,16 @@ dccApp <- function (input, output, session) {
                 )
             )
             
-            # * get oma groups ====================================================
+            # * get oma groups =================================================
             if (input$inputTyp == "OmaId") {
                 y <- getOmaGroup(
-                    getOmaPath(), inputOmaCode, inputTaxId, input$omaGroupId, path
+                    getOmaPath(), 
+                    inputOmaCode, inputTaxId, input$omaGroupId, path
                 )
             } else {
                 y <- getCommonOmaGroups(
-                    getOmaPath(), inputOmaCode, inputTaxId, input$nrMissingSpecies, 
-                    path, input$update
+                    getOmaPath(), inputOmaCode, inputTaxId, 
+                    input$nrMissingSpecies, path, input$update
                 )
             }
             updateProgress(
@@ -618,7 +632,7 @@ dccApp <- function (input, output, session) {
                 )
             )
             
-            # * create sequence alignments ========================================
+            # * create sequence alignments =====================================
             if (input$MSA == "MAFFT") {
                 fileMSA <- "python scripts/makingMsaMafft.py"
             } else {
@@ -627,16 +641,22 @@ dccApp <- function (input, output, session) {
             updateProgress(detail = y)
             system(paste(fileMSA, path), intern = TRUE)
             
-            # * create pHMMs ======================================================
+            # * create pHMMs ===================================================
             fileHmm <- "python scripts/makingHmms.py"
             updateProgress(detail = "Computing pHMMs with HMMER")
             system(paste(fileHmm, path), intern = TRUE)
             
-            #* create BLASTDB =====================================================
+            #* create BLASTDB ==================================================
             fileBlastDb <- "python scripts/makingBlastdb.py"
             updateProgress(detail = "Computing blastDBs")
             system(paste(fileBlastDb, path), inter = TRUE)
             
+            #* create ANNOTATION ===============================================
+            if (input$doAnno  == TRUE) {
+                annoCmd <- "python scripts/makingAnnotation.py"
+                updateProgress(detail = "Computing FAS annotations")
+                system(paste(annoCmd, path), inter = TRUE)
+            }
         }
         
         output$end <- renderUI(
@@ -659,13 +679,20 @@ getDatasets <- function(omdDataDir, inputOmaCode, inputTaxId, path) {
 }
 
 # collects the common Oma Groups of the choosen species
-getCommonOmaGroups <- function(omdDataDir, inputOmaCode, inputTaxId, nrMissingSpecies, path, update) {
+getCommonOmaGroups <- function(
+    omdDataDir, inputOmaCode, inputTaxId, nrMissingSpecies, path, update) {
     fileGettingOmaGroups <- "python scripts/gettingOmaGroups.py"
-    y <- cat(system(paste(fileGettingOmaGroups, omdDataDir, inputOmaCode, inputTaxId, nrMissingSpecies, path, update), inter = TRUE))
+    y <- cat(system(paste(
+        fileGettingOmaGroups, omdDataDir, inputOmaCode, inputTaxId, 
+        nrMissingSpecies, path, update
+    ), inter = TRUE))
     return(y)
 }
-getOmaGroup <- function(omdDataDir, inputOmaCode, inputTaxId, omaGroupId, path) {
+getOmaGroup <- function(omdDataDir, inputOmaCode, inputTaxId, omaGroupId, path){
     fileGettingOmaGroup <- "python scripts/gettingOmaGroup.py"
-    y <- cat(system(paste(fileGettingOmaGroup, omdDataDir, inputOmaCode, inputTaxId, omaGroupId, path)))
+    y <- cat(system(paste(
+        fileGettingOmaGroup, omdDataDir, inputOmaCode, inputTaxId, omaGroupId, 
+        path
+    )))
     return(y)
 }
