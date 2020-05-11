@@ -22,14 +22,15 @@
 #
 #######################################################################
 
-import sys
-from Bio import SeqIO
-import os
-from pyfaidx import Fasta
-import time
-import json
-import argparse
-from pathlib import Path
+# import sys
+# from Bio import SeqIO
+# import os
+# from pyfaidx import Fasta
+# import time
+# import json
+# import argparse
+# from pathlib import Path
+import dccFn
 
 def checkFileExist(file):
 	try:
@@ -115,7 +116,7 @@ def getDataset(dataPath, speciesCode, speciesTaxId, outPath):
 
         newFile.close()
     ende = time.time()
-    print('{:5.3f}s'.format(ende - start), end='  ')
+    # print('{:5.3f}s'.format(ende - start), end='  ')
 
 def main():
     version = "1.0.0"

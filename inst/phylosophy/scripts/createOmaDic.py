@@ -29,12 +29,7 @@ import sys
 import subprocess
 from pathlib import Path
 import argparse
-
-
-def subprocess_cmd(commands):
-    for cmd in commands:
-        subprocess.call(cmd, shell = True)
-
+import dccFn
 
 def downloadFiles(dataPath, force):
     mainUrl = "https://omabrowser.org/All/"
@@ -48,7 +43,7 @@ def downloadFiles(dataPath, force):
         try:
             downloadCmd = 'wget %s/%s -P %s' % (mainUrl, omagroup, dataPath)
             unzipCmd = 'gunzip %s/%s' % (dataPath, omagroup)
-            subprocess_cmd([downloadCmd, unzipCmd])
+            dccFn.subprocess_cmd([downloadCmd, unzipCmd])
         except:
             sys.exit("Error occurs while downloading %s/%s" % (mainUrl, omagroup))
 
@@ -57,7 +52,7 @@ def downloadFiles(dataPath, force):
         try:
             downloadCmd = 'wget %s/%s -P %s' % (mainUrl, fastaseq, dataPath)
             unzipCmd = 'gunzip %s/%s' % (dataPath, fastaseq)
-            subprocess_cmd([downloadCmd, unzipCmd])
+            dccFn.subprocess_cmd([downloadCmd, unzipCmd])
         except:
             sys.exit("Error occurs while downloading %s/%s" % (mainUrl, fastaseq))
 
@@ -65,7 +60,7 @@ def downloadFiles(dataPath, force):
         print("############ Downloading oma-species.txt...")
         try:
             downloadCmd = 'wget %s/%s -P %s' % (mainUrl, specinfo, dataPath)
-            subprocess_cmd([downloadCmd])
+            dccFn.subprocess_cmd([downloadCmd])
         except:
             sys.exit("Error occurs while downloading %s/%s" % (mainUrl, specinfo))
 
