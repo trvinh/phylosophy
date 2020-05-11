@@ -11,8 +11,8 @@ dccAppUI <- function(id) {
             h3("Input and configurations"),
             hr(),
 
-            conditionalPanel(
-                condition = "output.checkPython == 0", ns = ns,
+            # conditionalPanel(
+            #     condition = "output.checkPython == 0", ns = ns,
                 # type of inputs
                 radioButtons(
                     ns("inputTyp"), strong("Select your input type"),
@@ -104,17 +104,17 @@ dccAppUI <- function(id) {
                 
                 # creates the action button to run the calculation
                 bsButton(ns("submit"), "Run")
-            )
+            # )
         ),
         # * main panel for annoFAS and greedyFAS -------------------------------
         mainPanel(
             width = 9,
-            conditionalPanel(
-                condition = "output.checkPython == 1", ns = ns,
-                htmlOutput(ns("pythonMsg"))
-            ),
-            conditionalPanel(
-                condition = "output.checkPython == 0", ns = ns,
+            # conditionalPanel(
+            #     condition = "output.checkPython == 1", ns = ns,
+            #     htmlOutput(ns("pythonMsg"))
+            # ),
+            # conditionalPanel(
+            #     condition = "output.checkPython == 0", ns = ns,
                 
                 # oma version
                 verbatimTextOutput(ns("version")),
@@ -147,7 +147,7 @@ dccAppUI <- function(id) {
                 # finishing msg
                 uiOutput(ns("end")),
                 uiOutput(ns("annoOptions.ui"))
-            )
+            # )
         )
     )
 }
@@ -157,21 +157,28 @@ dccApp <- function (input, output, session) {
     ns <- session$ns
     
     # check python version ====================================================
-    output$checkPython <- reactive({
-        python <- suppressWarnings(system("python -V", intern = TRUE))
-        if (python < "Python 3") {
-            return(1)
-        } else return(0)
-    })
-    outputOptions(output, "checkPython", suspendWhenHidden = FALSE)
-    
-    output$pythonMsg <- renderText({
-        python <- suppressWarnings(system("python -V", intern = TRUE))
-        paste(
-            "<font color=\"#FF0000\"><b><p>", python, 
-            " was found, while DCC requires Python3! </p>",
-            "<p>Please check again!</p>", "</b></font>"
-        )
+    # output$checkPython <- reactive({
+    #     # python <- suppressWarnings(system("python -V", intern = TRUE))
+    #     if (try(system("python -V") < "Python 3")) {
+    #         return(1)
+    #     } else return(0)
+    # })
+    # outputOptions(output, "checkPython", suspendWhenHidden = FALSE)
+    # 
+    # output$pythonMsg <- renderText({
+    #     # python <- suppressWarnings(system("python -V", intern = TRUE))
+    #     paste(
+    #         "<font color=\"#FF0000\"><b><p>", "Python2", # python, 
+    #         " was found, while DCC requires Python3! </p>",
+    #         "<p>Please check again!</p>", "</b></font>"
+    #     )
+    # })
+    python <- reactive({
+        if (try(system("python -V") < "Python 3")) {
+            return("python3")
+        } else {
+            return("python")
+        }
     })
     
     # get OMA data path =======================================================
@@ -188,7 +195,7 @@ dccApp <- function (input, output, session) {
         req(getOmaPath())
         y <- cat(
             system(
-                paste("python scripts/getVersion.py", getOmaPath()), 
+                paste(python(), "scripts/getVersion.py", getOmaPath()), 
                 intern = TRUE
             )
         )
@@ -549,6 +556,26 @@ dccApp <- function (input, output, session) {
     })
     
     # run DCC ==================================================================
+    
+    # collects the datasets of the chossen species
+    getDatasets <- function(omdDataDir, inputOmaCode, inputTaxId, path) {
+        fileGettingDataset <- paste(python(), "scripts/gettingDataset.py")
+        system(paste(fileGettingDataset, omdDataDir, inputOmaCode,inputTaxId, path))
+        return(0)
+    }
+    
+    # collects the common Oma Groups of the choosen species
+    getCommonOmaGroups <- function(omdDataDir, inputOmaCode, inputTaxId, nrMissingSpecies, path, update) {
+        fileGettingOmaGroups <- paste(python(), "scripts/gettingOmaGroups.py")
+        y <- cat(system(paste(fileGettingOmaGroups, omdDataDir, inputOmaCode, inputTaxId, nrMissingSpecies, path, update), inter = TRUE))
+        return(y)
+    }
+    getOmaGroup <- function(omdDataDir, inputOmaCode, inputTaxId, omaGroupId, path) {
+        fileGettingOmaGroup <- paste(python(), "scripts/gettingOmaGroup.py")
+        y <- cat(system(paste(fileGettingOmaGroup, omdDataDir, inputOmaCode, inputTaxId, omaGroupId, path)))
+        return(y)
+    }
+    
     startPythonScript <- observeEvent(input$submit, {
         disable("submit")
         progress <- shiny::Progress$new()
@@ -568,7 +595,7 @@ dccApp <- function (input, output, session) {
         if (input$inputTyp == 'omaFile') {
             # * parse standalone OMA ==========================================
             parseOmaCmd <- paste(
-                "python scripts/orthoxmlParser.py",
+                python(), "scripts/orthoxmlParser.py",
                 paste(omaParserOptions(), collapse = " "),
                 "-l", 5
             )
@@ -620,20 +647,20 @@ dccApp <- function (input, output, session) {
             
             # * create sequence alignments ========================================
             if (input$MSA == "MAFFT") {
-                fileMSA <- "python scripts/makingMsaMafft.py"
+                fileMSA <- paste(python(), "scripts/makingMsaMafft.py")
             } else {
-                fileMSA <- "python scripts/makingMsaMuscle.py"
+                fileMSA <- paste(python(), "scripts/makingMsaMuscle.py")
             }
             updateProgress(detail = y)
             system(paste(fileMSA, path), intern = TRUE)
             
             # * create pHMMs ======================================================
-            fileHmm <- "python scripts/makingHmms.py"
+            fileHmm <- paste(python(), "scripts/makingHmms.py")
             updateProgress(detail = "Computing pHMMs with HMMER")
             system(paste(fileHmm, path), intern = TRUE)
             
             #* create BLASTDB =====================================================
-            fileBlastDb <- "python scripts/makingBlastdb.py"
+            fileBlastDb <- paste(python(), "scripts/makingBlastdb.py")
             updateProgress(detail = "Computing blastDBs")
             system(paste(fileBlastDb, path), inter = TRUE)
             
@@ -649,23 +676,4 @@ dccApp <- function (input, output, session) {
         req(input$submit)
         paste("Your output is saved under: ", getOutputPath())
     })
-}
-
-# collects the datasets of the chossen species
-getDatasets <- function(omdDataDir, inputOmaCode, inputTaxId, path) {
-    fileGettingDataset <- "python scripts/gettingDataset.py"
-    system(paste(fileGettingDataset, omdDataDir, inputOmaCode,inputTaxId, path))
-    return(0)
-}
-
-# collects the common Oma Groups of the choosen species
-getCommonOmaGroups <- function(omdDataDir, inputOmaCode, inputTaxId, nrMissingSpecies, path, update) {
-    fileGettingOmaGroups <- "python scripts/gettingOmaGroups.py"
-    y <- cat(system(paste(fileGettingOmaGroups, omdDataDir, inputOmaCode, inputTaxId, nrMissingSpecies, path, update), inter = TRUE))
-    return(y)
-}
-getOmaGroup <- function(omdDataDir, inputOmaCode, inputTaxId, omaGroupId, path) {
-    fileGettingOmaGroup <- "python scripts/gettingOmaGroup.py"
-    y <- cat(system(paste(fileGettingOmaGroup, omdDataDir, inputOmaCode, inputTaxId, omaGroupId, path)))
-    return(y)
 }
