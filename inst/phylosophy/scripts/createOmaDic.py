@@ -1,13 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from Bio import SeqIO
-import time
-import json
-import sys
-import subprocess
-from pathlib import Path
-import argparse
-
 #######################################################################
 # Copyright (C) 2020 Hannah Mülbaier & Vinh Tran
 #
@@ -29,6 +21,14 @@ import argparse
 #  Contact: hannah.muelbaier@gmail.com or tran@bio.uni-frankfurt.de
 #
 #######################################################################
+
+from Bio import SeqIO
+import time
+import json
+import sys
+import subprocess
+from pathlib import Path
+import argparse
 
 
 def subprocess_cmd(commands):

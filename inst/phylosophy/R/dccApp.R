@@ -559,7 +559,7 @@ dccApp <- function (input, output, session) {
     
     # collects the datasets of the chossen species
     getDatasets <- function(omdDataDir, inputOmaCode, inputTaxId, path) {
-        fileGettingDataset <- paste(python(), "scripts/gettingDataset.py")
+        fileGettingDataset <- paste(python(), "scripts/getGenomes.py")
         system(paste(fileGettingDataset, omdDataDir, inputOmaCode,inputTaxId, path))
         return(0)
     }
