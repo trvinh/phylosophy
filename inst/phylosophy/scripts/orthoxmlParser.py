@@ -30,20 +30,21 @@ from pathlib import Path
 import subprocess
 from Bio import SeqIO
 import multiprocessing as mp
+import dccFn
 
 def readFileToDict(file):
-	name2id = {}
-	name2abbr = {}
-	with open(file, 'r') as f:
-		for line in f:
-			fields = line.rstrip().split('\t')
-			name2id[fields[1]] = fields[0]
-			name2abbr[fields[1]] = fields[2]
-	return(name2id, name2abbr)
+    name2id = {}
+    name2abbr = {}
+    with open(file, 'r') as f:
+        for line in f:
+            fields = line.rstrip().split('\t')
+            name2id[fields[1]] = fields[0]
+            name2abbr[fields[1]] = fields[2]
+    return(name2id, name2abbr)
 
 def concatFasta(fileIn, fileOut):
-	 cmd = "awk \'/^>/ { print (NR==1 ? \"\" : RS) $0; next } { printf \"%s\", $0 } END { printf RS }\' " + fileIn + " > " + fileOut
-	 subprocess.call([cmd], shell = True)
+     cmd = "awk \'/^>/ { print (NR==1 ? \"\" : RS) $0; next } { printf \"%s\", $0 } END { printf RS }\' " + fileIn + " > " + fileOut
+     subprocess.call([cmd], shell = True)
 
 def checkFileExist(file):
 	try:
@@ -251,4 +252,4 @@ def main():
 	print("Output can be found in %s" % outFol)
 
 if __name__ == "__main__":
-	main()
+    main()
