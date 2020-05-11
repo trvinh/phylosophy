@@ -50,6 +50,7 @@ def main():
     required.add_argument('-d', '--dataPath', help='Path to OMA Browser data', action='store', default='', required=True)
     required.add_argument('-o', '--outPath', help='Path to output directory', action='store', default='', required=True)
     optional.add_argument('-a', '--alignTool', help='Alignment tool (mafft|muscle). Default: mafft', action='store', default='mafft')
+    optional.add_argument('-f', '--annoFas', help='Perform FAS annotation', action='store_true')
     args = parser.parse_args()
 
     dccFn.checkFileExist(args.dataPath)
@@ -62,6 +63,7 @@ def main():
     aligTool = args.alignTool.lower()
     if not aligTool == "mafft" or aligTool == "muscle":
         sys.exit("alignment tool must be either mafft or muscle")
+    doAnno = args.annoFas
 
     start = time.time()
     pool = mp.Pool(mp.cpu_count()-1)
@@ -73,6 +75,7 @@ def main():
     Path(outPath + "/core_orthologs").mkdir(parents = True, exist_ok = True)
     Path(outPath + "/core_orthologs/" + omaGroupId).mkdir(parents = True, exist_ok = True)
     Path(outPath + "/core_orthologs/" + omaGroupId + "/hmm_dir").mkdir(parents = True, exist_ok = True)
+    Path(outPath + "/weight_dir").mkdir(parents = True, exist_ok = True)
 
     ### Get genesets
     print("Getting %s gene sets..." % (len(speciesList)))
@@ -81,18 +84,26 @@ def main():
     # read fasta file to dictionary
     fasta = {}
     blastJobs = []
+    annoJobs = []
     for i in range(0,len(speciesList)):
         fileName = dccFn.makeOneSeqSpeciesName(speciesList[i], speciesTaxId[i])
         specFile = outPath+"/genome_dir/"+fileName+"/"+fileName+".fa"
         fasta[speciesList[i]] = SeqIO.to_dict(SeqIO.parse(open(specFile),'fasta'))
-
+        # get info for BLAST
         blastDbFile = "%s/blast_dir/%s/%s.phr" % (outPath, fileName, fileName)
         if not Path(blastDbFile).exists():
             blastJobs.append([fileName, specFile, outPath])
+        # get info for FAS annotation
+        annoPfamFile = "%s/weight_dir/%s/pfam.xml" % (outPath, fileName)
+        if not Path(annoPfamFile).exists():
+            annoJobs.append([fileName, specFile, outPath])
 
     ### create blastDBs
     print("Creating BLAST databases for %s taxa..." % len(blastJobs))
-    msa = pool.map(dccFn.runBlast, blastJobs)
+    if dccFn.is_tool('makeblastdb'):
+        msa = pool.map(dccFn.runBlast, blastJobs)
+    else:
+        print("makeblastdb not found!".format(err))
 
     ### get OG fasta
     print("Getting protein sequences for OG id %s..." % omaGroupId)
@@ -111,7 +122,7 @@ def main():
                     seq = str(fasta[spec][protId].seq)
                     myfile.write(">" + omaGroupId + "|" + spec + "|" + protId + "\n" + seq + "\n")
                 except:
-                    print("%s not found in %s gene set" % (protId, spec))
+                    print(("%s not found in %s gene set" % (protId, spec)).format(err))
 
     ### do MSA
     try:
@@ -120,19 +131,29 @@ def main():
         sys.exit("%s not found or %s not works correctly!" % (ogFasta+".fa", aligTool))
 
     ### do pHMM
-    try:
-        hmmFile = "%s/core_orthologs/%s/hmm_dir/%s.hmm" % (outPath, omaGroupId, omaGroupId)
-        flag = 0
+    if dccFn.is_tool('hmmbuild'):
         try:
-            if os.path.getsize(hmmFile) == 0:
-                flag = 1
-        except OSError as e:
-                flag = 1
-        if flag == 1:
-            dccFn.runHmm([hmmFile, ogFasta, omaGroupId])
-    except:
-        sys.exit("hmmbuild not works correctly for %s!" % (ogFasta+".fa"))
+            hmmFile = "%s/core_orthologs/%s/hmm_dir/%s.hmm" % (outPath, omaGroupId, omaGroupId)
+            flag = 0
+            try:
+                if os.path.getsize(hmmFile) == 0:
+                    flag = 1
+            except OSError as e:
+                    flag = 1
+            if flag == 1:
+                dccFn.runHmm([hmmFile, ogFasta, omaGroupId])
+        except:
+            sys.exit("hmmbuild not works correctly for %s!" % (ogFasta+".fa"))
+    else:
+        print("hmmbuild not found!".format(err))
 
+    ### do FAS annotation
+    if doAnno:
+        print("Doing FAS annotation...")
+        if dccFn.is_tool('annoFAS'):
+            anno = pool.map(dccFn.calcAnnoFas, annoJobs)
+
+    pool.close()
     ende = time.time()
     print("Finished in " + '{:5.3f}s'.format(ende-start))
     print("Output can be found in %s" % outPath)

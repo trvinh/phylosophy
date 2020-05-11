@@ -42,6 +42,16 @@ def checkFileExist(file):
     except FileNotFoundError:
         sys.exit("%s not found" % file)
 
+def is_tool(name):
+	try:
+		devnull = open(os.devnull)
+		subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
+	except OSError as e:
+		if e.errno == errno.ENOENT:
+			print('\x1b[6;30;42m' + '*** tool \'' + name + '\' not found"' + '\x1b[0m')
+			return False
+	return True
+
 def openFileToRead(location):
     file = open(location, "r")
     return file
@@ -118,11 +128,11 @@ def getGeneset(dataPath, speciesCode, speciesTaxId, outPath):
         newFile.close()
 
 def runBlast(args):
-    (specName, specFile, outFol) = args
-    blastCmd = 'makeblastdb -dbtype prot -in %s -out %s/blast_dir/%s/%s' % (specFile, outFol, specName, specName)
+    (specName, specFile, outPath) = args
+    blastCmd = 'makeblastdb -dbtype prot -in %s -out %s/blast_dir/%s/%s' % (specFile, outPath, specName, specName)
     subprocess.call([blastCmd], shell = True)
-    fileInGenome = "%s/genome_dir/%s/%s.fa" % (outFol, specName, specName)
-    fileInBlast = "%s/blast_dir/%s/%s.fa" % (outFol, specName, specName)
+    fileInGenome = "%s/genome_dir/%s/%s.fa" % (outPath, specName, specName)
+    fileInBlast = "%s/blast_dir/%s/%s.fa" % (outPath, specName, specName)
     if not Path(fileInBlast).exists():
         lnCmd = 'ln -fs %s %s' % (fileInGenome, fileInBlast)
         subprocess.call([lnCmd], shell = True)
@@ -146,3 +156,8 @@ def runMsa(args):
     if not Path(fastaFile + ".aln").exists():
         subprocess.call([alignCmd], shell = True)
     print(id + ".aln")
+
+def calcAnnoFas(args):
+	(specName, specFile, outPath) = args
+	annoCmd = 'annoFAS --fasta %s --path %s/weight_dir --name %s' % (specFile, outPath, specName) #  --cores 4
+	subprocess.call([annoCmd], shell = True)

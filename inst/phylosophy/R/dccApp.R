@@ -696,3 +696,4 @@ dccApp <- function (input, output, session) {
         req(input$submit)
         paste("Your output is saved under: ", getOutputPath())
     })
+}
