@@ -218,6 +218,7 @@ def main():
     createFolder(path, "core_orthologs")
     createFolder(path, "blast_dir")
     createFolder(path, "genome_dir")
+    createFolder(path, "weight_dir")
     speciesNames = []
     OmaGroupSet = set()
 

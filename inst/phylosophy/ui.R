@@ -33,7 +33,7 @@ shinyUI(
             
             # DCC TAB ==========================================================
             tabPanel(
-            	"DCC", dccAppUI("dccApp")
+            	"DCCv2", dccAppUI("dccApp")
             ),
             
             # HAMSTR TAB =======================================================
