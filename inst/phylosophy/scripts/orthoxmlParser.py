@@ -146,7 +146,7 @@ def main():
     # make blastDB
     print("Creating BLAST databases...")
     if dccFn.is_tool('makeblastdb'):
-        msa = pool.map(runBlast, blastJobs)
+        msa = pool.map(dccFn.runBlast, blastJobs)
     else:
         print("makeblastdb not found!".format(err))
 
@@ -192,9 +192,9 @@ def main():
     ### create MSAs and pHMMs
     print("Calculating MSAs and pHMMs for %s OGs..." % (len(alignJobs)))
     # if dccFn.is_tool(aligTool + " -h"):
-    msa = pool.map(runMsa, alignJobs)
+    msa = pool.map(dccFn.runMsa, alignJobs)
     if dccFn.is_tool('hmmbuild'):
-        phmm = pool.map(runHmm, hmmJobs)
+        phmm = pool.map(dccFn.runHmm, hmmJobs)
     else:
         print("hmmbuild not found!".format(err))
 
