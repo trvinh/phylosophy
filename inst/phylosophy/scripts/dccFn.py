@@ -31,6 +31,7 @@ import json
 import argparse
 import subprocess
 from pathlib import Path
+import errno
 
 def subprocess_cmd(commands):
     for cmd in commands:
@@ -41,6 +42,15 @@ def checkFileExist(file):
         my_abs_path = Path(file).resolve(strict=True)
     except FileNotFoundError:
         sys.exit("%s not found" % file)
+
+def checkFileEmpty(file):
+    flag = 0
+    try:
+        if os.path.getsize(file) == 0:
+            flag = 1
+    except OSError as e:
+            flag = 1
+    return(flag)
 
 def is_tool(name):
 	try:
@@ -72,19 +82,6 @@ def createHeaderCoreFasta(protId, speciesHeader, omaGroupId):
     header = str(omaGroupId) + "|" + speciesHeader + "|" + protId[0:10]
     return(header)
 
-# def getSequence(allProteins, speciesCode, newFile, name):
-#     check = False
-#     for record in allProteins:
-#         codeAllProteins = record.id[0:5]
-#         if codeAllProteins == speciesCode:
-#             check = True
-#             newFile.write(">" + str(record.id) + "\n")
-#             newFile.write(str(record.seq) + "\n")
-#         elif check == True:
-#             newFile.close()
-#             print("saved " + name)
-#             break
-
 # get gene set and save to genome_dir
 # NOTE: speciesCode and speciesTaxId are lists, not single string
 def getGeneset(dataPath, speciesCode, speciesTaxId, outPath):
@@ -101,7 +98,7 @@ def getGeneset(dataPath, speciesCode, speciesTaxId, outPath):
         if not Path(outPath+"/genome_dir/"+name+"/"+name+".fa").exists():
             toDo.append(i)
         else:
-            print("Gene set for %s found " % speciesCode[i])
+            print(("Gene set for %s found " % speciesCode[i]).format(err))
 
     if toDo != []:
         allProteins = openFileToRead(dataPath + "/oma-seqs.fa")
@@ -127,6 +124,25 @@ def getGeneset(dataPath, speciesCode, speciesTaxId, outPath):
                 newFile.write("\n" + newLine)
         newFile.close()
 
+def getOGseq(args):
+    (proteinIds, omaGroupId, outPath, allFasta) = args
+    ogFasta = outPath + "/core_orthologs/" + omaGroupId + "/" + omaGroupId
+    flag = 1
+    if Path(ogFasta + ".fa").exists():
+        tmp = SeqIO.to_dict(SeqIO.parse(open(ogFasta + ".fa"),'fasta'))
+        if len(tmp) == len(proteinIds):
+            flag = 0
+    if flag == 1:
+        with open(ogFasta + ".fa", "w") as myfile:
+            for protId in proteinIds:
+                spec = protId[0:5]
+                try:
+                    seq = str(allFasta[spec][protId].seq)
+                    myfile.write(">" + omaGroupId + "|" + spec + "|" + protId + "\n" + seq + "\n")
+                except:
+                    print(("%s not found in %s gene set" % (protId, spec)).format(err))
+
+
 def runBlast(args):
     (specName, specFile, outPath) = args
     blastCmd = 'makeblastdb -dbtype prot -in %s -out %s/blast_dir/%s/%s' % (specFile, outPath, specName, specName)
@@ -144,7 +160,7 @@ def runHmm(args):
     subprocess.call(['rm ' + id + '.tmp'], shell = True)
     print(id + ".hmm")
 
-# NOTE: fastaFile MUST exclude extension (e.g. .fa, .fasta,...)
+# NOTE: fastaFile MUST exclude the extension (i.e. without .fa, .fasta,...)
 def runMsa(args):
     (fastaFile, aligTool, id) = args
     if aligTool == "mafft":
@@ -152,7 +168,7 @@ def runMsa(args):
     elif aligTool == "muscle":
         alignCmd = 'muscle -quiet -in %s.fa -out %s.aln' % (fastaFile, fastaFile)
     else:
-        sys.exit("Invalid alignment tool given!")
+        sys.exit("Invalid alignment tool given!".format(err))
     if not Path(fastaFile + ".aln").exists():
         subprocess.call([alignCmd], shell = True)
     print(id + ".aln")

@@ -466,7 +466,7 @@ dccApp <- function (input, output, session) {
         if (input$inputTyp == "OmaId") {
             speciesTable <- createOmaIdOutput()
             selectInput(
-                inputId = "GroupSpecies",
+                inputId = ns("GroupSpecies"),
                 label = "Select up to 10 species",
                 multiple = TRUE,
                 choices = speciesTable$TaxonID,
@@ -569,30 +569,10 @@ dccApp <- function (input, output, session) {
     })
     
     # run DCC ==================================================================
-    
-    # collects the datasets of the chossen species
-    getDatasets <- function(omdDataDir, inputOmaCode, inputTaxId, path) {
-        fileGettingDataset <- paste(python(), "scripts/getGenomes.py")
-        system(paste(fileGettingDataset, omdDataDir, inputOmaCode,inputTaxId, path))
-        return(0)
-    }
-    
-    # collects the common Oma Groups of the choosen species
-    getCommonOmaGroups <- function(omdDataDir, inputOmaCode, inputTaxId, nrMissingSpecies, path, update) {
-        fileGettingOmaGroups <- paste(python(), "scripts/gettingOmaGroups.py")
-        y <- cat(system(paste(fileGettingOmaGroups, omdDataDir, inputOmaCode, inputTaxId, nrMissingSpecies, path, update), inter = TRUE))
-        return(y)
-    }
-    getOmaGroup <- function(omdDataDir, inputOmaCode, inputTaxId, omaGroupId, path) {
-        fileGettingOmaGroup <- paste(python(), "scripts/gettingOmaGroup.py")
-        y <- cat(system(paste(fileGettingOmaGroup, omdDataDir, inputOmaCode, inputTaxId, omaGroupId, path)))
-        return(y)
-    }
-    
     startPythonScript <- observeEvent(input$submit, {
-        disable("submit")
+        # disable("submit")
         progress <- shiny::Progress$new()
-        progress$set(message = "Computing data", value = 0)
+        progress$set(message = "Parsing data", value = 0)
         on.exit(progress$close())
 
         updateProgress <- function(value = NULL, detail = NULL) {
@@ -604,7 +584,6 @@ dccApp <- function (input, output, session) {
         }
         
         path <- getOutputPath()
-        
         if (input$inputTyp == 'omaFile') {
             # * parse standalone OMA ==========================================
             parseOmaCmd <- paste(
@@ -615,6 +594,7 @@ dccApp <- function (input, output, session) {
             print(parseOmaCmd)
             system(parseOmaCmd, intern = TRUE)
         } else {
+            # * parse OMA Browser =============================================
             if (input$inputTyp == "inputFile") {
                 inFile <- input$taxFile
                 taxa <- fread(inFile$datapath, header = FALSE)
@@ -624,65 +604,37 @@ dccApp <- function (input, output, session) {
             } else {
                 speciesInput <- input$species
             }
-            
+
             taxTable <- readOmaSpec()
             OmaCodes <- findOmaCode(speciesInput, taxTable)
             taxIds <- findTaxId(speciesInput, taxTable)
-            inputOmaCode <- gsub(" ", "", toString(OmaCodes))
-            inputTaxId <- gsub(" ", "", toString(taxIds))
-            
-            # * get data set ===================================================
-            getDatasets(getOmaPath(), inputOmaCode, inputTaxId, path)
-            updateProgress(
-                detail = paste(
-                    "Gene set collection is finished.",
-                    "Start to compile Oma Groups"
-                )
-            )
-            
-            # * get oma groups =================================================
+
             if (input$inputTyp == "OmaId") {
-                y <- getOmaGroup(
-                    getOmaPath(), 
-                    inputOmaCode, inputTaxId, input$omaGroupId, path
+                cmd <- paste(
+                    python(), "scripts/omaParserByOG.py",
+                    "-g", input$omaGroupId,
+                    "-n", paste(OmaCodes, collapse = ","),
+                    "-i", paste(taxIds, collapse = ","),
+                    "-d", getOmaPath(),
+                    "-o", getOutputPath(),
+                    "-a", input$MSA
                 )
+                if (input$doAnno) cmd <- paste(cmd, "-f")
+                print(cmd)
+                system(cmd)
             } else {
-                y <- getCommonOmaGroups(
-                    getOmaPath(), inputOmaCode, inputTaxId, 
-                    input$nrMissingSpecies, path, input$update
+                cmd <- paste(
+                    python(), "scripts/omaParser.py",
+                    "-n", paste(OmaCodes, collapse = ","),
+                    "-i", paste(taxIds, collapse = ","),
+                    "-d", getOmaPath(),
+                    "-o", getOutputPath(),
+                    "-m", input$nrMissingSpecies,
+                    "-a", input$MSA
                 )
-            }
-            updateProgress(
-                detail = paste(
-                    "OMA groups collection is finished.",
-                    "Start to compile MSA using", input$MSA
-                )
-            )
-            
-            # * create sequence alignments =====================================
-            if (input$MSA == "MAFFT") {
-                fileMSA <- paste(python(), "scripts/makingMsaMafft.py")
-            } else {
-                fileMSA <- paste(python(), "scripts/makingMsaMuscle.py")
-            }
-            updateProgress(detail = y)
-            system(paste(fileMSA, path), intern = TRUE)
-            
-            # * create pHMMs ======================================================
-            fileHmm <- paste(python(), "scripts/makingHmms.py")
-            updateProgress(detail = "Computing pHMMs with HMMER")
-            system(paste(fileHmm, path), intern = TRUE)
-            
-            #* create BLASTDB =====================================================
-            fileBlastDb <- paste(python(), "scripts/makingBlastdb.py")
-            updateProgress(detail = "Computing blastDBs")
-            system(paste(fileBlastDb, path), inter = TRUE)
-            
-            #* create ANNOTATION ===============================================
-            if (input$doAnno  == TRUE) {
-                annoCmd <- "python scripts/makingAnnotation.py"
-                updateProgress(detail = "Computing FAS annotations")
-                system(paste(annoCmd, path), inter = TRUE)
+                if (input$doAnno) cmd <- paste(cmd, "-f")
+                print(cmd)
+                system(cmd)
             }
         }
         

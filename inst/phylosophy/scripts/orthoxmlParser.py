@@ -3,7 +3,7 @@
 #######################################################################
 # Copyright (C) 2020 Vinh Tran
 #
-# This file is part of phylosophy.
+#  This file is part of phylosophy.
 #
 #  phylosophy is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with phylosophy.  If not, see <http://www.gnu.org/licenses/>.
+#
+#  Contact: tran@bio.uni-frankfurt.de
 #
 #######################################################################
 
@@ -45,8 +47,6 @@ def readFileToDict(file):
 def concatFasta(fileIn, fileOut):
      cmd = "awk \'/^>/ { print (NR==1 ? \"\" : RS) $0; next } { printf \"%s\", $0 } END { printf RS }\' " + fileIn + " > " + fileOut
      subprocess.call([cmd], shell = True)
-
-
 
 def main():
     version = "1.0.0"

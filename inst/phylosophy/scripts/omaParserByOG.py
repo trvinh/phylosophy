@@ -31,17 +31,20 @@ from Bio import SeqIO
 import multiprocessing as mp
 import dccFn
 
-def getOGprot(dataPath, omaGroupId):
+def getOGprot(dataPath, omaGroupId, speciesList):
     fileGroups = dccFn.openFileToRead(dataPath + "/oma-groups.txt")
     allGroups = fileGroups.readlines()
     fileGroups.close()
     groupLine = allGroups[int(omaGroupId) + 2].strip().split("\t")
-    proteinIds = groupLine[2:]
+    proteinIds = []
+    for prot in groupLine[2:]:
+        if prot[0:5] in speciesList:
+            proteinIds.append(prot)
     return(proteinIds)
 
 def main():
     version = "1.0.0"
-    parser = argparse.ArgumentParser(description="You are running getGenomes version " + str(version) + ".")
+    parser = argparse.ArgumentParser(description="You are running omaParser by OG ID for OMA Browser version " + str(version) + ".")
     required = parser.add_argument_group('required arguments')
     optional = parser.add_argument_group('additional arguments')
     required.add_argument('-g', '--OG', help='Input OMA group ID', action='store', default='', required=True)
@@ -107,39 +110,24 @@ def main():
 
     ### get OG fasta
     print("Getting protein sequences for OG id %s..." % omaGroupId)
-    proteinIds = getOGprot(dataPath, omaGroupId)
-    ogFasta = outPath + "/core_orthologs/" + omaGroupId + "/" + omaGroupId
-    flag = 1
-    if Path(ogFasta + ".fa").exists():
-        tmp = SeqIO.to_dict(SeqIO.parse(open(ogFasta + ".fa"),'fasta'))
-        if len(tmp) == len(proteinIds):
-            flag = 0
-    if flag == 1:
-        with open(ogFasta + ".fa", "w") as myfile:
-            for protId in proteinIds:
-                spec = protId[0:5]
-                try:
-                    seq = str(fasta[spec][protId].seq)
-                    myfile.write(">" + omaGroupId + "|" + spec + "|" + protId + "\n" + seq + "\n")
-                except:
-                    print(("%s not found in %s gene set" % (protId, spec)).format(err))
+    proteinIds = getOGprot(dataPath, omaGroupId, speciesList)
+    dccFn.getOGseq([proteinIds, omaGroupId, outPath, fasta])
 
-    ### do MSA
+    ### calculate MSAs and pHMMs
+    ogFasta = outPath + "/core_orthologs/" + omaGroupId + "/" + omaGroupId
+    # do MSAs
     try:
-        dccFn.runMsa([ogFasta, aligTool, omaGroupId])
+        msaFile = "%s/core_orthologs/%s/%s.aln" % (outPath, omaGroupId, omaGroupId)
+        flag = dccFn.checkFileEmpty(msaFile)
+        if flag == 1:
+            dccFn.runMsa([ogFasta, aligTool, omaGroupId])
     except:
         sys.exit("%s not found or %s not works correctly!" % (ogFasta+".fa", aligTool))
-
-    ### do pHMM
+    # do pHMMs
     if dccFn.is_tool('hmmbuild'):
         try:
             hmmFile = "%s/core_orthologs/%s/hmm_dir/%s.hmm" % (outPath, omaGroupId, omaGroupId)
-            flag = 0
-            try:
-                if os.path.getsize(hmmFile) == 0:
-                    flag = 1
-            except OSError as e:
-                    flag = 1
+            flag = dccFn.checkFileEmpty(hmmFile)
             if flag == 1:
                 dccFn.runHmm([hmmFile, ogFasta, omaGroupId])
         except:
