@@ -217,36 +217,7 @@ hamstrAppUI <- function(id) {
                 condition = "input.optOption", ns = ns,
                 strong("Additional options"),
                 
-                checkboxInput(
-                    ns("otherOutpath"),
-                    strong("Set output directory"),
-                    value = FALSE,
-                    width = NULL
-                ),
-                conditionalPanel(
-                    condition = "input.otherOutpath", ns = ns,
-                    shinyDirButton(
-                        ns("outHamstrDir"), "Output directory" ,
-                        title = "Please select a folder",
-                        buttonType = "default", class = NULL
-                    ),
-                    bsPopover(
-                        ns("outHamstrDir"),
-                        "",
-                        paste(
-                            "Provide output directory"
-                        ),
-                        "top"
-                    )
-                ),
-                bsPopover(
-                    ns("otherOutpath"),
-                    "",
-                    paste(
-                        "Default output path is the current working directory"
-                    ),
-                    "bottom"
-                ),
+                bsButton("cusPath", "Set data & output paths"),
                 
                 uiOutput(ns("coreTaxa.ui")),
                 bsPopover(
@@ -768,6 +739,97 @@ hamstrAppUI <- function(id) {
                     ),
                     "bottom"
                 )
+            ),
+
+            # ** bsModal for setting customized paths ==========================
+            bsModal(
+                "setPath",
+                "Customize data & output paths",
+                "cusPath",
+                
+                shinyDirButton(
+                    ns("outHamstrDir"), "Output directory" ,
+                    title = "Please select a folder",
+                    buttonType = "default", class = NULL
+                ),
+                bsPopover(
+                    ns("outHamstrDir"),
+                    "",
+                    paste(
+                        "Provide output directory"
+                    ),
+                    "top"
+                ),
+                uiOutput(ns("outHamstrDir.ui")),
+                br(),
+                
+                shinyDirButton(
+                    ns("blastDir"), "BlastDB directory" ,
+                    title = "Please select a folder",
+                    buttonType = "default", class = NULL
+                ),
+                bsPopover(
+                    ns("blastDir"),
+                    "",
+                    paste(
+                        "Provide path to Blast DBs directory.",
+                        "Reference species and species in the core set must",
+                        "be present in this directory!"
+                    ),
+                    "top"
+                ),
+                uiOutput(ns("blastDir.ui")),
+                br(),
+                
+                shinyDirButton(
+                    ns("genomeDir"), "Genome directory" ,
+                    title = "Please select a folder",
+                    buttonType = "default", class = NULL
+                ),
+                bsPopover(
+                    ns("genomeDir"),
+                    "",
+                    paste(
+                        "Provide path to genomes directory,",
+                        "where search/query species can be found."
+                    ),
+                    "top"
+                ),
+                uiOutput(ns("genomeDir.ui")),
+                br(),
+                
+                shinyDirButton(
+                    ns("weightDir"), "Genome annotation directory" ,
+                    title = "Please select a folder",
+                    buttonType = "default", class = NULL
+                ),
+                bsPopover(
+                    ns("weightDir"),
+                    "",
+                    paste(
+                        "Provide path to weight_dir directory,",
+                        "where feature annotations can be found."
+                    ),
+                    "top"
+                ),
+                uiOutput(ns("weightDir.ui")),
+                br(),
+                
+                shinyDirButton(
+                    ns("coreDir"), "Core ortholog directory" ,
+                    title = "Please select a folder",
+                    buttonType = "default", class = NULL
+                ),
+                bsPopover(
+                    ns("coreDir"),
+                    "",
+                    paste(
+                        "Provide path to core_orthologs directory,",
+                        "where the core set will be saved or can be found."
+                    ),
+                    "top"
+                ),
+                uiOutput(ns("coreDir.ui"))
             )
         ),
         # * main panel for hamstr run ----------------------------
@@ -964,13 +1026,68 @@ hamstrApp <- function(input, output, session) {
         )
     })
     
-    # get output path ==========================================================
+    # get customized paths =====================================================
     getOutputPath <- reactive({
         shinyDirChoose(
             input, "outHamstrDir", roots = homePath, session = session
         )
         outputPath <- parseDirPath(homePath, input$outHamstrDir)
         return(replaceHomeCharacter(as.character(outputPath)))
+    })
+    output$outHamstrDir.ui <- renderText({
+        if (length(getOutputPath()) > 0) {
+            paste0(getOutputPath(), "/", input$seqName)
+        } else {
+            outpath <- paste0(getwd(), "/", input$seqName)
+        }
+    })
+    
+    getBlastPath <- reactive({
+        shinyDirChoose(
+            input, "blastDir", roots = homePath, session = session
+        )
+        blastPath <- parseDirPath(homePath, input$blastDir)
+        return(replaceHomeCharacter(as.character(blastPath)))
+    })
+    output$blastDir.ui <- renderText({
+        if (length(getBlastPath()) > 0) getBlastPath()
+        else paste0(getSubFolderDir(getHamstrPath(), "blast_dir"))
+    })
+    
+    getGenomePath <- reactive({
+        shinyDirChoose(
+            input, "genomeDir", roots = homePath, session = session
+        )
+        genomePath <- parseDirPath(homePath, input$genomeDir)
+        return(replaceHomeCharacter(as.character(genomePath)))
+    })
+    output$genomeDir.ui <- renderText({
+        if (length(getGenomePath()) > 0) getGenomePath()
+        else paste0(getSubFolderDir(getHamstrPath(), "genome_dir"))
+    })
+    
+    getWeightPath <- reactive({
+        shinyDirChoose(
+            input, "weightDir", roots = homePath, session = session
+        )
+        weightPath <- parseDirPath(homePath, input$weightDir)
+        return(replaceHomeCharacter(as.character(weightPath)))
+    })
+    output$weightDir.ui <- renderText({
+        if (length(getWeightPath()) > 0) getWeightPath()
+        else paste0(getSubFolderDir(getHamstrPath(), "weight_dir"))
+    })
+    
+    getCorePath <- reactive({
+        shinyDirChoose(
+            input, "coreDir", roots = homePath, session = session
+        )
+        corePath <- parseDirPath(homePath, input$coreDir)
+        return(replaceHomeCharacter(as.character(corePath)))
+    })
+    output$coreDir.ui <- renderText({
+        if (length(getCorePath()) > 0) getCorePath()
+        else paste0(getSubFolderDir(getHamstrPath(), "core_orthologs"))
     })
     
     # required options =========================================================
@@ -1009,6 +1126,26 @@ hamstrApp <- function(input, output, session) {
             outpath <- paste0("-outpath=", getOutputPath())
         }
         
+        blastpath <- ""
+        if (length(getBlastPath()) > 0) {
+            blastpath <- paste0("-blastpath=", getBlastPath())
+        }
+        
+        searchpath <- ""
+        if (length(getGenomePath()) > 0) {
+            searchpath <- paste0("-searchpath=", getGenomePath())
+        }
+        
+        hmmpath <- ""
+        if (length(getCorePath()) > 0) {
+            hmmpath <- paste0("-hmmpath=", getCorePath())
+        }
+        
+        weightpath <- ""
+        if (length(getWeightPath()) > 0) {
+            weightpath <- paste0("-weightpath=", getWeightPath())
+        }
+        
         fasoff <- ""
         if (input$useFAS == FALSE) {
             fasoff <- paste0("-fasoff")
@@ -1032,7 +1169,6 @@ hamstrApp <- function(input, output, session) {
                     "-coreTaxa=", 
                     paste(
                         refSpecDf$abbrName[refSpecDf$fullName %in% input$coreTaxa],
-                        # input$coreTaxa, 
                         collapse = ","
                     )
                 )
@@ -1163,7 +1299,8 @@ hamstrApp <- function(input, output, session) {
         }
         
         optOptionList <- c(
-            outpath, fasoff, annoCores, seqName, coreTaxa, strict, coreStrict, 
+            outpath, blastpath, searchpath, hmmpath, weightpath, fasoff, 
+            annoCores, seqName, coreTaxa, strict, coreStrict, 
             checkCoorthologsRef, corecheckCoorthologsRef, rbh, rep, coreRep, 
             coreOnly, reuseCore, blast, group, evalBlast, evalHmmer, 
             evalRelaxfac, hitLimit, coreHitLimit, autoLimit, scoreThreshold, 
@@ -1282,7 +1419,7 @@ hamstrApp <- function(input, output, session) {
         req(getHamstrPath())
         req(getInputPath())
         # get output path
-        if (input$otherOutpath == TRUE && length(getOutputPath()) > 0) {
+        if (length(getOutputPath()) > 0) {
             outpath <- paste0(getOutputPath(), "/", input$seqName)
         } else {
             outpath <- paste0(getwd(), "/", input$seqName)
