@@ -112,7 +112,7 @@ dccAppUI <- function(id) {
                 hr(),
             
                 # ** job ID ====================================================
-                textInput(ns("dccJob"), strong("Job ID (*)"), value = randFn(1)),
+                textInput(ns("dccJob"), strong("Job ID"), value = randFn(1)),
                 bsPopover(
                     ns("dccJob"),
                     "",
@@ -225,7 +225,7 @@ dccApp <- function (input, output, session) {
     # generate new job ID ======================================================
     observeEvent(input$newDcc, {
         jobID <- randFn(1)
-        updateTextInput(session, strong("dccJob"), "Job ID", value = jobID)
+        updateTextInput(session, "dccJob", strong("Job ID"), value = jobID)
         updateButton(session, ns("submit"), disabled = FALSE)
         updateButton(session, ns("stopDcc"), disabled = TRUE)
         output$verbatimTextOutput <- renderText({NULL})

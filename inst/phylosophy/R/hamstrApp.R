@@ -915,33 +915,50 @@ hamstrApp <- function(input, output, session) {
         }
     }
     
-    getRefspecList <- function(hamstrPath = NULL, subFolderName = NULL){
-        outDir <- getSubFolderDir(getHamstrPath(), subFolderName)
+    getRefspecList <- reactive ({
+        # get spec ID from blast_dir
+        outDir <- getSubFolderDir(getHamstrPath(), "blast_dir")
         outDirPath <- list.dirs(
             path = outDir, full.names = TRUE, recursive = FALSE
         )
-        outDirList <- stringr::str_replace(
+        outDirTaxIds <- stringr::str_replace(
             outDirPath, paste0(outDir,"/"), ""
         )
-        return(outDirList)
-    }
+        # get ncbi spec name
+        pathToPhyloprofile <- paste0(
+            path.package("PhyloProfile"), "/PhyloProfile"
+        )
+        nameFullFile <- paste0(
+            pathToPhyloprofile, "/data/preProcessedTaxonomy.txt"
+        )
+        refSpecList <- lapply(
+            outDirTaxIds,
+            function (x) {
+                id <- str_replace_all(str_match(x, "@.+@"), "@", "")
+                ncbiTaxNames <- system(paste0("awk '/^", id,"\t/' ",nameFullFile," | cut -f2"), intern = TRUE)
+                return(data.frame("abbrName" = x, "fullName" = ncbiTaxNames))
+            }
+        )
+        refSpecDf <- do.call(rbind, refSpecList)
+        return(refSpecDf)
+    })
     
     output$refSpec.ui <- renderUI({
         refspecList <- c("undefined")
-        refspecList <- getRefspecList(getHamstrPath(), "blast_dir")
+        refspecList <- getRefspecList()
         selectInput(
             ns("refSpec"), "Reference species",
-            choices = c("undefined", refspecList),
+            choices = c("undefined", refspecList$fullName),
             selected = "undefined"
         )
     })
     
     output$coreTaxa.ui <- renderUI({
         coreTaxaList <- "all"
-        coreTaxaList <- getRefspecList(getHamstrPath(), "blast_dir")
+        coreTaxaList <- getRefspecList()
         selectInput(
             ns("coreTaxa"), strong("Core taxa"),
-            choices = c("all", coreTaxaList),
+            choices = c("all", coreTaxaList$fullName),
             selected = "all",
             multiple = TRUE
         )
@@ -969,7 +986,10 @@ hamstrApp <- function(input, output, session) {
         # seqFile <- paste0("-seqFile=", "infile.fa")
         seqFile <- paste0("-seqFile=", getFileName(getInputPath()))
         seqId <- paste0("-seqId=", input$seqID)
-        refSpec <- paste0("-refSpec=", input$refSpec)
+        refSpecDf <- getRefspecList()
+        refSpec <- paste0(
+            "-refSpec=", refSpecDf$abbrName[refSpecDf$fullName == input$refSpec]
+        )
         minDist <- paste0("-minDist=", input$minDist)
         maxDist <- paste0("-maxDist=", input$maxDist)
         coreOrth <- paste0("-coreOrth=", input$coreOrth)
@@ -1004,11 +1024,17 @@ hamstrApp <- function(input, output, session) {
             seqName <- paste0("-seqName=", input$seqName)
         }
         
+        refSpecDf <- getRefspecList()
         coreTaxa <- ""
         if(input$optOption == TRUE && !is.null(input$coreTaxa)) {
             if (!("all" %in% input$coreTaxa)) {
                 coreTaxa <- paste0(
-                    "-coreTaxa=", paste(input$coreTaxa, collapse = ",")
+                    "-coreTaxa=", 
+                    paste(
+                        refSpecDf$abbrName[refSpecDf$fullName %in% input$coreTaxa],
+                        # input$coreTaxa, 
+                        collapse = ","
+                    )
                 )
             }
         } 
