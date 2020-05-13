@@ -8,8 +8,9 @@ lapply(sourceFiles, source, .GlobalEnv)
 
 # List of dependent packages --------------------------------------------------
 packages <- c(
-    "Biostrings", "data.table", "DT", "ggplot2", "grid", "shiny", "shinyBS", 
-    "shinyFiles", "shinyalert", "shinyjs", "shinythemes", "stringr", "PhyloProfile"
+    "Biostrings", "data.table", "DT", "ggplot2", "grid", "reticulate", "shiny",
+    "shinyBS", "shinyFiles", "shinyalert", "shinyjs", "shinythemes", "stringr",
+    "PhyloProfile"
 )
 
 # install missing packages

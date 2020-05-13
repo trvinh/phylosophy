@@ -106,7 +106,7 @@ def main():
     if dccFn.is_tool('makeblastdb'):
         msa = pool.map(dccFn.runBlast, blastJobs)
     else:
-        print("makeblastdb not found!".format(err))
+        print("makeblastdb not found!")
 
     ### get OG fasta
     print("Getting protein sequences for OG id %s..." % omaGroupId)
@@ -133,7 +133,7 @@ def main():
         except:
             sys.exit("hmmbuild not works correctly for %s!" % (ogFasta+".fa"))
     else:
-        print("hmmbuild not found!".format(err))
+        print("hmmbuild not found!")
 
     ### do FAS annotation
     if doAnno:

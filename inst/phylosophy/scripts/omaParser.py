@@ -110,7 +110,7 @@ def main():
     if dccFn.is_tool('makeblastdb'):
         msa = pool.map(dccFn.runBlast, blastJobs)
     else:
-        print("makeblastdb not found!".format(err))
+        print("makeblastdb not found!")
 
     ### get OGs and their fasta
     omaGroups = gettingOmaGroups(dataPath, set(speciesList), nrMissingTaxa)
@@ -149,7 +149,7 @@ def main():
         if dccFn.is_tool('hmmbuild'):
             hamm = pool.map(dccFn.runHmm, hmmJobs)
         else:
-            print("hmmbuild not found!".format(err))
+            print("hmmbuild not found!")
 
     ### do FAS annotation
     if doAnno:

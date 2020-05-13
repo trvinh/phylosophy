@@ -148,7 +148,7 @@ def main():
     if dccFn.is_tool('makeblastdb'):
         msa = pool.map(dccFn.runBlast, blastJobs)
     else:
-        print("makeblastdb not found!".format(err))
+        print("makeblastdb not found!")
 
     ### parse ortholog groups
     print("Parsing ortholog groups...")
@@ -196,7 +196,7 @@ def main():
     if dccFn.is_tool('hmmbuild'):
         phmm = pool.map(dccFn.runHmm, hmmJobs)
     else:
-        print("hmmbuild not found!".format(err))
+        print("hmmbuild not found!")
 
     # do FAS annotation
     if doAnno:

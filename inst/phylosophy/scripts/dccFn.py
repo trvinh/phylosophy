@@ -98,7 +98,7 @@ def getGeneset(dataPath, speciesCode, speciesTaxId, outPath):
         if not Path(outPath+"/genome_dir/"+name+"/"+name+".fa").exists():
             toDo.append(i)
         else:
-            print(("Gene set for %s found " % speciesCode[i]).format(err))
+            print("Gene set for %s found " % speciesCode[i])
 
     if toDo != []:
         allProteins = openFileToRead(dataPath + "/oma-seqs.fa")
@@ -140,7 +140,7 @@ def getOGseq(args):
                     seq = str(allFasta[spec][protId].seq)
                     myfile.write(">" + omaGroupId + "|" + spec + "|" + protId + "\n" + seq + "\n")
                 except:
-                    print(("%s not found in %s gene set" % (protId, spec)).format(err))
+                    print("%s not found in %s gene set" % (protId, spec))
 
 
 def runBlast(args):
@@ -168,7 +168,7 @@ def runMsa(args):
     elif aligTool == "muscle":
         alignCmd = 'muscle -quiet -in %s.fa -out %s.aln' % (fastaFile, fastaFile)
     else:
-        sys.exit("Invalid alignment tool given!".format(err))
+        sys.exit("Invalid alignment tool given!")
     if not Path(fastaFile + ".aln").exists():
         subprocess.call([alignCmd], shell = True)
     print(id + ".aln")

@@ -812,7 +812,7 @@ fasApp <- function (input, output, session) {
     # generate new job ID ======================================================
     observeEvent(input$newFasJob.btn, {
         jobID <- randFn(1)
-        updateTextInput(session, "fasJob", "Job ID", value = jobID)
+        updateTextInput(session, "fasJob", strong("Job ID"), value = jobID)
     })
     
     # annoFAS options ==========================================================
