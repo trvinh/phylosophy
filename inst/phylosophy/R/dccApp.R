@@ -6,8 +6,6 @@ dccAppUI <- function(id) {
         # * sidebar panel for FAS input/options -----------------
         sidebarPanel(
             width = 3,
-
-            # ** fasta input =======================================
             h3("Input and configurations"),
             hr(),
 
@@ -51,6 +49,14 @@ dccAppUI <- function(id) {
                             title = "Please select gene set directory",
                             buttonType = "default", class = NULL
                         ),
+                        bsPopover(
+                            ns("genomeDir"),
+                            "",
+                            paste(
+                                "Directory contains organisms's sequences"
+                            ),
+                            "bottom"
+                        ),
                         br(), br(),
                     ),
                     
@@ -60,6 +66,15 @@ dccAppUI <- function(id) {
                         title = "Please provide taxon ID mapping file",
                         multiple = FALSE,
                         buttonType = "default"
+                    ),
+                    bsPopover(
+                        ns("taxMappingFile"),
+                        "",
+                        paste(
+                            "Tab-delimited file containing 3 columns ",
+                            "<NCBI ID> <Taxon name in orthoXML file> <Abbr. taxon name>"
+                        ),
+                        "bottom"
                     ),
                     br(), br(),
                 ),
@@ -72,23 +87,23 @@ dccAppUI <- function(id) {
                         title = "Please select OMA data directory",
                         buttonType = "default", class = NULL
                     ),
-                    br(), br(),
+                    bsPopover(
+                        ns("omaDataDir"),
+                        "",
+                        paste(
+                            "Please provide path to folder containing",
+                            "downloaded OMA browser data!"
+                        ),
+                        "bottom"
+                    ),
+                    br(),
+                    # oma version
+                    uiOutput(ns("version")),
                     # list of avail oma spec
                     uiOutput(ns("omaSpec")),
                     
                     # No. of missing species allowed a common OmaGroup
-                    uiOutput(ns("nrMissingSpecies")),
-                    
-                    # update mode or the normal mode should be used
-                    uiOutput(ns("update")),
-                    conditionalPanel(
-                        condition = "
-                        input.inputTyp == 'ncbiID' || 
-                        input.inputTyp == 'speciesName' || 
-                        input.inputTyp == 'inputFile'", 
-                        ns = ns,
-                        checkboxInput(ns("update"), label = "update Mode")
-                    )
+                    uiOutput(ns("nrMissingSpecies"))
                 ),
                 
                 # MSA tool selection
@@ -102,8 +117,17 @@ dccAppUI <- function(id) {
                 checkboxInput(
                     ns("doAnno"), strong("Include FAS annotation"), value = FALSE
                 ),
-                
+                bsPopover(
+                    ns("doAnno"),
+                    "",
+                    paste(
+                        "Include feature annotation.",
+                        "Note: it can take time!"
+                    ),
+                    "bottom"
+                ),
                 br(),
+                
                 shinyDirButton(
                     ns("outAnnoDir"), "Output directory" ,
                     title = "Please select a folder",
@@ -111,7 +135,7 @@ dccAppUI <- function(id) {
                 ),
                 hr(),
             
-                # ** job ID ====================================================
+                # job ID
                 textInput(ns("dccJob"), strong("Job ID"), value = randFn(1)),
                 bsPopover(
                     ns("dccJob"),
@@ -133,8 +157,6 @@ dccAppUI <- function(id) {
             # ),
             # conditionalPanel(
             #     condition = "output.checkPython == 0", ns = ns,
-                # oma version
-                verbatimTextOutput(ns("version")),
                 uiOutput(ns("dccBtn.ui")),
                 hr(),
                 
@@ -212,14 +234,24 @@ dccApp <- function (input, output, session) {
     })
     
     # render oma version =======================================================
-    output$version <- renderPrint({
+    output$version <- renderUI({
         req(getOmaPath())
-        y <- cat(
-            system(
-                paste(python(), "scripts/getVersion.py", getOmaPath()), 
-                intern = TRUE
-            )
+        currVersion <- OmaDB::getVersion()$oma_version
+        localVersion <- str_replace_all(
+            str_match(
+                readLines(paste0(getOmaPath(),"/oma-groups.txt"), n = 1),
+                "of .+"
+            )[1],
+            "of ", ""
         )
+        if (localVersion == currVersion) {
+            HTML(paste0("<p><em>Version <span style=\"color: #ff0000;\">", currVersion, "</span></em></p>"))
+        } else {
+            HTML(paste0(
+                "<p><em>This version <span style=\"color: #ff0000;\">", localVersion, "</span> is outdated! ",
+                "Current OMA version is <span style=\"color: #ff0000;\">", currVersion,"</span>.</em></p>"
+            ))
+        }
     })
     
     # generate new job ID ======================================================
