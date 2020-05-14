@@ -125,8 +125,8 @@ def getGeneset(dataPath, speciesCode, speciesTaxId, outPath):
         newFile.close()
 
 def getOGseq(args):
-    (proteinIds, omaGroupId, outPath, allFasta) = args
-    ogFasta = outPath + "/core_orthologs/" + omaGroupId + "/" + omaGroupId
+    (proteinIds, omaGroupId, outPath, allFasta, jobName) = args
+    ogFasta = outPath + "/core_orthologs/" + jobName + "/" + omaGroupId + "/" + omaGroupId
     flag = 1
     if Path(ogFasta + ".fa").exists():
         tmp = SeqIO.to_dict(SeqIO.parse(open(ogFasta + ".fa"),'fasta'))

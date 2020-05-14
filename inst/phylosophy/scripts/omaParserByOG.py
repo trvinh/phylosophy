@@ -52,6 +52,7 @@ def main():
     required.add_argument('-i', '--id', help='List of corresponding taxonomy IDs to OMA species', action='store', default='', required=True)
     required.add_argument('-d', '--dataPath', help='Path to OMA Browser data', action='store', default='', required=True)
     required.add_argument('-o', '--outPath', help='Path to output directory', action='store', default='', required=True)
+    required.add_argument('-j', '--jobName', help='Job name', action='store', default='', required=True)
     optional.add_argument('-a', '--alignTool', help='Alignment tool (mafft|muscle). Default: mafft', action='store', default='mafft')
     optional.add_argument('-f', '--annoFas', help='Perform FAS annotation', action='store_true')
     args = parser.parse_args()
@@ -67,6 +68,7 @@ def main():
     if not aligTool == "mafft" or aligTool == "muscle":
         sys.exit("alignment tool must be either mafft or muscle")
     doAnno = args.annoFas
+    jobName = args.jobName
 
     start = time.time()
     pool = mp.Pool(mp.cpu_count()-1)
@@ -75,9 +77,9 @@ def main():
     print("Creating output folders...")
     Path(outPath + "/genome_dir").mkdir(parents = True, exist_ok = True)
     Path(outPath + "/blast_dir").mkdir(parents = True, exist_ok = True)
-    Path(outPath + "/core_orthologs").mkdir(parents = True, exist_ok = True)
-    Path(outPath + "/core_orthologs/" + omaGroupId).mkdir(parents = True, exist_ok = True)
-    Path(outPath + "/core_orthologs/" + omaGroupId + "/hmm_dir").mkdir(parents = True, exist_ok = True)
+    # Path(outPath + "/core_orthologs").mkdir(parents = True, exist_ok = True)
+    # Path(outPath + "/core_orthologs/" + omaGroupId).mkdir(parents = True, exist_ok = True)
+    Path(outPath + "/core_orthologs/" + jobName +  "/" + omaGroupId + "/hmm_dir").mkdir(parents = True, exist_ok = True)
     Path(outPath + "/weight_dir").mkdir(parents = True, exist_ok = True)
 
     ### Get genesets
@@ -111,13 +113,13 @@ def main():
     ### get OG fasta
     print("Getting protein sequences for OG id %s..." % omaGroupId)
     proteinIds = getOGprot(dataPath, omaGroupId, speciesList)
-    dccFn.getOGseq([proteinIds, omaGroupId, outPath, fasta])
+    dccFn.getOGseq([proteinIds, omaGroupId, outPath, fasta, jobName])
 
     ### calculate MSAs and pHMMs
-    ogFasta = outPath + "/core_orthologs/" + omaGroupId + "/" + omaGroupId
+    ogFasta = outPath + "/core_orthologs/" + jobName +  "/" + omaGroupId + "/" + omaGroupId
     # do MSAs
     try:
-        msaFile = "%s/core_orthologs/%s/%s.aln" % (outPath, omaGroupId, omaGroupId)
+        msaFile = "%s/core_orthologs/%s/%s/%s.aln" % (outPath, jobName, omaGroupId, omaGroupId)
         flag = dccFn.checkFileEmpty(msaFile)
         if flag == 1:
             dccFn.runMsa([ogFasta, aligTool, omaGroupId])
@@ -126,7 +128,7 @@ def main():
     # do pHMMs
     if dccFn.is_tool('hmmbuild'):
         try:
-            hmmFile = "%s/core_orthologs/%s/hmm_dir/%s.hmm" % (outPath, omaGroupId, omaGroupId)
+            hmmFile = "%s/core_orthologs/%s/%s/hmm_dir/%s.hmm" % (outPath, jobName, omaGroupId, omaGroupId)
             flag = dccFn.checkFileEmpty(hmmFile)
             if flag == 1:
                 dccFn.runHmm([hmmFile, ogFasta, omaGroupId])

@@ -57,6 +57,7 @@ def main():
     required.add_argument('-i', '--id', help='List of corresponding taxonomy IDs to OMA species', action='store', default='', required=True)
     required.add_argument('-d', '--dataPath', help='Path to OMA Browser data', action='store', default='', required=True)
     required.add_argument('-o', '--outPath', help='Path to output directory', action='store', default='', required=True)
+    required.add_argument('-j', '--jobName', help='Job name', action='store', default='', required=True)
     optional.add_argument('-m', '--missingTaxa', help='Number of allowed missing taxa. Default: 0', action='store', default=0)
     optional.add_argument('-a', '--alignTool', help='Alignment tool (mafft|muscle). Default: mafft', action='store', default='mafft')
     optional.add_argument('-f', '--annoFas', help='Perform FAS annotation', action='store_true')
@@ -73,6 +74,7 @@ def main():
     if not aligTool == "mafft" or aligTool == "muscle":
         sys.exit("alignment tool must be either mafft or muscle")
     doAnno = args.annoFas
+    jobName = args.jobName
 
     start = time.time()
     pool = mp.Pool(mp.cpu_count()-1)
@@ -81,7 +83,7 @@ def main():
     print("Creating output folders...")
     Path(outPath + "/genome_dir").mkdir(parents = True, exist_ok = True)
     Path(outPath + "/blast_dir").mkdir(parents = True, exist_ok = True)
-    Path(outPath + "/core_orthologs").mkdir(parents = True, exist_ok = True)
+    Path(outPath + "/core_orthologs/" + jobName).mkdir(parents = True, exist_ok = True)
     Path(outPath + "/weight_dir").mkdir(parents = True, exist_ok = True)
 
     ### Get genesets
@@ -118,15 +120,15 @@ def main():
     msaJobs = []
     hmmJobs = []
     for omaGroupId in omaGroups:
-        Path(outPath + "/core_orthologs/" + omaGroupId).mkdir(parents = True, exist_ok = True)
-        Path(outPath + "/core_orthologs/" + omaGroupId + "/hmm_dir").mkdir(parents = True, exist_ok = True)
+        # Path(outPath + "/core_orthologs/" + omaGroupId).mkdir(parents = True, exist_ok = True)
+        Path(outPath + "/core_orthologs/" + jobName + "/" + omaGroupId + "/hmm_dir").mkdir(parents = True, exist_ok = True)
         # getSeqJobs.append([omaGroups[omaGroupId], omaGroupId, outPath, fasta])  # slower than run sequentially
-        dccFn.getOGseq([omaGroups[omaGroupId], omaGroupId, outPath, fasta])
+        dccFn.getOGseq([omaGroups[omaGroupId], omaGroupId, outPath, fasta, jobName])
 
-        ogFasta = outPath + "/core_orthologs/" + omaGroupId + "/" + omaGroupId
+        ogFasta = outPath + "/core_orthologs/" + jobName + "/" + omaGroupId + "/" + omaGroupId
         ### get MSA jobs
         try:
-            msaFile = "%s/core_orthologs/%s/%s.aln" % (outPath, omaGroupId, omaGroupId)
+            msaFile = "%s/core_orthologs/%s/%s/%s.aln" % (outPath, jobName, omaGroupId, omaGroupId)
             flag = dccFn.checkFileEmpty(msaFile)
             if flag == 1:
                 msaJobs.append([ogFasta, aligTool, omaGroupId])
@@ -134,7 +136,7 @@ def main():
             sys.exit("%s not found or %s not works correctly!" % (ogFasta+".fa", aligTool))
         ### get pHMM jobs
         try:
-            hmmFile = "%s/core_orthologs/%s/hmm_dir/%s.hmm" % (outPath, omaGroupId, omaGroupId)
+            hmmFile = "%s/core_orthologs/%s/%s/hmm_dir/%s.hmm" % (outPath, jobName, omaGroupId, omaGroupId)
             flag = dccFn.checkFileEmpty(hmmFile)
             if flag == 1:
                 hmmJobs.append([hmmFile, ogFasta, omaGroupId])

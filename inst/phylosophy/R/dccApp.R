@@ -289,7 +289,10 @@ dccApp <- function (input, output, session) {
         anno <- ""
         if (input$doAnno  == TRUE)
             anno <- "--annoFas"
-        parserOption <- c(inFile, outPath, data, mapping, tool, anno)
+        jobName <- ""
+        if(lenght(input$dccJob) > 0)
+            jobName <- paste("--jobName", input$dccJob)
+        parserOption <- c(inFile, outPath, data, mapping, tool, anno, jobName)
         return(
             parserOption[unlist(lapply(parserOption, function (x) x != ""))]
         )
@@ -618,7 +621,7 @@ dccApp <- function (input, output, session) {
     
     rvDcc <- reactiveValues(
         textstream = c(""),
-        timer = reactiveTimer(1000),
+        timer = reactiveTimer(100),
         started = FALSE
     )
     
@@ -628,33 +631,21 @@ dccApp <- function (input, output, session) {
         updateButton(session, ns("newDcc"), disabled = FALSE)
         updateButton(session, ns("stopDcc"), disabled = FALSE)
         
-        progress <- shiny::Progress$new()
-        progress$set(message = "Parsing data", value = 0)
-        on.exit(progress$close())
-
-        updateProgress <- function(value = NULL, detail = NULL) {
-            if (is.null(value)) {
-                value <- progress$getValue()
-                value <- value + (progress$getMax() - value) / 5
-            }
-            progress$set(value = value, detail = detail)
-        }
-        
         path <- getOutputPath()
         if (input$inputTyp == 'omaFile') {
             # * parse standalone OMA ==========================================
-            parseOmaCmd <- paste(
+            cmd <- paste(
                 "python scripts/orthoxmlParser.py",
                 paste(omaParserOptions(), collapse = " ")
                 #, "-l", 5 # for testing purpose
             )
-            print(parseOmaCmd)
-            parseOmaCmd <- paste(
-                parseOmaCmd,
+            print(cmd)
+            cmd <- paste(
+                cmd,
                 ">>",
                 paste0(input$dccJob, ".dcc.log")
             )
-            system(parseOmaCmd, wait = FALSE)
+            system(cmd, wait = FALSE)
         } else {
             # * parse OMA Browser =============================================
             if (input$inputTyp == "inputFile") {
@@ -679,7 +670,8 @@ dccApp <- function (input, output, session) {
                     "-i", paste(taxIds, collapse = ","),
                     "-d", getOmaPath(),
                     "-o", getOutputPath(),
-                    "-a", input$MSA
+                    "-a", input$MSA,
+                    "-j", input$dccJob
                 )
                 if (input$doAnno) cmd <- paste(cmd, "-f")
                 print(cmd)
@@ -697,7 +689,8 @@ dccApp <- function (input, output, session) {
                     "-d", getOmaPath(),
                     "-o", getOutputPath(),
                     "-m", input$nrMissingSpecies,
-                    "-a", input$MSA
+                    "-a", input$MSA,
+                    "-j", input$dccJob
                 )
                 if (input$doAnno) cmd <- paste(cmd, "-f")
                 print(cmd)
@@ -739,6 +732,6 @@ dccApp <- function (input, output, session) {
     # finishing msg ==========================================================
     output$annoOptions.ui <- renderUI({
         req(input$submit)
-        paste("Your output can be found at: ", getOutputPath())
+        paste("Your output will be saved at: ", getOutputPath())
     })
 }

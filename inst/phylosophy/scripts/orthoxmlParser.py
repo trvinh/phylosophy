@@ -57,6 +57,7 @@ def main():
     required.add_argument('-o', '--outPath', help='Output directory', action='store', default='', required=True)
     required.add_argument('-g', '--geneSet', help='Path to gene set folder', action='store', default='', required=True)
     required.add_argument('-m', '--mappingFile', help='NCBI taxon ID mapping file', action='store', default='', required=True)
+    required.add_argument('-j', '--jobName', help='Job name', action='store', default='', required=True)
     optional.add_argument('-a', '--alignTool', help='Alignment tool (mafft|muscle). Default: mafft', action='store', default='mafft')
     optional.add_argument('-f', '--annoFas', help='Perform FAS annotation', action='store_true')
     optional.add_argument('-l', '--maxGroups', help='Maximum ortholog groups taken into account.', type=int, action='store', default=999999999)
@@ -78,6 +79,7 @@ def main():
         sys.exit("alignment tool must be either mafft or muscle")
     limit = args.maxGroups
     doAnno = args.annoFas
+    jobName = args.jobName
 
     start = time.time()
     pool = mp.Pool(mp.cpu_count())
@@ -97,7 +99,7 @@ def main():
     ### create output folders
     Path(outPath + "/genome_dir").mkdir(parents = True, exist_ok = True)
     Path(outPath + "/blast_dir").mkdir(parents = True, exist_ok = True)
-    Path(outPath + "/core_orthologs").mkdir(parents = True, exist_ok = True)
+    Path(outPath + "/core_orthologs/" + jobName).mkdir(parents = True, exist_ok = True)
     Path(outPath + "/weight_dir").mkdir(parents = True, exist_ok = True)
 
     ### copy species to genome_dir, blast_dir, weight_dir
@@ -163,10 +165,10 @@ def main():
                 break
             if groupID.isdigit():
                 groupID = "OG_"+str(groupID)
-            Path(outPath + "/core_orthologs/" + groupID).mkdir(parents = True, exist_ok = True)
+            Path(outPath + "/core_orthologs/" + jobName + groupID).mkdir(parents = True, exist_ok = True)
 
             # get fasta sequences
-            with open(outPath + "/core_orthologs/" + groupID + "/" + groupID + ".fa", "w") as myfile:
+            with open(outPath + "/core_orthologs/" + jobName + "/" + groupID + "/" + groupID + ".fa", "w") as myfile:
                 for ortho in orthogroup.findAll("geneRef"):
                     orthoID = protID[ortho.get("id")]
                     spec = taxonName[orthoID]
@@ -174,12 +176,12 @@ def main():
                     myfile.write(">" + groupID + "|" + spec + "|" + orthoID + "\n" + orthoSeq + "\n")
 
             # get info for MSA
-            ogFasta = outPath + "/core_orthologs/" + groupID + "/" + groupID
+            ogFasta = outPath + "/core_orthologs/" + jobName + "/" + groupID + "/" + groupID
             alignJobs.append([ogFasta, aligTool, groupID])
 
             # get info for pHMM
-            Path(outPath + "/core_orthologs/" + groupID + "/hmm_dir").mkdir(parents = True, exist_ok = True)
-            hmmFile = "%s/core_orthologs/%s/hmm_dir/%s.hmm" % (outPath, groupID, groupID)
+            Path(outPath + "/core_orthologs/" + jobName + "/" + groupID + "/hmm_dir").mkdir(parents = True, exist_ok = True)
+            hmmFile = "%s/core_orthologs/%s/%s/hmm_dir/%s.hmm" % (outPath, jobName, groupID, groupID)
             flag = 0
             try:
                 if os.path.getsize(hmmFile) == 0:
