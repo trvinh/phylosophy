@@ -100,7 +100,7 @@ dccAppUI <- function(id) {
                 
                 # option for running FAS annotation
                 checkboxInput(
-                    ns("doAnno"), strong("Include FAS annotation"), value = TRUE
+                    ns("doAnno"), strong("Include FAS annotation"), value = FALSE
                 ),
                 
                 br(),

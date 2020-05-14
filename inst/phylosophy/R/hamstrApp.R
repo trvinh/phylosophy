@@ -835,10 +835,16 @@ hamstrAppUI <- function(id) {
         # * main panel for hamstr run ----------------------------
         mainPanel(
             width = 9,
-            column(
-                6,
-                uiOutput(ns("hamstrBtn.ui")),
-                hr(),
+            uiOutput(ns("hamstrBtn.ui")),
+            hr(),
+            checkboxInput(
+                ns("showOpts"),
+                strong("Show selected options"),
+                value = FALSE,
+                width = NULL
+            ),
+            conditionalPanel(
+                condition = "input.showOpts", ns = ns,
                 strong("SELECTED OPTIONS"),
                 br(), br(),
                 strong("Required"),
@@ -848,20 +854,21 @@ hamstrAppUI <- function(id) {
                 strong("Optional"),
                 br(), br(),
                 uiOutput(ns("optOptions.ui")),
-                hr(),
-                strong("Log file"),
-                verbatimTextOutput(ns("logLocation")),
-                strong("Output files"),
-                verbatimTextOutput(ns("outputLocation"))
+                hr()
             ),
-            column(
-                6,
-                strong("Command"),
-                verbatimTextOutput(ns("hamstrCmdText")),
-                hr(),
-                strong("Progress"),
-                verbatimTextOutput(ns("hamstrLog"))
-            )
+            strong("Command"),
+            verbatimTextOutput(ns("hamstrCmdText")),
+            strong("Log file"),
+            textOutput(ns("logLocation")),
+            br(),
+            strong("Output files"),
+            checkboxInput(
+                ns("outputDetail"), "Show detailed output files", value = FALSE
+            ),
+            uiOutput(ns("output.ui")),
+            hr(),
+            strong("Progress"),
+            verbatimTextOutput(ns("hamstrLog"))
         )
     )
 }
@@ -897,11 +904,11 @@ hamstrApp <- function(input, output, session) {
         }
     })
     
-    output$hamstrLocation <- renderText({
+    output$hamstrLocation <- renderUI({
         hamstrPath <- getHamstrPath()
-        paste(
-            "HaMStR found at", hamstrPath
-        )
+        HTML(paste(
+            "<strong>HaMStR found at </strong>", hamstrPath
+        ))
     })
     
     # get fas location =========================================================
@@ -931,11 +938,11 @@ hamstrApp <- function(input, output, session) {
         }
     })
     
-    output$fasLocation <- renderText({
+    output$fasLocation <- renderUI({
         fasPath <- getFasPath()
-        paste(
-            "FAS found at", fasPath
-        )
+        HTML(paste(
+            "<strong>FAS found at </strong>", fasPath
+        ))
     })
     
     # get input fasta ==========================================================
@@ -1339,12 +1346,12 @@ hamstrApp <- function(input, output, session) {
                         style = "success", disabled = FALSE
                     ),
                     actionButton(ns("stopHamstr"),label = "Stop"),
-                    actionButton(ns("newHamstr"),label = "New job"),
-                    textOutput(ns("hamstrLocation")),
+                    actionButton(ns("newHamstr"),label = "New HaMStR job"),
+                    uiOutput(ns("hamstrLocation")),
                     
                     conditionalPanel(
                         condition = 'input.useFAS', ns = ns,
-                        textOutput(ns("fasLocation"))
+                        uiOutput(ns("fasLocation"))
                     )
                 )
             }
@@ -1400,7 +1407,7 @@ hamstrApp <- function(input, output, session) {
                 rv$textstream <- suppressWarnings(
                     paste(
                         readLines(paste0(input$seqName, ".log"),  n = -1) %>% 
-                            tail(50) %>% paste(collapse = "\n")
+                            tail(25) %>% paste(collapse = "\n")
                     )
                 )
             }
@@ -1424,7 +1431,6 @@ hamstrApp <- function(input, output, session) {
         } else {
             outpath <- paste0(getwd(), "/", input$seqName)
         }
-        # dataDir <- getSubFolderDir(getHamstrPath(), "data")
         # return output files
         faOut <- paste0(outpath, "/", input$seqName, ".extended.fa")
         ppOut <- paste0(outpath, "/", input$seqName, ".phyloprofile")
@@ -1436,25 +1442,12 @@ hamstrApp <- function(input, output, session) {
         }
     })
     
-    output$outputLocation <- renderText({
-        # req(getHamstrPath())
-        # req(getInputPath())
-        # # get default output folder of hamstr
-        # dataDir <- getSubFolderDir(getHamstrPath(), "data")
-        # # return output files
-        # faOut <- paste0(dataDir, "/", input$seqName, ".extended.fa")
-        # ppOut <- paste0(dataDir, "/", input$seqName, ".phyloprofile")
-        # if (input$useFAS == TRUE) {
-        #     inFaOut <- paste0(dataDir, "/", getFileName(getInputPath()))
-        #     domainFwOut <- paste0(dataDir, "/", input$seqName, "_1.domains")
-        #     domainRvOut <- paste0(
-        #         "[", dataDir, "/", input$seqName, "_0.domains", "]"
-        #     )
-        #     paste(inFaOut, faOut, ppOut, domainFwOut, domainRvOut, sep = "\n")
-        # } else {
-        #     paete(faOut, ppOut, sep = "\n")
-        # }
-        return(paste(returnOutput(), collapse = "\n"))
+    output$output.ui <- renderUI({
+        if (input$outputDetail == TRUE) {
+            HTML(paste(returnOutput(), collapse = "\n"))
+        } else {
+            HTML(str_replace_all(returnOutput()[1], "extended.fa", "*"))
+        }
     })
     
     # return
