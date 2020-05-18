@@ -72,7 +72,8 @@ dccAppUI <- function(id) {
                         "",
                         paste(
                             "Tab-delimited file containing 3 columns ",
-                            "<NCBI ID> <Taxon name in orthoXML file> <Abbr. taxon name>"
+                            "<NCBI ID> <Taxon name in orthoXML file>",
+                            "<Abbr. taxon name>"
                         ),
                         "bottom"
                     ),
@@ -115,7 +116,8 @@ dccAppUI <- function(id) {
                 
                 # option for running FAS annotation
                 checkboxInput(
-                    ns("doAnno"), strong("Include FAS annotation"), value = FALSE
+                    ns("doAnno"), strong("Include FAS annotation"),
+                    value = FALSE
                 ),
                 bsPopover(
                     ns("doAnno"),
@@ -134,7 +136,7 @@ dccAppUI <- function(id) {
                     buttonType = "default", class = NULL
                 ),
                 hr(),
-            
+                
                 # job ID
                 textInput(ns("dccJob"), strong("Job ID"), value = randFn(1)),
                 bsPopover(
@@ -151,13 +153,15 @@ dccAppUI <- function(id) {
         # * main panel for annoFAS and greedyFAS -------------------------------
         mainPanel(
             width = 9,
-            # conditionalPanel(
-            #     condition = "output.checkPython == 1", ns = ns,
-            #     htmlOutput(ns("pythonMsg"))
-            # ),
-            # conditionalPanel(
-            #     condition = "output.checkPython == 0", ns = ns,
-                uiOutput(ns("dccBtn.ui")),
+            conditionalPanel(
+                # condition = "output.checkPython == 0", ns = ns,
+                condition = "output.checkRunDcc", ns = ns,
+                # uiOutput(ns("dccBtn.ui")),
+                bsButton(
+                    ns("submit"), "Run DCC",
+                    style = "success", disabled = FALSE
+                ),
+                bsButton(ns("stopDcc"), label = "Stop", disabled = TRUE),
                 hr(),
                 
                 # list of taxa selected by names or IDs
@@ -190,6 +194,13 @@ dccAppUI <- function(id) {
                 # finishing msg
                 uiOutput(ns("end")),
                 uiOutput(ns("annoOptions.ui"))
+            )
+            # ,
+            # conditionalPanel(
+            #     # condition = "output.checkPython == 1", ns = ns,
+            #     # htmlOutput(ns("pythonMsg"))
+            #     condition = "output.checkRunDcc == FALSE", ns = ns,
+            #     uiOutput(ns("dccStartMsg"))
             # )
         )
     )
@@ -198,6 +209,19 @@ dccAppUI <- function(id) {
 dccApp <- function (input, output, session) {
     homePath = c(wd='~/') # for shinyFileChoose
     ns <- session$ns
+    
+    # DCC start msg ============================================================
+    output$dccStartMsg <- renderText({
+        HTML(
+            paste(
+                "<h3><em><strong>Please specify <span style=\"color:",
+                "#ff0000;\">downloaded OMA Browser data directory</span> or",
+                "upload output of <span style=\"color: #ff0000;\">OMA",
+                "Standalone in orthoXML</span> format.<span style=\"color:",
+                "#ff0000;\"></span></strong></em></h3>"
+            )
+        )
+    })
     
     # check python version ====================================================
     # output$checkPython <- reactive({
@@ -363,14 +387,14 @@ dccApp <- function (input, output, session) {
         if (input$inputTyp == "ncbiID") {
             selectInput(
                 inputId = ns("speciesList"),
-                label = "Select up to 10 species",
+                label = strong("Select up to 10 species"),
                 multiple = TRUE,
                 choices = omaSpecTable$TaxonID
             )
         } else if (input$inputTyp == "speciesName") {
             selectInput(
                 inputId = ns("speciesList"),
-                label = "Select up to 10 species",
+                label = strong("Select up to 10 species"),
                 multiple = TRUE,
                 choices = omaSpecTable$ScientificName
             )
@@ -381,7 +405,7 @@ dccApp <- function (input, output, session) {
             numericInput(
                 inputId = ns("omaGroupId"),
                 value = NULL,
-                label = "Select a Oma Group Id between 1 and 866647",
+                label = strong("Select a Oma Group Id between 1 and 866647"),
                 min = 1,
                 max = nrow(x),
                 step = 1
@@ -508,7 +532,7 @@ dccApp <- function (input, output, session) {
             speciesTable <- createOmaIdOutput()
             selectInput(
                 inputId = ns("GroupSpecies"),
-                label = "Select up to 10 species",
+                label = strong("Select up to 10 species"),
                 multiple = TRUE,
                 choices = speciesTable$TaxonID,
                 selected = speciesTable$TaxonID[1]
@@ -616,40 +640,41 @@ dccApp <- function (input, output, session) {
     # run DCC ==================================================================
     
     # * render submit button ===================================================
-    checkStatus <- reactive({
-        if (length(getOutputPath()) == 0) return(0)
+    output$checkRunDcc <- reactive({
+        if (length(getOutputPath()) == 0) return(FALSE)
         if (input$inputTyp == "omaFile") {
             if (
                 length(getLocalOma()) == 0 ||
                 length(getLocalDataset()) == 0 ||
                 length(getTaxMapping()) == 0
-            ) { return(0) }
+            ) { return(FALSE) }
         } else {
             if (input$inputTyp == "inputFile") {
-                if (is.null(input$taxFile)) return(0)
+                if (is.null(input$taxFile)) return(FALSE)
             } else if (input$inputTyp == "OmaId") {
-                if (is.null(input$GroupSpecies)) return(0)
+                if (is.null(input$GroupSpecies)) return(FALSE)
             } else {
-                if (is.null(input$speciesList)) return(0)
+                if (is.null(input$speciesList)) return(FALSE)
             }
             if (length(input$shinyalert) > 0) {
-                if (input$shinyalert == FALSE) return(0)
+                if (input$shinyalert == FALSE) return(FALSE)
             }
         }
-        return(1)
+        return(TRUE)
     })
+    outputOptions(output, "checkRunDcc", suspendWhenHidden = FALSE)
     
-    output$dccBtn.ui <- renderUI({
-        if (checkStatus() == 1) {
-            tagList(
-                bsButton(
-                    ns("submit"), "Run DCC",
-                    style = "success", disabled = FALSE
-                ),
-                bsButton(ns("stopDcc"), label = "Stop", disabled = TRUE)
-            )
-        }
-    })
+    # output$dccBtn.ui <- renderUI({
+    #     if (checkRunDcc == 1) {
+    #         tagList(
+    #             bsButton(
+    #                 ns("submit"), "Run DCC",
+    #                 style = "success", disabled = FALSE
+    #             ),
+    #             bsButton(ns("stopDcc"), label = "Stop", disabled = TRUE)
+    #         )
+    #     }
+    # })
     
     rvDcc <- reactiveValues(
         textstream = c(""),

@@ -9,32 +9,38 @@ hamstrAppUI <- function(id) {
             # ** hamstr location ===================================
             conditionalPanel(
                 condition = "output.checkHamstrStatus == 0", ns = ns,
-                selectInput(
-                    ns("whereHamstr"), "HaMStR not found! Please:",
-                    choice = c("Install HaMStR", "Provide HaMStR path"),
-                    selected = "Provide HaMStR path"
+                # selectInput(
+                #     ns("whereHamstr"), "HaMStR not found! Please:",
+                #     choice = c("Install HaMStR", "Provide HaMStR path"),
+                #     selected = "Provide HaMStR path"
+                # ),
+                # conditionalPanel(
+                #     condition = "input.whereHamstr == 'Provide HaMStR path'",
+                #     ns = ns,
+                #     shinyFilesButton(
+                #         ns("hamstrFile"),
+                #         "HaMStR location?" ,
+                #         title = "Please provide oneSeq.pl file:",
+                #         multiple = FALSE,
+                #         buttonType = "default"
+                #     )
+                # ),
+                # conditionalPanel(
+                #     condition = "input.whereHamstr == 'Install HaMStR'",
+                #     ns = ns,
+                #     bsButton(
+                #         "installHamstr", "Install HaMStR", 
+                #         onclick = "window.open('https://bionf.github.io/HaMStR/#how-to-install', '_blank')"
+                #     )
+                # )
+                
+                h2(em("HaMStR not found! Please install it first!")),
+                bsButton(
+                    "installHamstr", "Install HaMStR", 
+                    onclick = "window.open('https://bionf.github.io/HaMStR/#how-to-install', '_blank')"
                 ),
-                conditionalPanel(
-                    condition = "input.whereHamstr == 'Provide HaMStR path'",
-                    ns = ns,
-                    shinyFilesButton(
-                        ns("hamstrFile"),
-                        "HaMStR location?" ,
-                        title = "Please provide oneSeq.pl file:",
-                        multiple = FALSE,
-                        buttonType = "default"
-                    )
-                ),
-                conditionalPanel(
-                    condition = "input.whereHamstr == 'Install HaMStR'",
-                    ns = ns,
-                    bsButton(
-                        "installHamstr", "Install HaMStR", 
-                        onclick = "window.open('https://bionf.github.io/HaMStR/#how-to-install', '_blank')"
-                    )
-                )
+                hr()
             ),
-            hr(),
             
             # ** fasta input =======================================
             h3("Input and configurations"),
@@ -216,6 +222,7 @@ hamstrAppUI <- function(id) {
             conditionalPanel(
                 condition = "input.optOption", ns = ns,
                 strong("Additional options"),
+                br(),
                 
                 bsButton("cusPath", "Set data & output paths"),
                 
@@ -835,40 +842,59 @@ hamstrAppUI <- function(id) {
         # * main panel for hamstr run ----------------------------
         mainPanel(
             width = 9,
-            uiOutput(ns("hamstrBtn.ui")),
-            hr(),
-            checkboxInput(
-                ns("showOpts"),
-                strong("Show selected options"),
-                value = FALSE,
-                width = NULL
-            ),
             conditionalPanel(
-                condition = "input.showOpts", ns = ns,
-                strong("SELECTED OPTIONS"),
-                br(), br(),
-                strong("Required"),
-                br(), br(),
-                uiOutput(ns("reqOptions.ui")),
-                br(), br(),
-                strong("Optional"),
-                br(), br(),
-                uiOutput(ns("optOptions.ui")),
-                hr()
-            ),
-            strong("Command"),
-            verbatimTextOutput(ns("hamstrCmdText")),
-            strong("Log file"),
-            textOutput(ns("logLocation")),
-            br(),
-            strong("Output files"),
-            checkboxInput(
-                ns("outputDetail"), "Show detailed output files", value = FALSE
-            ),
-            uiOutput(ns("output.ui")),
-            hr(),
-            strong("Progress"),
-            verbatimTextOutput(ns("hamstrLog"))
+                condition = "output.checkRun", ns = ns,
+                bsButton(
+                    ns("doHamstr"), "Run HaMStR",
+                    style = "success", disabled = FALSE
+                ),
+                actionButton(ns("stopHamstr"),label = "Stop"),
+                actionButton(ns("newHamstr"),label = "New HaMStR job"),
+                uiOutput(ns("hamstrLocation")),
+                
+                conditionalPanel(
+                    condition = 'input.useFAS', ns = ns,
+                    uiOutput(ns("fasLocation"))
+                ),
+                hr(),
+                checkboxInput(
+                    ns("showOpts"),
+                    strong("Show selected options"),
+                    value = FALSE,
+                    width = NULL
+                ),
+                conditionalPanel(
+                    condition = "input.showOpts", ns = ns,
+                    strong("SELECTED OPTIONS"),
+                    br(), br(),
+                    strong("Required"),
+                    br(), br(),
+                    uiOutput(ns("reqOptions.ui")),
+                    br(), br(),
+                    strong("Optional"),
+                    br(), br(),
+                    uiOutput(ns("optOptions.ui")),
+                    hr()
+                ),
+                strong("Command"),
+                verbatimTextOutput(ns("hamstrCmdText")),
+                strong("Log file"),
+                textOutput(ns("logLocation")),
+                br(),
+                strong("Output files"),
+                checkboxInput(
+                    ns("outputDetail"), "Show detailed output files", value = FALSE
+                ),
+                uiOutput(ns("output.ui")),
+                hr(),
+                strong("Progress"),
+                verbatimTextOutput(ns("hamstrLog"))
+            )
+            # ,
+            # conditionalPanel(
+            #     condition = "output.checkRun == FALSE", ns = ns,
+            #     uiOutput(ns("hamstrStartMsg"))
+            # )
         )
     )
 }
@@ -876,6 +902,18 @@ hamstrAppUI <- function(id) {
 hamstrApp <- function(input, output, session) {
     homePath = c(wd='~/') # for shinyFileChoose
     ns <- session$ns
+    
+    # hamstr start msg =========================================================
+    output$hamstrStartMsg <- renderText({
+        HTML(
+            paste(
+                "<h3><p><em><strong>Please upload your <span ",
+                "style=\"color: #ff0000;\">input file in fasta format</span>",
+                "and select the <span style=\"color: #ff0000;\">reference",
+                "taxon</span></strong></em></p></h3>"
+            )
+        )
+    })
     
     # get hamstr location ======================================================
     output$checkHamstrStatus <- reactive({
@@ -1335,28 +1373,16 @@ hamstrApp <- function(input, output, session) {
     })
     
     # RUN HAMSTR ===============================================================
-    output$hamstrBtn.ui <- renderUI({
+    output$checkRun <- reactive({
         if (
             !is.null(input$refSpec) && !is.null(input$seqID) && input$seqID !=""
         ) {
             if (input$refSpec != "undefined") {
-                tagList(
-                    bsButton(
-                        ns("doHamstr"), "Run HaMStR",
-                        style = "success", disabled = FALSE
-                    ),
-                    actionButton(ns("stopHamstr"),label = "Stop"),
-                    actionButton(ns("newHamstr"),label = "New HaMStR job"),
-                    uiOutput(ns("hamstrLocation")),
-                    
-                    conditionalPanel(
-                        condition = 'input.useFAS', ns = ns,
-                        uiOutput(ns("fasLocation"))
-                    )
-                )
+                return(TRUE)
             }
-        }
+        } else return(FALSE)
     })
+    outputOptions(output, "checkRun", suspendWhenHidden = FALSE)
     
     observeEvent(input$newHamstr, {
         updateButton(session, ns("doHamstr"), disabled = FALSE)
@@ -1396,7 +1422,8 @@ hamstrApp <- function(input, output, session) {
     
     observeEvent(input$stopHamstr, {
         rv$started <- FALSE
-        system2("rm", "*.log")
+        system(paste("rm -rf", str_replace_all(returnOutput()[1], paste0("/", input$seqName, ".extended.fa"), "")))
+        # system2("rm", "*.log")
         updateButton(session, ns("stopHamstr"), disabled = TRUE)
     })
     

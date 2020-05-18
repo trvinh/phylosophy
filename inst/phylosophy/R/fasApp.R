@@ -9,32 +9,38 @@ fasAppUI <- function(id) {
             # ** FAS location ===================================
             conditionalPanel(
                 condition = "output.checkFasStatus == 0", ns = ns,
-                selectInput(
-                    ns("whereFas"), "FAS not found! Please:",
-                    choice = c("Install FAS", "Provide FAS path"),
-                    selected = "Provide FAS path"
+                # selectInput(
+                #     ns("whereFas"), "FAS not found! Please:",
+                #     choice = c("Install FAS", "Provide FAS path"),
+                #     selected = "Provide FAS path"
+                # ),
+                # conditionalPanel(
+                #     condition = "input.whereFas == 'Provide FAS path'",
+                #     ns = ns,
+                #     shinyFilesButton(
+                #         ns("greedyFasFile"),
+                #         "FAS location?" ,
+                #         title = "Please provide greedyFAS.py file:",
+                #         multiple = FALSE,
+                #         buttonType = "default"
+                #     )
+                # ),
+                # conditionalPanel(
+                #     condition = "input.whereFas == 'Install FAS'",
+                #     ns = ns,
+                #     bsButton(
+                #         "installFas", "Install FAS", 
+                #         onclick = "window.open('https://bionf.github.io/FAS/#installation', '_blank')"
+                #     )
+                # )
+                
+                h2(em("HaMStR not found! Please install HaMStR first!")),
+                bsButton(
+                    "installFas", "Install FAS",
+                    onclick = "window.open('https://bionf.github.io/FAS/#installation', '_blank')"
                 ),
-                conditionalPanel(
-                    condition = "input.whereFas == 'Provide FAS path'",
-                    ns = ns,
-                    shinyFilesButton(
-                        ns("greedyFasFile"),
-                        "FAS location?" ,
-                        title = "Please provide greedyFAS.py file:",
-                        multiple = FALSE,
-                        buttonType = "default"
-                    )
-                ),
-                conditionalPanel(
-                    condition = "input.whereFas == 'Install FAS'",
-                    ns = ns,
-                    bsButton(
-                        "installFas", "Install FAS", 
-                        onclick = "window.open('https://bionf.github.io/FAS/#installation', '_blank')"
-                    )
-                )
+                hr()
             ),
-            hr(),
             
             # ** fasta input =======================================
             h3("Input and configurations"),

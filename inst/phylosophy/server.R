@@ -11,6 +11,9 @@ shinyServer(function(input, output, session) {
     # DCC app
     callModule(dccApp, "dccApp")
     
+    # annoFAS app
+    callModule(annoFasApp, "annoFasApp")
+    
     # FAS app
     callModule(fasApp, "fasApp")
 	
