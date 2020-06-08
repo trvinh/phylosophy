@@ -77,10 +77,11 @@ def main():
     print("Creating output folders...")
     Path(outPath + "/genome_dir").mkdir(parents = True, exist_ok = True)
     Path(outPath + "/blast_dir").mkdir(parents = True, exist_ok = True)
-    # Path(outPath + "/core_orthologs").mkdir(parents = True, exist_ok = True)
-    # Path(outPath + "/core_orthologs/" + omaGroupId).mkdir(parents = True, exist_ok = True)
     Path(outPath + "/core_orthologs/" + jobName +  "/" + omaGroupId + "/hmm_dir").mkdir(parents = True, exist_ok = True)
     Path(outPath + "/weight_dir").mkdir(parents = True, exist_ok = True)
+
+    ### create spec IDs dict
+    specName2id = dict(zip(speciesList, speciesTaxId))
 
     ### Get genesets
     print("Getting %s gene sets..." % (len(speciesList)))

@@ -75,7 +75,7 @@ def openFileToAppend(location):
     return file
 
 def makeOneSeqSpeciesName(code,TaxId):
-    name = code + "@" + TaxId + "@" + "2"
+    name = code + "@" + TaxId + "@" + "1"
     return name
 
 def createHeaderCoreFasta(protId, speciesHeader, omaGroupId):
@@ -125,7 +125,7 @@ def getGeneset(dataPath, speciesCode, speciesTaxId, outPath):
         newFile.close()
 
 def getOGseq(args):
-    (proteinIds, omaGroupId, outPath, allFasta, jobName) = args
+    (proteinIds, omaGroupId, outPath, allFasta, specName2id, jobName) = args
     ogFasta = outPath + "/core_orthologs/" + jobName + "/" + omaGroupId + "/" + omaGroupId
     flag = 1
     if Path(ogFasta + ".fa").exists():
@@ -138,7 +138,8 @@ def getOGseq(args):
                 spec = protId[0:5]
                 try:
                     seq = str(allFasta[spec][protId].seq)
-                    myfile.write(">" + omaGroupId + "|" + spec + "|" + protId + "\n" + seq + "\n")
+                    header = '>%s|%s@%s@1|%s' % (omaGroupId, spec, specName2id[spec], protId)
+                    myfile.write(header + "\n" + seq + "\n")
                 except:
                     print("%s not found in %s gene set" % (protId, spec))
 

@@ -29,6 +29,7 @@ from pathlib import Path
 import time
 from Bio import SeqIO
 import multiprocessing as mp
+from omadb import Client
 import dccFn
 
 def gettingOmaGroups(dataPath, speciesSet, nr):
@@ -48,6 +49,14 @@ def gettingOmaGroups(dataPath, speciesSet, nr):
                 omaGroups[row[0]] = ProteinIds
     return(omaGroups)
 
+def gettingOmaPairs(speciesList):
+    c = Client()
+    omaPairs = list(c.pairwise(speciesList[0], speciesList[1], progress = True))
+    out = {}
+    for pair in omaPairs:
+        out[str(pair.entry_1.oma_group)] = [pair.entry_1.omaid, pair.entry_2.omaid]
+    return(out)
+
 def main():
     version = "1.0.0"
     parser = argparse.ArgumentParser(description="You are running omaParser for OMA Browser version " + str(version) + ".")
@@ -58,18 +67,20 @@ def main():
     required.add_argument('-d', '--dataPath', help='Path to OMA Browser data', action='store', default='', required=True)
     required.add_argument('-o', '--outPath', help='Path to output directory', action='store', default='', required=True)
     required.add_argument('-j', '--jobName', help='Job name', action='store', default='', required=True)
-    optional.add_argument('-m', '--missingTaxa', help='Number of allowed missing taxa. Default: 0', action='store', default=0)
-    optional.add_argument('-a', '--alignTool', help='Alignment tool (mafft|muscle). Default: mafft', action='store', default='mafft')
+    optional.add_argument('-m', '--missingTaxa', help='Number of allowed missing taxa. Default: 0', action='store', default=0, type=int)
+    optional.add_argument('-t', '--omaType', help='OMA type (group|pair). Default: "group"', choices=['group', 'pair'], action='store', default='group')
+    optional.add_argument('-a', '--alignTool', help='Alignment tool (mafft|muscle). Default: mafft', choices=['mafft', 'muscle'], action='store', default='mafft')
     optional.add_argument('-f', '--annoFas', help='Perform FAS annotation', action='store_true')
     args = parser.parse_args()
 
     dccFn.checkFileExist(args.dataPath)
     dccFn.checkFileExist(args.dataPath+"/oma-seqs-dic.fa")
     dataPath = str(Path(args.dataPath).resolve())
-    speciesList = str(args.name).split(",")
+    speciesList = str(args.name.upper()).split(",")
     speciesTaxId = str(args.id).split(",")
     outPath = str(Path(args.outPath).resolve())
     nrMissingTaxa = args.missingTaxa
+    omaType = args.omaType
     aligTool = args.alignTool.lower()
     if not aligTool == "mafft" or aligTool == "muscle":
         sys.exit("alignment tool must be either mafft or muscle")
@@ -85,6 +96,9 @@ def main():
     Path(outPath + "/blast_dir").mkdir(parents = True, exist_ok = True)
     Path(outPath + "/core_orthologs/" + jobName).mkdir(parents = True, exist_ok = True)
     Path(outPath + "/weight_dir").mkdir(parents = True, exist_ok = True)
+
+    ### create spec IDs dict
+    specName2id = dict(zip(speciesList, speciesTaxId))
 
     ### Get genesets
     print("Getting %s gene sets..." % (len(speciesList)))
@@ -115,7 +129,10 @@ def main():
         print("makeblastdb not found!")
 
     ### get OGs and their fasta
-    omaGroups = gettingOmaGroups(dataPath, set(speciesList), nrMissingTaxa)
+    if omaType == 'group':
+        omaGroups = gettingOmaGroups(dataPath, set(speciesList), nrMissingTaxa)
+    elif omaType == 'pair':
+        omaGroups = gettingOmaPairs(speciesList)
     print("Getting protein sequences for %s OGs..." % len(omaGroups))
     msaJobs = []
     hmmJobs = []
@@ -123,7 +140,7 @@ def main():
         # Path(outPath + "/core_orthologs/" + omaGroupId).mkdir(parents = True, exist_ok = True)
         Path(outPath + "/core_orthologs/" + jobName + "/" + omaGroupId + "/hmm_dir").mkdir(parents = True, exist_ok = True)
         # getSeqJobs.append([omaGroups[omaGroupId], omaGroupId, outPath, fasta])  # slower than run sequentially
-        dccFn.getOGseq([omaGroups[omaGroupId], omaGroupId, outPath, fasta, jobName])
+        dccFn.getOGseq([omaGroups[omaGroupId], omaGroupId, outPath, fasta, specName2id, jobName])
 
         ogFasta = outPath + "/core_orthologs/" + jobName + "/" + omaGroupId + "/" + omaGroupId
         ### get MSA jobs

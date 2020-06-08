@@ -9,31 +9,6 @@ fasAppUI <- function(id) {
             # ** FAS location ===================================
             conditionalPanel(
                 condition = "output.checkFasStatus == 0", ns = ns,
-                # selectInput(
-                #     ns("whereFas"), "FAS not found! Please:",
-                #     choice = c("Install FAS", "Provide FAS path"),
-                #     selected = "Provide FAS path"
-                # ),
-                # conditionalPanel(
-                #     condition = "input.whereFas == 'Provide FAS path'",
-                #     ns = ns,
-                #     shinyFilesButton(
-                #         ns("greedyFasFile"),
-                #         "FAS location?" ,
-                #         title = "Please provide greedyFAS.py file:",
-                #         multiple = FALSE,
-                #         buttonType = "default"
-                #     )
-                # ),
-                # conditionalPanel(
-                #     condition = "input.whereFas == 'Install FAS'",
-                #     ns = ns,
-                #     bsButton(
-                #         "installFas", "Install FAS", 
-                #         onclick = "window.open('https://bionf.github.io/FAS/#installation', '_blank')"
-                #     )
-                # )
-                
                 h2(em("HaMStR not found! Please install HaMStR first!")),
                 bsButton(
                     "installFas", "Install FAS",
@@ -53,31 +28,31 @@ fasAppUI <- function(id) {
                 buttonType = "default", class = NULL
             ),
             
-            conditionalPanel(
-                condition = 'input.addQueryCheck', ns = ns,
-                br(),
+            # conditionalPanel(
+            #     condition = 'input.addQueryCheck', ns = ns,
+            #     br(),
                 shinyFilesButton(
                     ns("queryInput"), "Input query file!" ,
                     title = "Please provide fasta file for query:",
                     multiple = FALSE,
                     buttonType = "default", class = NULL
-                )
-            ),
-            br(),
-            checkboxInput(
-                ns("addQueryCheck"),
-                strong("Add query protein(s)"),
-                value = FALSE,
-                width = NULL
-            ),
-            bsPopover(
-                ns("addQueryCheck"),
-                "",
-                paste(
-                    "Add another sequences (required for calculating FAS)"
                 ),
-                "bottom"
-            ),
+            # ),
+            br(),
+            # checkboxInput(
+            #     ns("addQueryCheck"),
+            #     strong("Add query protein(s)"),
+            #     value = FALSE,
+            #     width = NULL
+            # ),
+            # bsPopover(
+            #     ns("addQueryCheck"),
+            #     "",
+            #     paste(
+            #         "Add another sequences (required for calculating FAS)"
+            #     ),
+            #     "bottom"
+            # ),
             hr(),
             
             # ** job ID ========================================================
@@ -125,20 +100,17 @@ fasAppUI <- function(id) {
                 "bottom"
             ),
             
-            conditionalPanel(
-                condition = "input.addQueryCheck", ns = ns,
-                textInput(
-                    ns("queryName"), "Query Name (*)",
-                    value = "query", placeholder = "query"
+            textInput(
+                ns("queryName"), "Query Name (*)",
+                value = "query", placeholder = "query"
+            ),
+            bsPopover(
+                ns("queryName"),
+                "",
+                paste(
+                    "Name of annotation folder for query protein(s)."
                 ),
-                bsPopover(
-                    ns("queryName"),
-                    "",
-                    paste(
-                        "Name of annotation folder for query protein(s)."
-                    ),
-                    "bottom"
-                )
+                "bottom"
             ),
             
             checkboxInput(
@@ -199,7 +171,7 @@ fasAppUI <- function(id) {
             # ** Reference annotation settings =================================
             strong("Reference annotation"),
             conditionalPanel(
-                condition = "input.extract || input.addQueryCheck", ns = ns,
+                condition = "input.extract", ns = ns,
                 shinyDirButton(
                     ns("refAnnoDir"), "Reference annotation" ,
                     title = "Please select a folder",
@@ -245,391 +217,389 @@ fasAppUI <- function(id) {
             # ** greedyFAS options ==================================
             strong("greedyFAS options"),
             br(), br(),
+            uiOutput(ns("refProteome.ui")),
+            bsPopover(
+                ns("refProteome.ui"),
+                "",
+                paste(
+                    "Path to annotation of a reference proteome which can",
+                    "be used for the weighting of features, by default",
+                    "there is no reference proteome used, the weighting",
+                    "will be uniform."
+                ),
+                "bottom"
+            ),
+            
             conditionalPanel(
-                condition = "input.addQueryCheck", ns = ns,
-                
-                uiOutput(ns("refProteome.ui")),
+                condition = "
+			        input.bidirectional && input.refProteome != 'undefined'",
+                ns = ns,
+                uiOutput(ns("refProteome2.ui")),
                 bsPopover(
-                    ns("refProteome.ui"),
+                    ns("refProteome2.ui"),
                     "",
                     paste(
-                        "Path to annotation of a reference proteome which can",
-                        "be used for the weighting of features, by default",
-                        "there is no reference proteome used, the weighting",
-                        "will be uniform."
+                        "Give a second reference for bidirectional mode,",
+                        "does not do anything if bidirectional mode is not",
+                        "active or if no main reference was given"
+                    ),
+                    "bottom"
+                )
+            ),
+            
+            checkboxInput(
+                ns("bidirectional"), strong("Bi-directional FAS"),
+                value = TRUE
+            ),
+            bsPopover(
+                ns("bidirectional"),
+                "",
+                paste(
+                    "calculate both scoring directions (separate files),",
+                    "creates csv file with combined scores"
+                ),
+                "bottom"
+            ),
+            
+            checkboxInput(
+                ns("optOption"),
+                strong("Other options"),
+                value = FALSE,
+                width = NULL
+            ),
+            
+            conditionalPanel(
+                condition = "input.optOption", ns = ns,
+                selectInput(
+                    ns("rawOutput"), strong("Output type"),
+                    choices = c(0,1,2), selected = 2
+                ),
+                bsPopover(
+                    ns("rawOutput"),
+                    "",
+                    paste(
+                        "If set to 1, the FAS score will be printed to",
+                        "STDOUT. If 0, scores will be printed into output",
+                        "file (XML format). If 2, both output variants",
+                        "are conducted."
+                    ),
+                    "top"
+                ),
+                
+                checkboxInput(
+                    ns("noArch"), strong("No architecture output"),
+                    value = FALSE
+                ),
+                bsPopover(
+                    ns("noArch"),
+                    "",
+                    paste(
+                        "Deactivate creation of architecture.xml file"
                     ),
                     "bottom"
                 ),
                 
-                conditionalPanel(
-                    condition = "
-			        input.bidirectional && input.refProteome != 'undefined'",
-                    ns = ns,
-                    uiOutput(ns("refProteome2.ui")),
-                    bsPopover(
-                        ns("refProteome2.ui"),
-                        "",
-                        paste(
-                            "Give a second reference for bidirectional mode,",
-                            "does not do anything if bidirectional mode is not",
-                            "active or if no main reference was given"
-                        ),
-                        "bottom"
-                    )
-                ),
-                
                 checkboxInput(
-                    ns("bidirectional"), strong("Bi-directional FAS"),
+                    ns("outputDomain"), strong("Domain tabular output"),
                     value = TRUE
                 ),
                 bsPopover(
-                    ns("bidirectional"),
+                    ns("outputDomain"),
                     "",
                     paste(
-                        "calculate both scoring directions (separate files),",
-                        "creates csv file with combined scores"
+                        "Activate domain tabular output"
                     ),
                     "bottom"
                 ),
                 
                 checkboxInput(
-                    ns("optOption"),
-                    strong("Other options"),
-                    value = FALSE,
-                    width = NULL
+                    ns("outputPhyloprofile"), strong("PhyloProfile output"),
+                    value = FALSE
+                ),
+                conditionalPanel(
+                    condition = "input.outputPhyloprofile", ns = ns,
+                    shinyFilesButton(
+                        ns("phyloprofile"), "Mapping file for PhyloProfile!" ,
+                        title = "Please provide mapping file for PhyloProfile",
+                        multiple = FALSE,
+                        buttonType = "default", class = NULL
+                    )
+                ),
+                bsPopover(
+                    ns("outputPhyloprofile"),
+                    "",
+                    paste(
+                        "Activate phyloprofile output, needs mapping file",
+                        "for all query proteins, single seed only, will",
+                        "run with more but output won't work without",
+                        "editing"
+                    ),
+                    "bottom"
                 ),
                 
+                checkboxInput(
+                    ns("featureInfo"), strong("Feature stat output"),
+                    value = FALSE
+                ),
+                bsPopover(
+                    ns("featureInfo"),
+                    "",
+                    paste(
+                        "Create a file with information on the abundance",
+                        "of all seed and query features in the reference"
+                    ),
+                    "bottom"
+                ),
+                
+                numericInput(
+                    ns("priorityThreshold"),
+                    strong("Threshold for priority mode"),
+                    min = 0, max = 999, step = 1, value = 50
+                ),
+                bsPopover(
+                    ns("priorityThreshold"),
+                    "",
+                    paste(
+                        "Change to define the feature number threshold for",
+                        "activating priority mode in the path evaluation"
+                    ),
+                    "bottom"
+                ),
+                
+                numericInput(
+                    ns("maxCardinality"), 
+                    strong("Threshold for maximal cardinality"),
+                    min = 0, max = 99999999, step = 1, value = 5000
+                ),
+                bsPopover(
+                    ns("maxCardinality"),
+                    "",
+                    paste(
+                        "Change to define the threshold for the maximal",
+                        "cardinality of feature paths in a graph. If max.",
+                        "cardinality is exceeded the priority mode will be",
+                        "used to for the path evaluation."
+                    ),
+                    "bottom"
+                ),
+                
+                numericInput(
+                    ns("efilter"),
+                    strong("HMM search e-value cutoff for feature (10^x)"),
+                    value = -3,
+                    min = -99,
+                    max = 0,
+                    step = 1
+                ),
+                bsPopover(
+                    ns("efilter"),
+                    "",
+                    paste(
+                        "E-value filter for hmm based search methods",
+                        "(feature based/complete sequence)."
+                    ),
+                    "bottom"
+                ),
+                
+                numericInput(
+                    ns("instEfilter"),
+                    strong(
+                        "HMM search e-value cutoff for instances (10^x)"
+                    ),
+                    value = -2,
+                    min = -99,
+                    max = 0,
+                    step = 1
+                ),
+                bsPopover(
+                    ns("instEfilter"),
+                    "",
+                    paste(
+                        "E-value filter for hmm based search methods",
+                        "(instances based/complete sequence)."
+                    ),
+                    "bottom"
+                ),
+                
+                selectInput(
+                    ns("weightcorrection"), 
+                    strong("Weight correction type"),
+                    choices = c(
+                        "linear", "loge", "log10", "root4", "root8"
+                    ),
+                    selected = "loge"
+                ),
+                bsPopover(
+                    ns("weightcorrection"),
+                    "",
+                    paste(
+                        "Function applied to the frequency of feature",
+                        "types during weighting, options are linear(no",
+                        "function), loge(natural logarithm[Default]),",
+                        "log10(base-10 logarithm), root4(4th root) and",
+                        "root8(8th root)"
+                    ),
+                    "top"
+                ),
+                
+                checkboxInput(
+                    ns("useWeightConstraints"), 
+                    strong("Use weight constraints"),
+                    value = FALSE
+                ),
                 conditionalPanel(
-                    condition = "input.optOption", ns = ns,
-                    selectInput(
-                        ns("rawOutput"), strong("Output type"),
-                        choices = c(0,1,2), selected = 2
-                    ),
-                    bsPopover(
-                        ns("rawOutput"),
-                        "",
-                        paste(
-                            "If set to 1, the FAS score will be printed to",
-                            "STDOUT. If 0, scores will be printed into output",
-                            "file (XML format). If 2, both output variants",
-                            "are conducted."
-                        ),
-                        "top"
-                    ),
-                    
-                    checkboxInput(
-                        ns("noArch"), strong("No architecture output"),
-                        value = FALSE
-                    ),
-                    bsPopover(
-                        ns("noArch"),
-                        "",
-                        paste(
-                            "Deactivate creation of architecture.xml file"
-                        ),
-                        "bottom"
-                    ),
-                    
-                    checkboxInput(
-                        ns("outputDomain"), strong("Domain tabular output"),
-                        value = TRUE
-                    ),
-                    bsPopover(
-                        ns("outputDomain"),
-                        "",
-                        paste(
-                            "Activate domain tabular output"
-                        ),
-                        "bottom"
-                    ),
-                    
-                    checkboxInput(
-                        ns("outputPhyloprofile"), strong("PhyloProfile output"),
-                        value = FALSE
-                    ),
-                    conditionalPanel(
-                        condition = "input.outputPhyloprofile", ns = ns,
-                        shinyFilesButton(
-                            ns("phyloprofile"), "Mapping file for PhyloProfile!" ,
-                            title = "Please provide mapping file for PhyloProfile",
-                            multiple = FALSE,
-                            buttonType = "default", class = NULL
-                        )
-                    ),
-                    bsPopover(
-                        ns("outputPhyloprofile"),
-                        "",
-                        paste(
-                            "Activate phyloprofile output, needs mapping file",
-                            "for all query proteins, single seed only, will",
-                            "run with more but output won't work without",
-                            "editing"
-                        ),
-                        "bottom"
-                    ),
-                    
-                    checkboxInput(
-                        ns("featureInfo"), strong("Feature stat output"),
-                        value = FALSE
-                    ),
-                    bsPopover(
-                        ns("featureInfo"),
-                        "",
-                        paste(
-                            "Create a file with information on the abundance",
-                            "of all seed and query features in the reference"
-                        ),
-                        "bottom"
-                    ),
-                    
-                    numericInput(
-                        ns("priorityThreshold"),
-                        strong("Threshold for priority mode"),
-                        min = 0, max = 999, step = 1, value = 50
-                    ),
-                    bsPopover(
-                        ns("priorityThreshold"),
-                        "",
-                        paste(
-                            "Change to define the feature number threshold for",
-                            "activating priority mode in the path evaluation"
-                        ),
-                        "bottom"
-                    ),
-                    
-                    numericInput(
-                        ns("maxCardinality"), 
-                        strong("Threshold for maximal cardinality"),
-                        min = 0, max = 99999999, step = 1, value = 5000
-                    ),
-                    bsPopover(
-                        ns("maxCardinality"),
-                        "",
-                        paste(
-                            "Change to define the threshold for the maximal",
-                            "cardinality of feature paths in a graph. If max.",
-                            "cardinality is exceeded the priority mode will be",
-                            "used to for the path evaluation."
-                        ),
-                        "bottom"
-                    ),
-                    
-                    numericInput(
-                        ns("efilter"),
-                        strong("HMM search e-value cutoff for feature (10^x)"),
-                        value = -3,
-                        min = -99,
-                        max = 0,
-                        step = 1
-                    ),
-                    bsPopover(
-                        ns("efilter"),
-                        "",
-                        paste(
-                            "E-value filter for hmm based search methods",
-                            "(feature based/complete sequence)."
-                        ),
-                        "bottom"
-                    ),
-                    
-                    numericInput(
-                        ns("instEfilter"),
-                        strong(
-                            "HMM search e-value cutoff for instances (10^x)"
-                        ),
-                        value = -2,
-                        min = -99,
-                        max = 0,
-                        step = 1
-                    ),
-                    bsPopover(
-                        ns("instEfilter"),
-                        "",
-                        paste(
-                            "E-value filter for hmm based search methods",
-                            "(instances based/complete sequence)."
-                        ),
-                        "bottom"
-                    ),
-                    
-                    selectInput(
-                        ns("weightcorrection"), 
-                        strong("Weight correction type"),
-                        choices = c(
-                            "linear", "loge", "log10", "root4", "root8"
-                        ),
-                        selected = "loge"
-                    ),
-                    bsPopover(
-                        ns("weightcorrection"),
-                        "",
-                        paste(
-                            "Function applied to the frequency of feature",
-                            "types during weighting, options are linear(no",
-                            "function), loge(natural logarithm[Default]),",
-                            "log10(base-10 logarithm), root4(4th root) and",
-                            "root8(8th root)"
-                        ),
-                        "top"
-                    ),
-                    
-                    checkboxInput(
-                        ns("useWeightConstraints"), 
-                        strong("Use weight constraints"),
-                        value = FALSE
-                    ),
-                    conditionalPanel(
-                        condition = "input.useWeightConstraints", ns = ns,
-                        shinyFilesButton(
-                            ns("weightConstraints"), "Weight constraints file!",
-                            title = "Please provide weight constraints file",
-                            multiple = FALSE,
-                            buttonType = "default", class = NULL
-                        )
-                    ),
-                    bsPopover(
-                        ns("weightConstraints"),
-                        "",
-                        paste(
-                            "Provide weight constraints via constraints file.",
-                            "By default there are no constraints."
-                        ),
-                        "bottom"
-                    ),
-                    
-                    checkboxInput(
-                        ns("limitFeatureTypes"), strong("Limit feature types"),
-                        value = FALSE
-                    ),
-                    conditionalPanel(
-                        condition = "input.limitFeatureTypes", ns = ns,
-                        shinyFilesButton(
-                            ns("featureTypes"), "Feature types file!" ,
-                            title = "Please provide feature types file",
-                            multiple = FALSE,
-                            buttonType = "default", class = NULL
-                        )
-                    ),
-                    bsPopover(
-                        ns("featureTypes"),
-                        "",
-                        paste(
-                            "Provide file that contains the tools/databases",
-                            "used to predict features"
-                        ),
-                        "bottom"
-                    ),
-                    
-                    numericInput(
-                        ns("maxOverlap"), 
-                        strong("Maximum overlape (number of amino acid)"),
-                        min = 0, max = 99999, step = 1, value = 0
-                    ),
-                    bsPopover(
-                        ns("maxOverlap"),
-                        "",
-                        paste(
-                            "Maximum size overlap allowed, default is 0 amino",
-                            "acids"
-                        ),
-                        "bottom"
-                    ),
-                    
-                    numericInput(
-                        ns("maxOverlapPercentage"), 
-                        strong("Maximum overlape in percentage"),
-                        min = 0, max = 1, step = 0.01, value = 0.4
-                    ),
-                    bsPopover(
-                        ns("maxOverlapPercentage"),
-                        "",
-                        paste(
-                            "Maximum percent of a feature the overlap is",
-                            "allowed to cover, default is 0.4 (40%)"
-                        ),
-                        "bottom"
-                    ),
-                    
-                    numericInput(
-                        ns("timelimit"), 
-                        strong("Time limit"),
-                        min = 0, max = 99999999, step = 1, value = 7200
-                    ),
-                    bsPopover(
-                        ns("timelimit"),
-                        "",
-                        paste(
-                            "Sets a maximum time-limit in seconds for the",
-                            "calculation between a pair of proteins,default is",
-                            "2 hours after which it will stop, set to 0 to",
-                            "deactivate; As FAS divides this time among",
-                            "multiple processes, this limit does not",
-                            "necessarily represent the actual runtime,",
-                            "especially if multiple cores are used"
-                        ),
-                        "bottom"
-                    ),
-                    
-                    numericInput(
-                        ns("cores"), 
-                        strong("Number of cores"),
-                        min = 1, max = 999, step = 1, value = 1
-                    ),
-                    bsPopover(
-                        ns("cores"),
-                        "",
-                        paste(
-                            "Number of cores available for calculation, only",
-                            "useful when not using priority_mode"
-                        ),
-                        "bottom"
+                    condition = "input.useWeightConstraints", ns = ns,
+                    shinyFilesButton(
+                        ns("weightConstraints"), "Weight constraints file!",
+                        title = "Please provide weight constraints file",
+                        multiple = FALSE,
+                        buttonType = "default", class = NULL
                     )
+                ),
+                bsPopover(
+                    ns("weightConstraints"),
+                    "",
+                    paste(
+                        "Provide weight constraints via constraints file.",
+                        "By default there are no constraints."
+                    ),
+                    "bottom"
+                ),
+                
+                checkboxInput(
+                    ns("limitFeatureTypes"), strong("Limit feature types"),
+                    value = FALSE
+                ),
+                conditionalPanel(
+                    condition = "input.limitFeatureTypes", ns = ns,
+                    shinyFilesButton(
+                        ns("featureTypes"), "Feature types file!" ,
+                        title = "Please provide feature types file",
+                        multiple = FALSE,
+                        buttonType = "default", class = NULL
+                    )
+                ),
+                bsPopover(
+                    ns("featureTypes"),
+                    "",
+                    paste(
+                        "Provide file that contains the tools/databases",
+                        "used to predict features"
+                    ),
+                    "bottom"
+                ),
+                
+                numericInput(
+                    ns("maxOverlap"), 
+                    strong("Maximum overlape (number of amino acid)"),
+                    min = 0, max = 99999, step = 1, value = 0
+                ),
+                bsPopover(
+                    ns("maxOverlap"),
+                    "",
+                    paste(
+                        "Maximum size overlap allowed, default is 0 amino",
+                        "acids"
+                    ),
+                    "bottom"
+                ),
+                
+                numericInput(
+                    ns("maxOverlapPercentage"), 
+                    strong("Maximum overlape in percentage"),
+                    min = 0, max = 1, step = 0.01, value = 0.4
+                ),
+                bsPopover(
+                    ns("maxOverlapPercentage"),
+                    "",
+                    paste(
+                        "Maximum percent of a feature the overlap is",
+                        "allowed to cover, default is 0.4 (40%)"
+                    ),
+                    "bottom"
+                ),
+                
+                numericInput(
+                    ns("timelimit"), 
+                    strong("Time limit"),
+                    min = 0, max = 99999999, step = 1, value = 7200
+                ),
+                bsPopover(
+                    ns("timelimit"),
+                    "",
+                    paste(
+                        "Sets a maximum time-limit in seconds for the",
+                        "calculation between a pair of proteins,default is",
+                        "2 hours after which it will stop, set to 0 to",
+                        "deactivate; As FAS divides this time among",
+                        "multiple processes, this limit does not",
+                        "necessarily represent the actual runtime,",
+                        "especially if multiple cores are used"
+                    ),
+                    "bottom"
+                ),
+                
+                numericInput(
+                    ns("cores"), 
+                    strong("Number of cores"),
+                    min = 1, max = 999, step = 1, value = 1
+                ),
+                bsPopover(
+                    ns("cores"),
+                    "",
+                    paste(
+                        "Number of cores available for calculation, only",
+                        "useful when not using priority_mode"
+                    ),
+                    "bottom"
                 )
             )
         ),
         # * main panel for annoFAS and greedyFAS -------------------------------
         mainPanel(
             width = 9,
-            column(
-                6,
-                uiOutput(ns("annoBtn.ui")),
-                hr(),
-                strong("annoFAS OPTIONS"),
-                br(), br(),
-                uiOutput(ns("annoOptions.ui")),
-                hr(),
-                strong("Log file"),
-                verbatimTextOutput(ns("logAnnoLocation")),
-                strong("Output files"),
-                verbatimTextOutput(ns("outputAnnoLocation")),
-                hr(),
-                strong("Command"),
-                verbatimTextOutput(ns("annoCmdText")),
-                strong("Progress"),
-                verbatimTextOutput(ns("annoLog"))
-            ),
-            column(
-                6,
-                uiOutput(ns("fasBtn.ui")),
-                hr(),
-                strong("greedyFAS OPTIONS"),
-                br(), br(),
-                uiOutput(ns("fasOptions.ui")),
-                hr(),
-                strong("Log file"),
-                verbatimTextOutput(ns("logFasLocation")),
-                strong("Output files"),
-                verbatimTextOutput(ns("outputFasLocation")),
-                hr(),
-                strong("Command"),
-                verbatimTextOutput(ns("fasCmdText")),
-                strong("Progress"),
-                verbatimTextOutput(ns("fasLog")),
-                hr(),
-                bsButton(
-                    ns("doPlot"), "Plot feature architecture", 
-                    style = "info", disabled = TRUE
-                )
+            # column(
+            #     6,
+            #     uiOutput(ns("annoBtn.ui")),
+            #     hr(),
+            #     strong("annoFAS OPTIONS"),
+            #     br(), br(),
+            #     uiOutput(ns("annoOptions.ui")),
+            #     hr(),
+            #     strong("Log file"),
+            #     verbatimTextOutput(ns("logAnnoLocation")),
+            #     strong("Output files"),
+            #     verbatimTextOutput(ns("outputAnnoLocation")),
+            #     hr(),
+            #     strong("Command"),
+            #     verbatimTextOutput(ns("annoCmdText")),
+            #     strong("Progress"),
+            #     verbatimTextOutput(ns("annoLog"))
+            # ),
+            # column(
+            #     6,
+            #     
+            # ),
+            
+            uiOutput(ns("fasBtn.ui")),
+            hr(),
+            strong("greedyFAS OPTIONS"),
+            br(), br(),
+            uiOutput(ns("fasOptions.ui")),
+            hr(),
+            strong("Log file"),
+            verbatimTextOutput(ns("logFasLocation")),
+            strong("Output files"),
+            verbatimTextOutput(ns("outputFasLocation")),
+            hr(),
+            strong("Command"),
+            verbatimTextOutput(ns("fasCmdText")),
+            strong("Progress"),
+            verbatimTextOutput(ns("fasLog")),
+            hr(),
+            bsButton(
+                ns("doPlot"), "Plot feature architecture", 
+                style = "info", disabled = TRUE
             ),
             
             # * popup for domain plot ------------------------------------------
@@ -830,7 +800,7 @@ fasApp <- function (input, output, session) {
         name <- ""
         if (input$seedName != "") name <- paste0("--name=", input$seedName)
         
-        if (input$addQueryCheck == TRUE && !is.null(input$annoObj)) {
+        if (!is.null(input$annoObj)) {
             if (input$annoObj == "query") {
                 fasta <- paste0("--fasta=", getQueryPath())
                 name <- ""
@@ -861,7 +831,7 @@ fasApp <- function (input, output, session) {
                 getOutputPath(), "/", input$seedName, "_", input$seedID
             )
             
-            if (input$addQueryCheck == TRUE && !is.null(input$annoObj)) {
+            if (!is.null(input$annoObj)) {
                 if (input$annoObj == "query") {
                     path <- paste0(
                         "--path=", 
@@ -886,87 +856,87 @@ fasApp <- function (input, output, session) {
         HTML(paste(annoOptions(), collapse = "<br/>"))
     })
     
-    # RUN annFAS ===============================================================
-    output$annoBtn.ui <- renderUI({
-        if (length(input$seedInput) > 1 && length(input$outAnnoDir) > 1) {
-            tagList(
-                bsButton(
-                    ns("doAnno"), "Run annoFAS",
-                    style = "success", disabled = FALSE
-                ),
-                actionButton(ns("stopAnno"),label = "Stop"),
-                actionButton(ns("newAnno"),label = "New job"),
-                conditionalPanel(
-                    condition = "input.addQueryCheck", ns = ns,
-                    selectInput(
-                        ns("annoObj"), "for", choices = c("seed", "query"),
-                        selected = "seed"
-                    )
-                ), 
-                textOutput(ns("annoLocation"))
-            )
-        }
-    })
-    
-    observeEvent(input$newAnno, {
-        updateButton(session, ns("doAnno"), disabled = FALSE)
-        updateButton(session, ns("stopAnno"), disabled = FALSE)
-    })
-    
-    annoCmd <- reactive({
-        return(
-            paste(
-                getAnnoPath(),
-                paste(annoOptions(), collapse = " ")
-            )
-        )
-    })
-    
-    output$annoCmdText <- renderText({
-        # paste("python", fasCmd())
-        paste(annoCmd())
-    })
-    
-    rvAnno <- reactiveValues(
-        textstream = c(""),
-        timer = reactiveTimer(1000),
-        started = FALSE
-    )
-    
-    observeEvent(input$doAnno, {
-        rvAnno$started <- TRUE
-        cmd <- paste(
-            annoCmd(),
-            ">>",
-            paste0(input$fasJob, ".anno.log")
-        )
-        
-        # system2("python", cmd, wait = FALSE)
-        system(cmd, wait = FALSE)
-        updateButton(session, ns("doAnno"), disabled = TRUE)
-        updateButton(session, ns("newFasJob.btn"), disabled = TRUE)
-    })
-    
-    observeEvent(input$stopAnno, {
-        rvAnno$started <- FALSE
-        system2("rm", "*.anno.log")
-        updateButton(session, ns("stopAnno"), disabled = TRUE)
-    })
-    
-    observe({
-        rvAnno$timer()
-        if (isolate(rvAnno$started)) {
-            if (file.exists(paste0(input$fasJob, ".anno.log"))) {
-                rvAnno$textstream <- suppressWarnings(
-                    readLines(paste0(input$fasJob, ".anno.log"),  n = -1) %>% 
-                        tail(50) %>% paste(collapse = "\n")
-                )
-            }
-        }
-    })
-    output$annoLog <- renderText({
-        rvAnno$textstream
-    })
+    # # RUN annFAS ===============================================================
+    # output$annoBtn.ui <- renderUI({
+    #     if (length(input$seedInput) > 1 && length(input$outAnnoDir) > 1) {
+    #         tagList(
+    #             bsButton(
+    #                 ns("doAnno"), "Run annoFAS",
+    #                 style = "success", disabled = FALSE
+    #             ),
+    #             actionButton(ns("stopAnno"),label = "Stop"),
+    #             actionButton(ns("newAnno"),label = "New job"),
+    #             conditionalPanel(
+    #                 condition = "input.addQueryCheck", ns = ns,
+    #                 selectInput(
+    #                     ns("annoObj"), "for", choices = c("seed", "query"),
+    #                     selected = "seed"
+    #                 )
+    #             ), 
+    #             textOutput(ns("annoLocation"))
+    #         )
+    #     }
+    # })
+    # 
+    # observeEvent(input$newAnno, {
+    #     updateButton(session, ns("doAnno"), disabled = FALSE)
+    #     updateButton(session, ns("stopAnno"), disabled = FALSE)
+    # })
+    # 
+    # annoCmd <- reactive({
+    #     return(
+    #         paste(
+    #             getAnnoPath(),
+    #             paste(annoOptions(), collapse = " ")
+    #         )
+    #     )
+    # })
+    # 
+    # output$annoCmdText <- renderText({
+    #     # paste("python", fasCmd())
+    #     paste(annoCmd())
+    # })
+    # 
+    # rvAnno <- reactiveValues(
+    #     textstream = c(""),
+    #     timer = reactiveTimer(1000),
+    #     started = FALSE
+    # )
+    # 
+    # observeEvent(input$doAnno, {
+    #     rvAnno$started <- TRUE
+    #     cmd <- paste(
+    #         annoCmd(),
+    #         ">>",
+    #         paste0(input$fasJob, ".anno.log")
+    #     )
+    #     
+    #     # system2("python", cmd, wait = FALSE)
+    #     system(cmd, wait = FALSE)
+    #     updateButton(session, ns("doAnno"), disabled = TRUE)
+    #     updateButton(session, ns("newFasJob.btn"), disabled = TRUE)
+    # })
+    # 
+    # observeEvent(input$stopAnno, {
+    #     rvAnno$started <- FALSE
+    #     system2("rm", "*.anno.log")
+    #     updateButton(session, ns("stopAnno"), disabled = TRUE)
+    # })
+    # 
+    # observe({
+    #     rvAnno$timer()
+    #     if (isolate(rvAnno$started)) {
+    #         if (file.exists(paste0(input$fasJob, ".anno.log"))) {
+    #             rvAnno$textstream <- suppressWarnings(
+    #                 readLines(paste0(input$fasJob, ".anno.log"),  n = -1) %>% 
+    #                     tail(50) %>% paste(collapse = "\n")
+    #             )
+    #         }
+    #     }
+    # })
+    # output$annoLog <- renderText({
+    #     rvAnno$textstream
+    # })
     
     # greedyFAS options ========================================================
     getPhyloprofileMapping <- reactive({
@@ -998,7 +968,7 @@ fasApp <- function (input, output, session) {
     
     
     fasOptions <- reactive({
-        req(input$addQueryCheck)
+        # req(input$addQueryCheck)
         req(getOutputPath())
         query <- ""
         if (input$queryName != "") 
@@ -1125,7 +1095,7 @@ fasApp <- function (input, output, session) {
     
     # RUN greedyFAS ============================================================
     output$fasBtn.ui <- renderUI({
-        if (input$addQueryCheck == TRUE && length(input$outAnnoDir) > 1) {
+        if (length(input$outAnnoDir) > 1) {
             tagList(
                 bsButton(
                     ns("doFAS"), "Run greedyFAS",
@@ -1278,37 +1248,37 @@ fasApp <- function (input, output, session) {
     })
     
     # report results ===========================================================
-    output$logAnnoLocation <- renderText({
-        paste0(getwd(), "/", input$fasJob, ".anno.log")
-    })
-    
-    output$outputAnnoLocation <- renderText({
-        req(getOutputPath())
-        annoOutPath <- getOutputPath()
-        jobName <- input$seedName
-        if (input$addQueryCheck == TRUE  && !is.null(input$annoObj)) {
-            if (input$annoObj == "query") {
-                jobName <- input$queryName
-            }
-        }
-        outFiles <- paste0(annoOutPath, "/", jobName, "/*.xml")
-        
-        if (input$extract == TRUE) {
-            outFiles <- paste0(
-                getOutputPath(), "/", input$seedName, "_", input$seedID,
-                "/*.xml"
-            )
-            if (input$addQueryCheck == TRUE  && !is.null(input$annoObj)) {
-                if (input$annoObj == "query") {
-                    outFiles <- paste0(
-                        getOutputPath(), "/", input$queryName, "_", 
-                        input$queryID, "/*.xml"
-                    )
-                }
-            }
-        }
-        return(outFiles)
-    })
+    # output$logAnnoLocation <- renderText({
+    #     paste0(getwd(), "/", input$fasJob, ".anno.log")
+    # })
+    # 
+    # output$outputAnnoLocation <- renderText({
+    #     req(getOutputPath())
+    #     annoOutPath <- getOutputPath()
+    #     jobName <- input$seedName
+    #     if (input$addQueryCheck == TRUE  && !is.null(input$annoObj)) {
+    #         if (input$annoObj == "query") {
+    #             jobName <- input$queryName
+    #         }
+    #     }
+    #     outFiles <- paste0(annoOutPath, "/", jobName, "/*.xml")
+    #     
+    #     if (input$extract == TRUE) {
+    #         outFiles <- paste0(
+    #             getOutputPath(), "/", input$seedName, "_", input$seedID,
+    #             "/*.xml"
+    #         )
+    #         if (input$addQueryCheck == TRUE  && !is.null(input$annoObj)) {
+    #             if (input$annoObj == "query") {
+    #                 outFiles <- paste0(
+    #                     getOutputPath(), "/", input$queryName, "_", 
+    #                     input$queryID, "/*.xml"
+    #                 )
+    #             }
+    #         }
+    #     }
+    #     return(outFiles)
+    # })
     
     output$logFasLocation <- renderText({
         paste0(getwd(), "/", input$fasJob, "fas.log")
@@ -1319,36 +1289,32 @@ fasApp <- function (input, output, session) {
         annoOutPath <- getOutputPath()
         jobName <- input$fasJob
         
-        if (input$addQueryCheck == TRUE) {
-            fasFile <- paste0(
-                getOutputPath(), "/", jobName, ".xml"
+        fasFile <- paste0(
+            getOutputPath(), "/", jobName, ".xml"
+        )
+        archiFile <- paste0(
+            getOutputPath(), "/", jobName, "_architecture.xml"
+        )
+        revFile <- ""
+        if (input$bidirectional == TRUE) {
+            revFile <- paste0(
+                getOutputPath(), "/", jobName, "_reverse.xml"
             )
-            archiFile <- paste0(
-                getOutputPath(), "/", jobName, "_architecture.xml"
-            )
-            revFile <- ""
-            if (input$bidirectional == TRUE) {
-                revFile <- paste0(
-                    getOutputPath(), "/", jobName, "_reverse.xml"
-                )
-            }
-            domainOut <- ""
-            if (input$outputDomain == TRUE) {
-                domainOut <- paste0(
-                    getOutputPath(), "/", jobName, "_*.domains"
-                )
-            }
-            ppOut <- ""
-            if (input$phyloprofile == TRUE) {
-                ppOut <- paste0(
-                    getOutputPath(), "/", jobName, ".phyloprofile"
-                )
-            }
-            return(
-                paste(fasFile, archiFile, revFile, ppOut, domainOut, sep = "\n")
-            )
-        } else {
-            return("")
         }
+        domainOut <- ""
+        if (input$outputDomain == TRUE) {
+            domainOut <- paste0(
+                getOutputPath(), "/", jobName, "_*.domains"
+            )
+        }
+        ppOut <- ""
+        if (input$phyloprofile == TRUE) {
+            ppOut <- paste0(
+                getOutputPath(), "/", jobName, ".phyloprofile"
+            )
+        }
+        return(
+            paste(fasFile, archiFile, revFile, ppOut, domainOut, sep = "\n")
+        )
     })
 }
