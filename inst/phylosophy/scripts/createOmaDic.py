@@ -34,7 +34,7 @@ import dccFn
 def downloadFiles(dataPath, force):
     mainUrl = "https://omabrowser.org/All/"
     omagroup = "oma-groups.txt.gz"
-    omapair = "oma-pairs.txt.gz"
+    # omapair = "oma-pairs.txt.gz"
     fastaseq = "oma-seqs.fa.gz"
     specinfo = "oma-species.txt"
     Path(dataPath).mkdir(parents = True, exist_ok = True)
@@ -48,14 +48,14 @@ def downloadFiles(dataPath, force):
         except:
             sys.exit("Error occurs while downloading %s/%s" % (mainUrl, omagroup))
 
-    if not (Path(dataPath + "/oma-pairs.txt").exists() or force):
-        print("############ Downloading oma-pairs.txt...")
-        try:
-            downloadCmd = 'wget %s/%s -P %s' % (mainUrl, omapair, dataPath)
-            unzipCmd = 'gunzip %s/%s' % (dataPath, omapair)
-            dccFn.subprocess_cmd([downloadCmd, unzipCmd])
-        except:
-            sys.exit("Error occurs while downloading %s/%s" % (mainUrl, omapair))
+    # if not (Path(dataPath + "/oma-pairs.txt").exists() or force):
+    #     print("############ Downloading oma-pairs.txt...")
+    #     try:
+    #         downloadCmd = 'wget %s/%s -P %s' % (mainUrl, omapair, dataPath)
+    #         unzipCmd = 'gunzip %s/%s' % (dataPath, omapair)
+    #         dccFn.subprocess_cmd([downloadCmd, unzipCmd])
+    #     except:
+    #         sys.exit("Error occurs while downloading %s/%s" % (mainUrl, omapair))
 
     if not (Path(dataPath + "/oma-seqs.fa").exists() or force):
         print("############ Downloading oma-seqs.fa...")
