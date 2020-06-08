@@ -53,8 +53,17 @@ def gettingOmaPairs(speciesList):
     c = Client()
     omaPairs = list(c.pairwise(speciesList[0], speciesList[1], progress = True))
     out = {}
+    nr = 1
     for pair in omaPairs:
-        out[str(pair.entry_1.oma_group)] = [pair.entry_1.omaid, pair.entry_2.omaid]
+        id = 'OP' + pair.rel_type.replace(':','') + "_" + str(nr)
+        out[id] = [pair.entry_1.omaid, pair.entry_2.omaid]
+        nr = nr + 1
+        # if not str(pair.entry_1.oma_group) in out:
+        #     out[str(pair.entry_1.oma_group)] = [pair.entry_1.omaid, pair.entry_2.omaid]
+        # else:
+        #     for id in [pair.entry_1.omaid, pair.entry_2.omaid]:
+        #         if id not in out[str(pair.entry_1.oma_group)]:
+        #             out[str(pair.entry_1.oma_group)].append(id)
     return(out)
 
 def main():
