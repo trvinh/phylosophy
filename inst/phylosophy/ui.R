@@ -12,7 +12,7 @@ shinyUI(
         
         # MAIN NARVARPAGE TABS -------------------------------------------------
         navbarPage(
-            em(strong("Phylosophy v0.0.1")),
+            em(strong("phylosophy v0.0.1")),
             id = "tabs",
             collapsible = TRUE,
             inverse = TRUE,
@@ -22,13 +22,21 @@ shinyUI(
             # DCC TAB ==========================================================
             tabPanel(
               "INTRODUCTION",
-              h1("WELCOME TO PHYLOSOPHY WORLD!"),
+              h1("WELCOME TO PHYLOSOPHY TOOL KIT!"),
               tags$img(src="wordcloud.png")
             ),
             
             # FAS TAB ==========================================================
-            tabPanel(
-                "FAS", fasAppUI("fasApp")
+            navbarMenu(
+                "FAS",
+                tabPanel(
+                    "Annotation only",
+                    annoFasAppUI("annoFasApp")
+                ),
+                tabPanel(
+                    "Annotation and FAS calculation",
+                    fasAppUI("fasApp")
+                )
             ),
             
             # DCC TAB ==========================================================

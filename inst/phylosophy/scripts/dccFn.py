@@ -31,6 +31,7 @@ import json
 import argparse
 import subprocess
 from pathlib import Path
+import errno
 
 def subprocess_cmd(commands):
     for cmd in commands:
@@ -41,6 +42,25 @@ def checkFileExist(file):
         my_abs_path = Path(file).resolve(strict=True)
     except FileNotFoundError:
         sys.exit("%s not found" % file)
+
+def checkFileEmpty(file):
+    flag = 0
+    try:
+        if os.path.getsize(file) == 0:
+            flag = 1
+    except OSError as e:
+            flag = 1
+    return(flag)
+
+def is_tool(name):
+	try:
+		devnull = open(os.devnull)
+		subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
+	except OSError as e:
+		if e.errno == errno.ENOENT:
+			print('\x1b[6;30;42m' + '*** tool \'' + name + '\' not found"' + '\x1b[0m')
+			return False
+	return True
 
 def openFileToRead(location):
     file = open(location, "r")
@@ -55,25 +75,12 @@ def openFileToAppend(location):
     return file
 
 def makeOneSeqSpeciesName(code,TaxId):
-    name = code + "@" + TaxId + "@" + "2"
+    name = code + "@" + TaxId + "@" + "1"
     return name
 
 def createHeaderCoreFasta(protId, speciesHeader, omaGroupId):
     header = str(omaGroupId) + "|" + speciesHeader + "|" + protId[0:10]
     return(header)
-
-# def getSequence(allProteins, speciesCode, newFile, name):
-#     check = False
-#     for record in allProteins:
-#         codeAllProteins = record.id[0:5]
-#         if codeAllProteins == speciesCode:
-#             check = True
-#             newFile.write(">" + str(record.id) + "\n")
-#             newFile.write(str(record.seq) + "\n")
-#         elif check == True:
-#             newFile.close()
-#             print("saved " + name)
-#             break
 
 # get gene set and save to genome_dir
 # NOTE: speciesCode and speciesTaxId are lists, not single string
@@ -117,12 +124,32 @@ def getGeneset(dataPath, speciesCode, speciesTaxId, outPath):
                 newFile.write("\n" + newLine)
         newFile.close()
 
+def getOGseq(args):
+    (proteinIds, omaGroupId, outPath, allFasta, specName2id, jobName) = args
+    ogFasta = outPath + "/core_orthologs/" + jobName + "/" + omaGroupId + "/" + omaGroupId
+    flag = 1
+    if Path(ogFasta + ".fa").exists():
+        tmp = SeqIO.to_dict(SeqIO.parse(open(ogFasta + ".fa"),'fasta'))
+        if len(tmp) == len(proteinIds):
+            flag = 0
+    if flag == 1:
+        with open(ogFasta + ".fa", "w") as myfile:
+            for protId in proteinIds:
+                spec = protId[0:5]
+                try:
+                    seq = str(allFasta[spec][protId].seq)
+                    header = '>%s|%s@%s@1|%s' % (omaGroupId, spec, specName2id[spec], protId)
+                    myfile.write(header + "\n" + seq + "\n")
+                except:
+                    print("%s not found in %s gene set" % (protId, spec))
+
+
 def runBlast(args):
-    (specName, specFile, outFol) = args
-    blastCmd = 'makeblastdb -dbtype prot -in %s -out %s/blast_dir/%s/%s' % (specFile, outFol, specName, specName)
+    (specName, specFile, outPath) = args
+    blastCmd = 'makeblastdb -dbtype prot -in %s -out %s/blast_dir/%s/%s' % (specFile, outPath, specName, specName)
     subprocess.call([blastCmd], shell = True)
-    fileInGenome = "%s/genome_dir/%s/%s.fa" % (outFol, specName, specName)
-    fileInBlast = "%s/blast_dir/%s/%s.fa" % (outFol, specName, specName)
+    fileInGenome = "%s/genome_dir/%s/%s.fa" % (outPath, specName, specName)
+    fileInBlast = "%s/blast_dir/%s/%s.fa" % (outPath, specName, specName)
     if not Path(fileInBlast).exists():
         lnCmd = 'ln -fs %s %s' % (fileInGenome, fileInBlast)
         subprocess.call([lnCmd], shell = True)
@@ -134,7 +161,7 @@ def runHmm(args):
     subprocess.call(['rm ' + id + '.tmp'], shell = True)
     print(id + ".hmm")
 
-# NOTE: fastaFile MUST exclude extension (e.g. .fa, .fasta,...)
+# NOTE: fastaFile MUST exclude the extension (i.e. without .fa, .fasta,...)
 def runMsa(args):
     (fastaFile, aligTool, id) = args
     if aligTool == "mafft":
@@ -146,3 +173,8 @@ def runMsa(args):
     if not Path(fastaFile + ".aln").exists():
         subprocess.call([alignCmd], shell = True)
     print(id + ".aln")
+
+def calcAnnoFas(args):
+	(specName, specFile, outPath) = args
+	annoCmd = 'annoFAS --fasta %s --path %s/weight_dir --name %s' % (specFile, outPath, specName) #  --cores 4
+	subprocess.call([annoCmd], shell = True)

@@ -31,17 +31,20 @@ from Bio import SeqIO
 import multiprocessing as mp
 import dccFn
 
-def getOGprot(dataPath, omaGroupId):
+def getOGprot(dataPath, omaGroupId, speciesList):
     fileGroups = dccFn.openFileToRead(dataPath + "/oma-groups.txt")
     allGroups = fileGroups.readlines()
     fileGroups.close()
     groupLine = allGroups[int(omaGroupId) + 2].strip().split("\t")
-    proteinIds = groupLine[2:]
+    proteinIds = []
+    for prot in groupLine[2:]:
+        if prot[0:5] in speciesList:
+            proteinIds.append(prot)
     return(proteinIds)
 
 def main():
     version = "1.0.0"
-    parser = argparse.ArgumentParser(description="You are running getGenomes version " + str(version) + ".")
+    parser = argparse.ArgumentParser(description="You are running omaParser by OG ID for OMA Browser version " + str(version) + ".")
     required = parser.add_argument_group('required arguments')
     optional = parser.add_argument_group('additional arguments')
     required.add_argument('-g', '--OG', help='Input OMA group ID', action='store', default='', required=True)
@@ -49,7 +52,9 @@ def main():
     required.add_argument('-i', '--id', help='List of corresponding taxonomy IDs to OMA species', action='store', default='', required=True)
     required.add_argument('-d', '--dataPath', help='Path to OMA Browser data', action='store', default='', required=True)
     required.add_argument('-o', '--outPath', help='Path to output directory', action='store', default='', required=True)
+    required.add_argument('-j', '--jobName', help='Job name', action='store', default='', required=True)
     optional.add_argument('-a', '--alignTool', help='Alignment tool (mafft|muscle). Default: mafft', action='store', default='mafft')
+    optional.add_argument('-f', '--annoFas', help='Perform FAS annotation', action='store_true')
     args = parser.parse_args()
 
     dccFn.checkFileExist(args.dataPath)
@@ -62,6 +67,8 @@ def main():
     aligTool = args.alignTool.lower()
     if not aligTool == "mafft" or aligTool == "muscle":
         sys.exit("alignment tool must be either mafft or muscle")
+    doAnno = args.annoFas
+    jobName = args.jobName
 
     start = time.time()
     pool = mp.Pool(mp.cpu_count()-1)
@@ -70,9 +77,11 @@ def main():
     print("Creating output folders...")
     Path(outPath + "/genome_dir").mkdir(parents = True, exist_ok = True)
     Path(outPath + "/blast_dir").mkdir(parents = True, exist_ok = True)
-    Path(outPath + "/core_orthologs").mkdir(parents = True, exist_ok = True)
-    Path(outPath + "/core_orthologs/" + omaGroupId).mkdir(parents = True, exist_ok = True)
-    Path(outPath + "/core_orthologs/" + omaGroupId + "/hmm_dir").mkdir(parents = True, exist_ok = True)
+    Path(outPath + "/core_orthologs/" + jobName +  "/" + omaGroupId + "/hmm_dir").mkdir(parents = True, exist_ok = True)
+    Path(outPath + "/weight_dir").mkdir(parents = True, exist_ok = True)
+
+    ### create spec IDs dict
+    specName2id = dict(zip(speciesList, speciesTaxId))
 
     ### Get genesets
     print("Getting %s gene sets..." % (len(speciesList)))
@@ -81,58 +90,61 @@ def main():
     # read fasta file to dictionary
     fasta = {}
     blastJobs = []
+    annoJobs = []
     for i in range(0,len(speciesList)):
         fileName = dccFn.makeOneSeqSpeciesName(speciesList[i], speciesTaxId[i])
         specFile = outPath+"/genome_dir/"+fileName+"/"+fileName+".fa"
         fasta[speciesList[i]] = SeqIO.to_dict(SeqIO.parse(open(specFile),'fasta'))
-
+        # get info for BLAST
         blastDbFile = "%s/blast_dir/%s/%s.phr" % (outPath, fileName, fileName)
         if not Path(blastDbFile).exists():
             blastJobs.append([fileName, specFile, outPath])
+        # get info for FAS annotation
+        annoPfamFile = "%s/weight_dir/%s/pfam.xml" % (outPath, fileName)
+        if not Path(annoPfamFile).exists():
+            annoJobs.append([fileName, specFile, outPath])
 
     ### create blastDBs
     print("Creating BLAST databases for %s taxa..." % len(blastJobs))
-    msa = pool.map(dccFn.runBlast, blastJobs)
+    if dccFn.is_tool('makeblastdb'):
+        msa = pool.map(dccFn.runBlast, blastJobs)
+    else:
+        print("makeblastdb not found!")
 
     ### get OG fasta
     print("Getting protein sequences for OG id %s..." % omaGroupId)
-    proteinIds = getOGprot(dataPath, omaGroupId)
-    ogFasta = outPath + "/core_orthologs/" + omaGroupId + "/" + omaGroupId
-    flag = 1
-    if Path(ogFasta + ".fa").exists():
-        tmp = SeqIO.to_dict(SeqIO.parse(open(ogFasta + ".fa"),'fasta'))
-        if len(tmp) == len(proteinIds):
-            flag = 0
-    if flag == 1:
-        with open(ogFasta + ".fa", "w") as myfile:
-            for protId in proteinIds:
-                spec = protId[0:5]
-                try:
-                    seq = str(fasta[spec][protId].seq)
-                    myfile.write(">" + omaGroupId + "|" + spec + "|" + protId + "\n" + seq + "\n")
-                except:
-                    print("%s not found in %s gene set" % (protId, spec))
+    proteinIds = getOGprot(dataPath, omaGroupId, speciesList)
+    dccFn.getOGseq([proteinIds, omaGroupId, outPath, fasta, jobName])
 
-    ### do MSA
+    ### calculate MSAs and pHMMs
+    ogFasta = outPath + "/core_orthologs/" + jobName +  "/" + omaGroupId + "/" + omaGroupId
+    # do MSAs
     try:
-        dccFn.runMsa([ogFasta, aligTool, omaGroupId])
+        msaFile = "%s/core_orthologs/%s/%s/%s.aln" % (outPath, jobName, omaGroupId, omaGroupId)
+        flag = dccFn.checkFileEmpty(msaFile)
+        if flag == 1:
+            dccFn.runMsa([ogFasta, aligTool, omaGroupId])
     except:
         sys.exit("%s not found or %s not works correctly!" % (ogFasta+".fa", aligTool))
-
-    ### do pHMM
-    try:
-        hmmFile = "%s/core_orthologs/%s/hmm_dir/%s.hmm" % (outPath, omaGroupId, omaGroupId)
-        flag = 0
+    # do pHMMs
+    if dccFn.is_tool('hmmbuild'):
         try:
-            if os.path.getsize(hmmFile) == 0:
-                flag = 1
-        except OSError as e:
-                flag = 1
-        if flag == 1:
-            dccFn.runHmm([hmmFile, ogFasta, omaGroupId])
-    except:
-        sys.exit("hmmbuild not works correctly for %s!" % (ogFasta+".fa"))
+            hmmFile = "%s/core_orthologs/%s/%s/hmm_dir/%s.hmm" % (outPath, jobName, omaGroupId, omaGroupId)
+            flag = dccFn.checkFileEmpty(hmmFile)
+            if flag == 1:
+                dccFn.runHmm([hmmFile, ogFasta, omaGroupId])
+        except:
+            sys.exit("hmmbuild not works correctly for %s!" % (ogFasta+".fa"))
+    else:
+        print("hmmbuild not found!")
 
+    ### do FAS annotation
+    if doAnno:
+        print("Doing FAS annotation...")
+        if dccFn.is_tool('annoFAS'):
+            anno = pool.map(dccFn.calcAnnoFas, annoJobs)
+
+    pool.close()
     ende = time.time()
     print("Finished in " + '{:5.3f}s'.format(ende-start))
     print("Output can be found in %s" % outPath)
