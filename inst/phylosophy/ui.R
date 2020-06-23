@@ -12,7 +12,7 @@ shinyUI(
         
         # MAIN NARVARPAGE TABS -------------------------------------------------
         navbarPage(
-            em(strong("phylosophy v0.0.1")),
+            em(strong("phylosophy v0.0.2")),
             id = "tabs",
             collapsible = TRUE,
             inverse = TRUE,

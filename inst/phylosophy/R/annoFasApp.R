@@ -8,7 +8,7 @@ annoFasAppUI <- function(id) {
             width = 3,
             conditionalPanel(
                 condition = "output.checkAnnoStatus == 0", ns = ns,
-                h2(em("greedFAS not found! Please install it first!")),
+                h2(em("annoFAS not found! Please install it first!")),
                 bsButton(
                     "installFas", "Install FAS",
                     onclick = "window.open('https://bionf.github.io/FAS/#installation', '_blank')"
@@ -35,8 +35,7 @@ annoFasAppUI <- function(id) {
                 ns("annoJob"),
                 "",
                 paste(
-                    "Name of job and log file(s). This will also be the name",
-                    "of annotation output folder."
+                    "Name of job and log file(s)."
                 ),
                 "bottom"
             ),
@@ -70,6 +69,16 @@ annoFasAppUI <- function(id) {
                 condition = "input.optAnnoOption", ns = ns,
                 strong("Additional options"),
                 br(),
+                
+                uiOutput(ns("outName.ui")),
+                bsPopover(
+                    ns("outName.ui"),
+                    "",
+                    paste(
+                        "Name of annotation output file"
+                    ),
+                    "bottom"
+                ),
                 
                 numericInput(
                     ns("annoCPU"),
@@ -134,43 +143,50 @@ annoFasAppUI <- function(id) {
                 
                 conditionalPanel(
                     condition = "input.extract", ns = ns,
-                    shinyDirButton(
-                        ns("refAnnoDir"), "Existing annotation folder",
-                        title = "Please select a folder",
+                    shinyFilesButton(
+                        ns("oldAnnoInput"), "Input existing annotation file!" ,
+                        title = "Please provide JSON file for existing annotation:",
+                        multiple = FALSE,
                         buttonType = "default", class = NULL
-                    ),
-                    bsPopover(
-                        ns("refAnnoDir"),
-                        "",
-                        paste(
-                            "Provide folder for existing annotations"
-                        ),
-                        "top"
-                    ),
-                    
-                    uiOutput(ns("refSpecAnno.ui")),
-                    bsPopover(
-                        ns("refSpecAnno"),
-                        "",
-                        paste(
-                            "Select taxon of input sequences for extracting",
-                            "annotation"
-                        ),
-                        "top"
-                    ),
-
-                    uiOutput(ns("annoSeqs.ui")),
-                    bsPopover(
-                        ns("annoID"),
-                        "",
-                        paste(
-                            "Specify the sequence identifier of the input",
-                            "sequence in the reference protein set.",
-                            "If not provided, the program will attempt to",
-                            "determine it automatically."
-                        ),
-                        "bottom"
                     )
+                    
+                    # shinyDirButton(
+                    #     ns("refAnnoDir"), "Existing annotation folder",
+                    #     title = "Please select a folder",
+                    #     buttonType = "default", class = NULL
+                    # ),
+                    # bsPopover(
+                    #     ns("refAnnoDir"),
+                    #     "",
+                    #     paste(
+                    #         "Provide folder for existing annotations"
+                    #     ),
+                    #     "top"
+                    # ),
+                    # 
+                    # uiOutput(ns("refSpecAnno.ui")),
+                    # bsPopover(
+                    #     ns("refSpecAnno"),
+                    #     "",
+                    #     paste(
+                    #         "Select taxon of input sequences for extracting",
+                    #         "annotation"
+                    #     ),
+                    #     "top"
+                    # ),
+                    # 
+                    # uiOutput(ns("annoSeqs.ui")),
+                    # bsPopover(
+                    #     ns("annoID"),
+                    #     "",
+                    #     paste(
+                    #         "Specify the sequence identifier of the input",
+                    #         "sequence in the reference protein set.",
+                    #         "If not provided, the program will attempt to",
+                    #         "determine it automatically."
+                    #     ),
+                    #     "bottom"
+                    # )
                 )
             )
         ),
@@ -309,31 +325,41 @@ annoFasApp <- function (input, output, session) {
         )
     })
     
-    # get list of reference annotations ========================================
-    getRefDir <- reactive({
-        shinyDirChoose(
-            input, "refAnnoDir", roots = homePath, session = session
+    # # get list of reference annotations ========================================
+    getPathOldAnnoInput <- reactive({
+        shinyFileChoose(
+            input, "oldAnnoInput", roots = homePath, session = session,
+            filetypes = c('json')
         )
-        refPath <- parseDirPath(homePath, input$refAnnoDir)
-        return(replaceHomeCharacter(refPath))
+        fileSelected <- parseFilePaths(homePath, input$oldAnnoInput)
+        req(input$oldAnnoInput)
+        return(replaceHomeCharacter(as.character(fileSelected$datapath)))
     })
     
-    getRefAnno <- reactive({
-        refPath <- getRefDir()
-        refPathSub <- list.dirs(
-            path = refPath, full.names = TRUE, recursive = FALSE
-        )
-        refList <- stringr::str_replace(refPathSub, paste0(refPath, "/"), "")
-        return(refList)
-    })
-    
-    output$refSpecAnno.ui <- renderUI({
-        selectInput(
-            ns("refSpecAnno"), "Reference annotation",
-            choices = c("undefined", getRefAnno()),
-            selected = "undefined"
-        )
-    })
+    # getRefDir <- reactive({
+    #     shinyDirChoose(
+    #         input, "refAnnoDir", roots = homePath, session = session
+    #     )
+    #     refPath <- parseDirPath(homePath, input$refAnnoDir)
+    #     return(replaceHomeCharacter(refPath))
+    # })
+    # 
+    # getRefAnno <- reactive({
+    #     refPath <- getRefDir()
+    #     refPathSub <- list.dirs(
+    #         path = refPath, full.names = TRUE, recursive = FALSE
+    #     )
+    #     refList <- stringr::str_replace(refPathSub, paste0(refPath, "/"), "")
+    #     return(refList)
+    # })
+    # 
+    # output$refSpecAnno.ui <- renderUI({
+    #     selectInput(
+    #         ns("refSpecAnno"), "Reference annotation",
+    #         choices = c("undefined", getRefAnno()),
+    #         selected = "undefined"
+    #     )
+    # })
     
     # get output path ==========================================================
     getOutputPath <- reactive({
@@ -344,6 +370,13 @@ annoFasApp <- function (input, output, session) {
         return(replaceHomeCharacter(as.character(outputPath)))
     })
     
+    # get output name ==========================================================
+    output$outName.ui <- renderUI({
+        inFile <- str_split(getPathAnnoInput(), '/')
+        inFileTmp <- str_split(tail(inFile[[1]], 1), "\\.")
+        textInput(ns("outName"), strong("Output name"), value = inFileTmp[[1]][1])
+    })
+    
     # generate new job ID ======================================================
     observeEvent(input$newAnnoJob.btn, {
         jobID <- randFn(1)
@@ -352,38 +385,34 @@ annoFasApp <- function (input, output, session) {
     
     # annoFAS options ==========================================================
     annoOptions <- reactive({
-        fasta <- paste0("--fasta=", getPathAnnoInput())
+        fasta <- paste0("--fasta ", getPathAnnoInput())
         path <- ""
         if (length(getOutputPath()) > 0) 
-            path <- paste0("--path=", getOutputPath())
-        name <- ""
-        if (input$annoJob != "") name <- paste0("--name=", input$annoJob)
+            path <- paste0("--outPath ", getOutputPath())
+        annoOption <- c(fasta, path)
         
-        redo <- ""
-        if (input$redo != "all") redo <- paste0("--redo=", input$redo)
-        force <- ""
-        if (input$force == TRUE) force <- paste0("--force")
-        cores <- ""
-        if (input$annoCPU > 1) cores <- paste0("--cores=", input$annoCPU)
-        
-        annoOption <- c(fasta, path, name, redo, force, cores)
+        if (input$optAnnoOption == TRUE) {
+            name <- ""
+            if (input$outName != "") name <- paste0("--name ", input$outName)
+            
+            redo <- ""
+            if (input$redo != "all") redo <- paste0("--redo ", input$redo)
+            force <- ""
+            if (input$force == TRUE) force <- paste0("--force")
+            cores <- ""
+            if (input$annoCPU > 1) cores <- paste0("--cpus ", input$annoCPU)
+            annoOption <- c(annoOption, name, redo, force, cores)
+        }
         
         extract <- ""
         if (input$extract == TRUE) {
             req(getRefDir())
-            # name of existing annotation folder
-            path <- paste0(
-                "--path=", 
-                getRefDir(), "/", input$refSpecAnno
-            )
+            # existing anno file
+            annoFile <- paste0("--annoFile ", getPathOldAnnoInput())
             # ID of sequence need to get annotation
             name <- paste0("--name=", input$annoID)
-            # extract is output dir
-            extract <- paste0(
-                "--extract=", 
-                getOutputPath(), "/", input$annoJob, "_", input$annoID
-            )
-            annoOption <- c(fasta, path, name, extract)
+            extract <- "--extract"
+            annoOption <- c(fasta, path, annoFile, extract)
         }
         
         return(
