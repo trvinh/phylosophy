@@ -1,6 +1,7 @@
 #' set size limit for input (9999mb)
 options(
-    shiny.maxRequestSize = 9999 * 1024 ^ 2 # size limit for input 9999mb
+    shiny.maxRequestSize = 9999 * 1024 ^ 2, # size limit for input 9999mb
+    scipen = 999 # disabling scientific notation
 )
 
 #' MAIN SERVER =================================================================
@@ -9,7 +10,7 @@ shinyServer(function(input, output, session) {
     session$allowReconnect(TRUE)
     
     # DCC app
-    callModule(dccApp, "dccApp")
+    # callModule(dccApp, "dccApp")
     
     # annoFAS app
     callModule(annoFasApp, "annoFasApp")
@@ -18,12 +19,12 @@ shinyServer(function(input, output, session) {
     callModule(fasApp, "fasApp")
 	
 	# HaMStR app
-	hamstrOut <- callModule(hamstrApp, "hamstrApp")
+	# hamstrOut <- callModule(hamstrApp, "hamstrApp")
 	
 	# PhyloProfile lite
-	callModule(phyloprofileLite, "phyloprofileLite", hamstrOut)
+	# callModule(phyloprofileLite, "phyloprofileLite", hamstrOut)
 	
 	# PhyloProfile full
-	callModule(phyloprofileFull, "phyloprofileFull")
+	# callModule(phyloprofileFull, "phyloprofileFull")
 })
 

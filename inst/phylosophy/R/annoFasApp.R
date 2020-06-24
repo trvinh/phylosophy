@@ -25,12 +25,13 @@ annoFasAppUI <- function(id) {
                 multiple = FALSE,
                 buttonType = "default", class = NULL
             ),
-            br(), br(),
+            uiOutput(ns("annoInput.ui")),
+            br(), 
             
             # ** required options ==================================
             strong("Required options"),
             
-            textInput(ns("annoJob"), "Job ID", value = randFn(1)),
+            textInput(ns("annoJob"), strong("Job ID"), value = randFn(1)),
             bsPopover(
                 ns("annoJob"),
                 "",
@@ -68,6 +69,23 @@ annoFasAppUI <- function(id) {
             conditionalPanel(
                 condition = "input.optAnnoOption", ns = ns,
                 strong("Additional options"),
+                br(), br(),
+                
+                shinyDirButton(
+                    ns("optAnnoTool"), "Opt. Path to annotation tools" ,
+                    title = "Please select a folder",
+                    buttonType = "default", class = NULL
+                ),
+                bsPopover(
+                    ns("optAnnoTool"),
+                    "",
+                    paste(
+                        "Provide folder to annotation tools"
+                    ),
+                    "top"
+                ),
+                br(),
+                uiOutput(ns("optAnnoTool.ui")),
                 br(),
                 
                 uiOutput(ns("outName.ui")),
@@ -82,7 +100,7 @@ annoFasAppUI <- function(id) {
                 
                 numericInput(
                     ns("annoCPU"),
-                    "Number of CPUs for annotation",
+                    strong("Number of CPUs for annotation"),
                     value = 4,
                     min = 1,
                     max = 99,
@@ -98,7 +116,7 @@ annoFasAppUI <- function(id) {
                 ),
                 
                 checkboxInput(
-                    ns("force"), "Force override annotations",
+                    ns("force"), strong("Force override annotations"),
                     value = FALSE
                 ),
                 bsPopover(
@@ -112,7 +130,7 @@ annoFasAppUI <- function(id) {
                 
                 selectInput(
                     ns("redo"), 
-                    "Redo annotation with",
+                    strong("Redo annotation with"),
                     choices = c(
                         "all", "pfam", "smart", "flps", "coils", "seg", "tmhmm",
                         "signalp"
@@ -140,53 +158,63 @@ annoFasAppUI <- function(id) {
                     ),
                     "bottom"
                 ),
-                
                 conditionalPanel(
                     condition = "input.extract", ns = ns,
                     shinyFilesButton(
-                        ns("oldAnnoInput"), "Input existing annotation file!" ,
+                        ns("existingAnno"), "Input existing annotation file!" ,
                         title = "Please provide JSON file for existing annotation:",
                         multiple = FALSE,
                         buttonType = "default", class = NULL
                     )
+                ),
+                uiOutput(ns("existingAnno.ui")),
+                hr(),
+                
+                checkboxInput(
+                    ns("toolOption"),
+                    strong("Specific tool options"),
+                    value = FALSE,
+                    width = NULL
+                ),
+                
+                conditionalPanel(
+                    condition = "input.toolOption", ns = ns,
+                    numericInput(
+                        ns("eFeature"),
+                        strong("eValue cutoff for PFAM/SMART domain (10^x)"),
+                        value = -3,
+                        min = -99,
+                        max = 0,
+                        step = 1
+                    ),
                     
-                    # shinyDirButton(
-                    #     ns("refAnnoDir"), "Existing annotation folder",
-                    #     title = "Please select a folder",
-                    #     buttonType = "default", class = NULL
-                    # ),
-                    # bsPopover(
-                    #     ns("refAnnoDir"),
-                    #     "",
-                    #     paste(
-                    #         "Provide folder for existing annotations"
-                    #     ),
-                    #     "top"
-                    # ),
-                    # 
-                    # uiOutput(ns("refSpecAnno.ui")),
-                    # bsPopover(
-                    #     ns("refSpecAnno"),
-                    #     "",
-                    #     paste(
-                    #         "Select taxon of input sequences for extracting",
-                    #         "annotation"
-                    #     ),
-                    #     "top"
-                    # ),
-                    # 
-                    # uiOutput(ns("annoSeqs.ui")),
-                    # bsPopover(
-                    #     ns("annoID"),
-                    #     "",
-                    #     paste(
-                    #         "Specify the sequence identifier of the input",
-                    #         "sequence in the reference protein set.",
-                    #         "If not provided, the program will attempt to",
-                    #         "determine it automatically."
-                    #     ),
-                    #     "bottom"
-                    # )
+                    numericInput(
+                        ns("eInstance"),
+                        strong("eValue cutoff for PFAM/SMART instance (10^x)"),
+                        value = -2,
+                        min = -99,
+                        max = 0,
+                        step = 1
+                    ),
+                    
+                    numericInput(
+                        ns("eFlps"),
+                        strong("eValue cutoff for fLPS (10^x)"),
+                        value = -7,
+                        min = -99,
+                        max = 0,
+                        step = 1
+                    ),
+                    
+                    selectInput(
+                        ns("org"),
+                        strong("Organism of input for SignalP"),
+                        choices = list(
+                            "Eukaryote" = "euk", "Bacteria gram(+)" = "gram+",
+                            "Bacteria gram(-)" = "gram-"
+                        ),
+                        selected = "euk"
+                    )
                 )
             )
         ),
@@ -195,7 +223,6 @@ annoFasAppUI <- function(id) {
             width = 9,
             conditionalPanel(
                 condition = "output.checkRunAnno", ns = ns,
-                # uiOutput(ns("annoBtn.ui")),
                 bsButton(
                     ns("doAnno"), "Run annoFAS",
                     style = "success", disabled = FALSE
@@ -203,7 +230,6 @@ annoFasAppUI <- function(id) {
                 actionButton(ns("stopAnno"),label = "Stop"),
                 actionButton(ns("newAnno"),label = "New job"),
                 textOutput(ns("annoLocation")),
-                textOutput(ns("annoToolLocation")),
                 hr(),
                 checkboxInput(
                     ns("showOpts"),
@@ -222,8 +248,8 @@ annoFasAppUI <- function(id) {
                 ),
                 strong("Log file"),
                 textOutput(ns("logAnnoLocation")),
-                strong("Output files"),
-                textOutput(ns("outputAnnoLocation")),
+                strong("Output file"),
+                textOutput(ns("outputAnnoFile")),
                 hr(),
                 strong("Progress"),
                 verbatimTextOutput(ns("annoLog")),
@@ -268,38 +294,8 @@ annoFasApp <- function (input, output, session) {
         if (!is.null(annoPath)) paste("annoFAS found at", annoPath)
     })
     
-    # get annoToolFAS location =================================================
-    getToolsPath <- reactive({
-        req(getAnnoFasPath())
-        testFaFile <- system.file(
-            "extdata", "seed.fa", package = "phylosophy", mustWork = TRUE
-        )
-        if (!is.null(getAnnoFasPath())) {
-            toolsPath <- suppressWarnings(
-                system2(
-                    "annoFAS",
-                    paste(
-                        "-i", testFaFile,
-                        "-o", "tmp",
-                        "-n", "getToolsPath",
-                        "--getAnnoPath"
-                    ),
-                    stdout = TRUE,
-                    stderr = TRUE
-                )
-            )
-            return(toolsPath[1])
-        } else {
-            return(NULL)
-        }
-    })
-
-    output$annoToolLocation <- renderText({
-        paste(getToolsPath())
-    })
-    
     # get input fasta =========================================
-    getPathAnnoInput <- reactive({
+    getAnnoInput <- reactive({
         shinyFileChoose(
             input, "annoInput", roots = homePath, session = session,
             filetypes = c('', 'fa', 'fasta')
@@ -308,58 +304,29 @@ annoFasApp <- function (input, output, session) {
         req(input$annoInput)
         return(replaceHomeCharacter(as.character(fileSelected$datapath)))
     })
-    
-    # get list of sequence IDs ==================================
-    output$annoSeqs.ui <- renderUI({
-        seqIDs <- getSeqID(getPathAnnoInput())
-        tagList(
-            selectInput(
-                ns("annoID"), "Gene ID",
-                choices = c("all", seqIDs),
-                selected = seqIDs[1]
-            ),
-            bsPopover(
-                ns("annoID"), "",
-                paste("Sequence ID(s) for extracting annotations"), "top"
-            )
-        )
+    output$annoInput.ui <- renderUI({
+        req(getAnnoInput())
+        if (length(getAnnoInput()) > 0) {
+            em(getAnnoInput())
+        }
     })
     
-    # # get list of reference annotations ========================================
-    getPathOldAnnoInput <- reactive({
+    # # get reference annotation file ==========================================
+    getExistingAnno <- reactive({
         shinyFileChoose(
-            input, "oldAnnoInput", roots = homePath, session = session,
-            filetypes = c('json')
+            input, "existingAnno", roots = homePath, session = session,
+            filetypes = c('', 'json')
         )
-        fileSelected <- parseFilePaths(homePath, input$oldAnnoInput)
-        req(input$oldAnnoInput)
+        fileSelected <- parseFilePaths(homePath, input$existingAnno)
+        # req(input$existingAnno)
         return(replaceHomeCharacter(as.character(fileSelected$datapath)))
     })
-    
-    # getRefDir <- reactive({
-    #     shinyDirChoose(
-    #         input, "refAnnoDir", roots = homePath, session = session
-    #     )
-    #     refPath <- parseDirPath(homePath, input$refAnnoDir)
-    #     return(replaceHomeCharacter(refPath))
-    # })
-    # 
-    # getRefAnno <- reactive({
-    #     refPath <- getRefDir()
-    #     refPathSub <- list.dirs(
-    #         path = refPath, full.names = TRUE, recursive = FALSE
-    #     )
-    #     refList <- stringr::str_replace(refPathSub, paste0(refPath, "/"), "")
-    #     return(refList)
-    # })
-    # 
-    # output$refSpecAnno.ui <- renderUI({
-    #     selectInput(
-    #         ns("refSpecAnno"), "Reference annotation",
-    #         choices = c("undefined", getRefAnno()),
-    #         selected = "undefined"
-    #     )
-    # })
+    output$existingAnno.ui <- renderUI({
+        req(getExistingAnno())
+        if (length(getExistingAnno()) > 0) {
+            em(getExistingAnno())
+        }
+    })
     
     # get output path ==========================================================
     getOutputPath <- reactive({
@@ -372,7 +339,8 @@ annoFasApp <- function (input, output, session) {
     
     # get output name ==========================================================
     output$outName.ui <- renderUI({
-        inFile <- str_split(getPathAnnoInput(), '/')
+        req(getAnnoInput())
+        inFile <- str_split(getAnnoInput(), '/')
         inFileTmp <- str_split(tail(inFile[[1]], 1), "\\.")
         textInput(ns("outName"), strong("Output name"), value = inFileTmp[[1]][1])
     })
@@ -383,36 +351,71 @@ annoFasApp <- function (input, output, session) {
         updateTextInput(session, "annoJob", strong("Job ID"), value = jobID)
     })
     
+    # get optional annotation tool path ========================================
+    getOptAnnoTool <- reactive({
+        shinyDirChoose(
+            input, "optAnnoTool", roots = homePath, session = session
+        )
+        optAnnoPath <- parseDirPath(homePath, input$optAnnoTool)
+        return(replaceHomeCharacter(as.character(optAnnoPath)))
+    })
+    output$optAnnoTool.ui <- renderUI({
+        req(getOptAnnoTool())
+        if (length(getOptAnnoTool()) > 0) {
+            em(getOptAnnoTool())
+        }
+    })
+    
     # annoFAS options ==========================================================
     annoOptions <- reactive({
-        fasta <- paste0("--fasta ", getPathAnnoInput())
+        fasta <- paste0("--fasta ", getAnnoInput())
         path <- ""
         if (length(getOutputPath()) > 0) 
             path <- paste0("--outPath ", getOutputPath())
         annoOption <- c(fasta, path)
         
+        if (input$extract == TRUE) {
+            extract <- ""
+            req(getExistingAnno())
+            if (length(getAnnoInput()) > 0) {
+                # existing anno file
+                annoFile <- paste0("--annoFile ", getExistingAnno())
+                # ID of sequence need to get annotation
+                name <- paste0("--name=", input$annoID)
+                extract <- "--extract"
+                annoOption <- c(fasta, path, annoFile, extract)
+            }
+        }
+        
         if (input$optAnnoOption == TRUE) {
             name <- ""
             if (input$outName != "") name <- paste0("--name ", input$outName)
-            
             redo <- ""
             if (input$redo != "all") redo <- paste0("--redo ", input$redo)
             force <- ""
             if (input$force == TRUE) force <- paste0("--force")
             cores <- ""
             if (input$annoCPU > 1) cores <- paste0("--cpus ", input$annoCPU)
-            annoOption <- c(annoOption, name, redo, force, cores)
+            toolPath <- ""
+            if (length(getOptAnnoTool()) > 0)
+                toolPath <- paste0("--toolPath ", getOptAnnoTool())
+            annoOption <- c(annoOption, name, redo, force, cores, toolPath)
         }
         
-        extract <- ""
-        if (input$extract == TRUE) {
-            req(getRefDir())
-            # existing anno file
-            annoFile <- paste0("--annoFile ", getPathOldAnnoInput())
-            # ID of sequence need to get annotation
-            name <- paste0("--name=", input$annoID)
-            extract <- "--extract"
-            annoOption <- c(fasta, path, annoFile, extract)
+        if (input$toolOption == TRUE) {
+            efeature <- ""
+            if (input$eFeature != "-3")
+                efeature <- paste0("--eFeature ", 10^input$eFeature)
+            einstance <- ""
+            if (input$eInstance != "-2")
+                einstance <- paste0("--eInstance ", 10^input$eInstance)
+            eflps <- ""
+            if (input$eFlps != "-7")
+                eflps <- paste0("--eFlps ", 10^input$eFlps)
+            org <- ""
+            if (input$org != "euk")
+                org <- paste0("--org ", input$org)
+            annoOption <- c(annoOption, efeature, einstance, eflps, org)
         }
         
         return(
@@ -426,7 +429,7 @@ annoFasApp <- function (input, output, session) {
     
     # RUN annFAS ===============================================================
     output$checkRunAnno <- reactive({
-        if (length(getPathAnnoInput()) == 0 || length(getOutputPath()) == 0)
+        if (length(getAnnoInput()) == 0 || length(getOutputPath()) == 0)
             return(FALSE)
         return(TRUE)
     })
@@ -492,8 +495,8 @@ annoFasApp <- function (input, output, session) {
     
     # render domain plot =======================================================
     output$annoIDplot.ui <- renderUI({
-        req(getPathAnnoInput())
-        seqIDs <- getSeqID(getPathAnnoInput())
+        req(getAnnoInput())
+        seqIDs <- getSeqID(getAnnoInput())
         flag <- 0
         if (input$extract == TRUE && length(input$annoID) > 0) {
             if (!(input$annoID == "all")) {
@@ -563,17 +566,17 @@ annoFasApp <- function (input, output, session) {
         paste0(getwd(), "/", input$annoJob, ".anno.log")
     })
     
-    output$outputAnnoLocation <- renderText({
+    output$outputAnnoFile <- renderText({
         req(getOutputPath())
         annoOutPath <- getOutputPath()
-        jobName <- input$annoJob
-        outFiles <- paste0(annoOutPath, "/", jobName, "/*.xml")
-        
-        if (input$extract == TRUE) {
-            outFiles <- paste0(
-                getOutputPath(), "/", input$jobName, "_", input$annoID, "/*.xml"
-            )
-        }
+        outName <- input$outName
+        outFiles <- paste0(annoOutPath, "/", outName, ".json")
+        # 
+        # if (input$extract == TRUE) {
+        #     outFiles <- paste0(
+        #         getOutputPath(), "/", input$jobName, "_", input$annoID, "/*.xml"
+        #     )
+        # }
         return(outFiles)
     })
 }
