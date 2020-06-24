@@ -463,25 +463,47 @@ fasAppUI <- function(id) {
                 "Protein feature architecture plot",
                 ns("doPlot"),
                 size = "large",
-                column(
-                    6,
-                    uiOutput(ns("seedIDplot.ui")),
-                    uiOutput(ns("queryIDplot.ui"))
-                ),
-                column(
-                    6,
-                    selectInput(
-                        ns("direction"),
-                        "FAS direction",
-                        choices = list("Forward" = "fwd", "Reverse" = "rev"),
-                        selected = "fwd"
+                fluidRow(
+                    column(
+                        2,
+                        numericInput(
+                            ns("archiHeight"),
+                            "Plot height(px)",
+                            min = 100,
+                            max = 3200,
+                            step = 50,
+                            value = 400,
+                            width = 100
+                        ),
+                        numericInput(
+                            ns("archiWidth"),
+                            "Plot width(px)",
+                            min = 100,
+                            max = 3200,
+                            step = 50,
+                            value = 800,
+                            width = 100
+                        )
                     ),
-                    verbatimTextOutput(ns("fasScore"))
+                    column(
+                        4,
+                        uiOutput(ns("seedIDplot.ui")),
+                        uiOutput(ns("queryIDplot.ui"))
+                    ),
+                    column(
+                        4,
+                        selectInput(
+                            ns("direction"),
+                            "FAS direction",
+                            choices = list("Forward" = "fwd", "Reverse" = "rev"),
+                            selected = "fwd"
+                        ),
+                        verbatimTextOutput(ns("fasScore"))
+                    )
                 ),
-                column(
-                    12,
-                    uiOutput(ns("archiPlotFas.ui"))
-                )
+                uiOutput(ns("archiPlotFas.ui")),
+                br(),br(),
+                downloadButton(ns("archiDownload"), "Download plot")
             )
         )
     )
@@ -1077,20 +1099,22 @@ fasApp <- function (input, output, session) {
             return(domainDf)
         })
     })
+    
+    getInfoPair <- reactive({
+        seedID <- input$outName #input$seedIDplot
+        seedID <- gsub("\\|", ":", seedID)
+        orthoID <- input$queryIDplot
+        orthoID <- gsub("\\|", ":", orthoID)
+        return(c(seedID, orthoID))
+    })
 
     output$archiPlot <- renderPlot({
         if (input$doPlot > 0) {
             if (is.null(getDomainInformation())) {
-                # g <- "No domain info available!"
                 msgPlot()
             } else {
-                seedID <- input$outName #input$seedIDplot
-                seedID <- gsub("\\|", ":", seedID)
-                orthoID <- input$queryIDplot
-                orthoID <- gsub("\\|", ":", orthoID)
-                info <- c(seedID, orthoID)
                 g <- createArchiPlot(
-                    info, getDomainInformation(), 12, 12
+                    getInfoPair(), getDomainInformation(), 12, 12
                 )
                 if (any(g == "No domain info available!")) {
                     msgPlot()
@@ -1105,10 +1129,28 @@ fasApp <- function (input, output, session) {
         ns <- session$ns
         plotOutput(
             ns("archiPlot"),
-            height = 400,
-            width = 800
+            height = input$archiHeight,
+            width = input$archiWidth
         )
     })
+    
+    output$archiDownload <- downloadHandler(
+        filename = function() {
+            c("domains.pdf")
+        },
+        content = function(file) {
+            g <- createArchiPlot(
+                getInfoPair(), getDomainInformation(), 12, 12
+            )
+            grid.draw(g)
+            ggsave(
+                file, plot = g,
+                width = input$archiWidth * 0.056458333,
+                height = input$archiHeight * 0.056458333,
+                units = "cm", dpi = 300, device = "pdf", limitsize = FALSE
+            )
+        }
+    )
     
     # report results ===========================================================
     output$logFasLocation <- renderText({
