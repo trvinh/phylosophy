@@ -12,7 +12,7 @@ shinyUI(
         
         # MAIN NARVARPAGE TABS -------------------------------------------------
         navbarPage(
-            em(strong("phylosophy v0.0.2")),
+            em(strong("phylosophy v0.0.3")),
             id = "tabs",
             collapsible = TRUE,
             inverse = TRUE,
@@ -45,9 +45,16 @@ shinyUI(
             ),
             
             # HAMSTR TAB =======================================================
-            tabPanel(
+            navbarMenu(
                 "HaMStR",
-                hamstrAppUI("hamstrApp")
+                tabPanel(
+                    "Adding taxon to HaMStR",
+                    hamstrPrepareAppUI("hamstrPrepareApp")
+                ),
+                tabPanel(
+                    "HaMStR oneSeq",
+                    hamstrAppUI("hamstrApp")
+                )
             ),
             
             # PHYLOPROFILE TAB =================================================

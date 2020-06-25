@@ -1,4 +1,4 @@
-#' FAS module
+#' calcFAS module
 
 fasAppUI <- function(id) {
     ns <- NS(id)
@@ -554,7 +554,12 @@ fasApp <- function (input, output, session) {
     output$seedInput.ui <- renderUI({
         req(getSeedInput())
         if (length(getSeedInput()) > 0) {
-            em(getSeedInput())
+            outString <- getSeedInput()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
         }
     })
     
@@ -570,7 +575,12 @@ fasApp <- function (input, output, session) {
     output$queryInput.ui <- renderUI({
         req(getQueryInput())
         if (length(getQueryInput()) > 0) {
-            em(getQueryInput())
+            outString <- getQueryInput()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
         }
     })
     
@@ -581,7 +591,8 @@ fasApp <- function (input, output, session) {
             selectInput(
                 ns("seedID"), "Seed ID",
                 choices = c("all", seqIDs),
-                selected = "all"
+                selected = "all",
+                multiple = TRUE
             ),
             bsPopover(
                 ns("seedID"),
@@ -601,7 +612,8 @@ fasApp <- function (input, output, session) {
             selectInput(
                 ns("queryID"), "Query ID",
                 choices = c("all", seqIDs),
-                selected = "all"
+                selected = "all",
+                multiple = TRUE
             ),
             bsPopover(
                 ns("queryID"),
@@ -626,7 +638,12 @@ fasApp <- function (input, output, session) {
     output$annoDir.ui <- renderUI({
         req(getAnnoPath())
         if (length(getAnnoPath()) > 0) {
-            em(getAnnoPath())
+            outString <- getAnnoPath()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
         }
     })
     
@@ -641,7 +658,12 @@ fasApp <- function (input, output, session) {
     output$optAnnoTool.ui <- renderUI({
         req(getOptAnnoTool())
         if (length(getOptAnnoTool()) > 0) {
-            em(getOptAnnoTool())
+            outString <- getOptAnnoTool()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
         }
     })
     
@@ -656,7 +678,12 @@ fasApp <- function (input, output, session) {
     output$outFasDir.ui <- renderUI({
         req(getOutPath())
         if (length(getOutPath()) > 0) {
-            em(getOutPath())
+            outString <- getOutPath()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
         }
     })
     
@@ -687,7 +714,12 @@ fasApp <- function (input, output, session) {
     output$refFwd.ui <- renderUI({
         req(getRefFwd())
         if (length(getRefFwd()) > 0) {
-            em(getRefFwd())
+            outString <- getRefFwd()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
         }
     })
     
@@ -702,7 +734,12 @@ fasApp <- function (input, output, session) {
     output$refRev.ui <- renderUI({
         req(getRefRev())
         if (length(getRefRev()) > 0) {
-            em(getRefRev())
+            outString <- getRefRev()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
         }
     })
     
@@ -717,7 +754,12 @@ fasApp <- function (input, output, session) {
     output$phyloprofile.ui <- renderUI({
         req(getPhyloprofileMapping())
         if (length(getPhyloprofileMapping()) > 0) {
-            em(getPhyloprofileMapping())
+            outString <- getPhyloprofileMapping()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
         }
     })
     
@@ -731,7 +773,12 @@ fasApp <- function (input, output, session) {
     output$featureTypes.ui <- renderUI({
         req(getFeatureTypes())
         if (length(getFeatureTypes()) > 0) {
-            em(getFeatureTypes())
+            outString <- getFeatureTypes()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
         }
     })
     
@@ -745,7 +792,12 @@ fasApp <- function (input, output, session) {
     output$weightConstraints.ui <- renderUI({
         req(getWeightConstraints())
         if (length(getWeightConstraints()) > 0) {
-            em(getWeightConstraints())
+            outString <- getWeightConstraints()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
         }
     })
     
@@ -794,13 +846,13 @@ fasApp <- function (input, output, session) {
         # * I/O options ========================================================
         seedID <- ""
         req(input$seedID)
-        if (input$seedID != "all")
-            seedID <- paste0("--seed_id ", input$seedID)
+        if (input$seedID[1] != "all")
+            seedID <- paste("--seed_id", paste(input$seedID, collapse = " "))
         
         queryID <- ""
         req(input$queryID)
-        if (input$queryID != "all")
-            queryID <- paste0("--query_id ", input$queryID)
+        if (input$queryID[1] != "all")
+            queryID <- paste("--query_id", paste(input$queryID, collapse = " "))
         
         noArch <- ""
         if (input$noArch)
@@ -919,7 +971,7 @@ fasApp <- function (input, output, session) {
     
     # greedyFAS options ========================================================
     fasOptions <- reactive({
-        fasOptions <- c(reqOptions(), optOptions())
+        fasOptions <- c(reqOptions(), optOptions(), "--raw")
         return(
             fasOptions[unlist(lapply(fasOptions, function (x) x != ""))]
         )

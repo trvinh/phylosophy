@@ -1,4 +1,4 @@
-#' FAS module
+#' annoFAS module
 
 annoFasAppUI <- function(id) {
     ns <- NS(id)
@@ -307,7 +307,12 @@ annoFasApp <- function (input, output, session) {
     output$annoInput.ui <- renderUI({
         req(getAnnoInput())
         if (length(getAnnoInput()) > 0) {
-            em(getAnnoInput())
+            outString <- getAnnoInput()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
         }
     })
     
@@ -324,7 +329,12 @@ annoFasApp <- function (input, output, session) {
     output$existingAnno.ui <- renderUI({
         req(getExistingAnno())
         if (length(getExistingAnno()) > 0) {
-            em(getExistingAnno())
+            outString <- getExistingAnno()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
         }
     })
     
@@ -362,7 +372,12 @@ annoFasApp <- function (input, output, session) {
     output$optAnnoTool.ui <- renderUI({
         req(getOptAnnoTool())
         if (length(getOptAnnoTool()) > 0) {
-            em(getOptAnnoTool())
+            outString <- getOptAnnoTool()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
         }
     })
     

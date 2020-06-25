@@ -70,3 +70,11 @@ msgPlot <- function() {
         ylim(0,1)
     return(g)
 }
+
+substrRight <- function(x, n) {
+    substr(x, nchar(x)-n+1, nchar(x))
+}
+
+substrLeft <- function(x, n) {
+    substr(x, 1, n)
+}
