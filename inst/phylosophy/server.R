@@ -34,9 +34,9 @@ shinyServer(function(input, output, session) {
 	hamstrOut <- callModule(hamstrApp, "hamstrApp", nameFullDf)
 	
 	# PhyloProfile lite
-	# callModule(phyloprofileLite, "phyloprofileLite", hamstrOut)
+	callModule(phyloprofileLite, "phyloprofileLite", hamstrOut)
 	
 	# PhyloProfile full
-	# callModule(phyloprofileFull, "phyloprofileFull")
+	callModule(phyloprofileFull, "phyloprofileFull")
 })
 

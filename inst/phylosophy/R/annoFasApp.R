@@ -56,6 +56,17 @@ annoFasAppUI <- function(id) {
                 ),
                 "top"
             ),
+            br(), br(),
+            
+            uiOutput(ns("outName.ui")),
+            bsPopover(
+                ns("outName.ui"),
+                "",
+                paste(
+                    "Name of annotation output file"
+                ),
+                "bottom"
+            ),
             hr(),
             
             # ** optional options ==================================
@@ -87,16 +98,6 @@ annoFasAppUI <- function(id) {
                 br(),
                 uiOutput(ns("optAnnoTool.ui")),
                 br(),
-                
-                uiOutput(ns("outName.ui")),
-                bsPopover(
-                    ns("outName.ui"),
-                    "",
-                    paste(
-                        "Name of annotation output file"
-                    ),
-                    "bottom"
-                ),
                 
                 numericInput(
                     ns("annoCPU"),
@@ -256,6 +257,47 @@ annoFasAppUI <- function(id) {
                 hr(),
                 strong("Select sene for plotting"),
                 uiOutput(ns("annoIDplot.ui")),
+                column(
+                    2,
+                    numericInput(
+                        ns("plotHeight"),
+                        "Plot height(px)",
+                        min = 100,
+                        max = 3200,
+                        step = 50,
+                        value = 300,
+                        width = 100
+                    )
+                ),
+                column(
+                    2,
+                    numericInput(
+                        ns("plotWidth"),
+                        "Plot width(px)",
+                        min = 100,
+                        max = 3200,
+                        step = 50,
+                        value = 600,
+                        width = 100
+                    )
+                ),
+                column(
+                    2,
+                    numericInput(
+                        ns("textSize"),
+                        "Text size(px)",
+                        min = 0,
+                        max = 99,
+                        step = 1,
+                        value = 12,
+                        width = 100
+                    )
+                ),
+                column(
+                    2,
+                    paste("Download plot"),
+                    downloadButton(ns("plotDownload"), "Download")
+                ),
                 uiOutput(ns("annoPlot.ui"))
             )
         )
@@ -389,22 +431,24 @@ annoFasApp <- function (input, output, session) {
             path <- paste0("--outPath ", getOutputPath())
         annoOption <- c(fasta, path)
         
+        name <- ""
+        if (input$outName != "") name <- paste0("--name ", input$outName)
+        annoOption <- c(annoOption, name)
+        
         if (input$extract == TRUE) {
             extract <- ""
             req(getExistingAnno())
             if (length(getAnnoInput()) > 0) {
-                # existing anno file
                 annoFile <- paste0("--annoFile ", getExistingAnno())
-                # ID of sequence need to get annotation
-                name <- paste0("--name=", input$annoID)
                 extract <- "--extract"
                 annoOption <- c(fasta, path, annoFile, extract)
             }
+            return(
+                annoOption[unlist(lapply(annoOption, function (x) x != ""))]
+            )
         }
         
         if (input$optAnnoOption == TRUE) {
-            name <- ""
-            if (input$outName != "") name <- paste0("--name ", input$outName)
             redo <- ""
             if (input$redo != "all") redo <- paste0("--redo ", input$redo)
             force <- ""
@@ -414,7 +458,7 @@ annoFasApp <- function (input, output, session) {
             toolPath <- ""
             if (length(getOptAnnoTool()) > 0)
                 toolPath <- paste0("--toolPath ", getOptAnnoTool())
-            annoOption <- c(annoOption, name, redo, force, cores, toolPath)
+            annoOption <- c(annoOption, redo, force, cores, toolPath)
         }
         
         if (input$toolOption == TRUE) {
@@ -512,86 +556,99 @@ annoFasApp <- function (input, output, session) {
     output$annoIDplot.ui <- renderUI({
         req(getAnnoInput())
         seqIDs <- getSeqID(getAnnoInput())
-        flag <- 0
-        if (input$extract == TRUE && length(input$annoID) > 0) {
-            if (!(input$annoID == "all")) {
-                flag <- 1
-            }
-        }
-        if (flag == 0) {
-            selectInput(
-                ns("annoIDplot"), "Gene ID",
-                choices = seqIDs,
-                selected = seqIDs[1]
-            )
-        } else {
-            selectInput(
-                ns("annoIDplot"), "Gene ID",
-                choices = input$annoID,
-                selected = input$annoID
-            )
-        }
+        selectInput(
+            ns("annoIDplot"), "Gene ID",
+            choices = c("None", seqIDs),
+            selected = "None"
+        )
     })
     
-    getDomainInformation <- reactive({
-        # req(input$doFAS)
-        # req(input$doPlot)
-        inputDomain <- paste0(
-            getOutputPath(), "/", input$fasJob, "_forward.domains"
+    createDomainPlot <- reactive({
+        req(input$doAnno)
+        if (input$annoIDplot == "None") return(NULL)
+        if (!(file.exists(getOutFile()))) return(NULL)
+        groupId <- input$outName
+        seedId <- input$annoIDplot
+        domainDfIn <- fromJSON(getOutFile(), flatten = TRUE)
+        domainInfo <- domainDfIn$feature[[seedId]]
+        len <- domainInfo$length
+        domainDf <- data.frame(
+            "seedID" = character(), "orthoID" = character(), "length" = numeric(), 
+            "feature" = character(), "start" = numeric(), "end" = numeric(), 
+            "path" = character(), stringsAsFactors = FALSE
         )
-        withProgress(message = 'Reading domain input...', value = 0.5, {
-            domainDf <- parseDomainInput(
-                NULL,
-                inputDomain,
-                "file"
-            )
-            return(domainDf)
-        })
+        index <- 1
+        for (feature in names(domainInfo)) {
+            if (!(feature == "length")) {
+                for (i in seq_len(length(domainInfo[[feature]]))) {
+                    start <- domainInfo[[feature]][[i]]$instance[1,1]
+                    end <- domainInfo[[feature]][[i]]$instance[1,2]
+                    domainDf[index,] <- c(
+                        gsub("\\|",":",paste0(groupId, "#", seedId)), 
+                        gsub("\\|",":",seedId), len, 
+                        names(domainInfo[[feature]])[i], start, end, "N"
+                    )
+                    index <- index + 1
+                }
+            }
+        }
+        domainDf$length <- as.integer(domainDf$length)
+        domainDf$start <- as.integer(domainDf$start)
+        domainDf$end <- as.integer(domainDf$end)
+        
+        info <- c(groupId, seedId)
+        plot <- createArchiPlot(info, domainDf, input$textSize, input$textSize)
+        return(plot)
     })
 
     output$archiPlot <- renderPlot({
-        if (input$doPlot > 0) {
-            annoID <- input$annoIDplot
-            annoID <- gsub("\\|", ":", annoID)
-            orthoID <- input$annoIDplot #input$queryIDplot
-            orthoID <- gsub("\\|", ":", orthoID)
-            info <- c(annoID, orthoID)
-            g <- createArchiPlot(
-                info, getDomainInformation(), 12, 12
-            )
-            if (any(g == "No domain info available!")) {
-                msgPlot()
-            } else {
-                grid::grid.draw(g)
-            }
+        g <- createDomainPlot()
+        if (any(g == "No domain info available!")) {
+            msgPlot()
+        } else {
+            grid::grid.draw(g)
         }
     })
 
-    output$archiPlotFas.ui <- renderUI({
+    output$annoPlot.ui <- renderUI({
         ns <- session$ns
         plotOutput(
             ns("archiPlot"),
-            height = 400,
-            width = 800
+            height = input$plotHeight,
+            width = input$plotWidth
         )
     })
+    
+    output$plotDownload <- downloadHandler(
+        filename = function() {
+            paste0(input$annoIDplot, "_domains.pdf")
+        },
+        content = function(file) {
+            g <- createDomainPlot()
+            grid.draw(g)
+            ggsave(
+                file, plot = g,
+                width = input$plotWidth * 0.056458333,
+                height = input$plotHeight * 0.056458333,
+                units = "cm", dpi = 300, device = "pdf", limitsize = FALSE
+            )
+        }
+    )
     
     # report results ===========================================================
     output$logAnnoLocation <- renderText({
         paste0(getwd(), "/", input$annoJob, ".anno.log")
     })
     
-    output$outputAnnoFile <- renderText({
+    getOutFile <- reactive({
         req(getOutputPath())
         annoOutPath <- getOutputPath()
         outName <- input$outName
         outFiles <- paste0(annoOutPath, "/", outName, ".json")
-        # 
-        # if (input$extract == TRUE) {
-        #     outFiles <- paste0(
-        #         getOutputPath(), "/", input$jobName, "_", input$annoID, "/*.xml"
-        #     )
-        # }
         return(outFiles)
+    })
+    
+    output$outputAnnoFile <- renderText({
+        return(getOutFile())
     })
 }

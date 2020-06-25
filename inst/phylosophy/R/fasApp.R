@@ -1188,7 +1188,7 @@ fasApp <- function (input, output, session) {
     
     output$archiDownload <- downloadHandler(
         filename = function() {
-            c("domains.pdf")
+            paste0(input$outName, "_domains.pdf")
         },
         content = function(file) {
             g <- createArchiPlot(
