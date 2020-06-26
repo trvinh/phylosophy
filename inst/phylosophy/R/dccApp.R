@@ -9,155 +9,149 @@ dccAppUI <- function(id) {
             h3("Input and configurations"),
             hr(),
 
-            # conditionalPanel(
-            #     condition = "output.checkPython == 0", ns = ns,
-                # type of inputs
-                radioButtons(
-                    ns("inputTyp"), strong("Select your input type"),
-                    choices = list(
-                        "NCBI Taxonomy ID" = "ncbiID",
-                        "Scientific name" = "speciesName",
-                        "Input taxa list" = "inputFile",
-                        "OMA Group ID" = "OmaId",
-                        "OMA standalone file" = "omaFile"
-                    ),
-                    selected = "ncbiID"
+            radioButtons(
+                ns("inputTyp"), strong("Select your input type"),
+                choices = list(
+                    "NCBI Taxonomy ID" = "ncbiID",
+                    "Scientific name" = "speciesName",
+                    "Input taxa list" = "inputFile",
+                    "OMA Group ID" = "OmaId",
+                    "OMA standalone file" = "omaFile"
+                ),
+                selected = "ncbiID"
+            ),
+            
+            conditionalPanel(
+                condition = "input.inputTyp == 'omaFile'", ns = ns,
+                shinyFilesButton(
+                    ns("omaFileInput"),
+                    "Upload OMA file (orthoXML)" ,
+                    title = "Please provide OMA file in orthoXML format",
+                    multiple = FALSE,
+                    buttonType = "default"
+                ),
+                br(), br(),
+                
+                selectInput(
+                    ns("taxType"), strong("Get genne sets from:"),
+                    c("Local directory", "OMA Database"),
+                    selected = "Local directory"
                 ),
                 
                 conditionalPanel(
-                    condition = "input.inputTyp == 'omaFile'", ns = ns,
-                    shinyFilesButton(
-                        ns("omaFileInput"),
-                        "Upload OMA file (orthoXML)" ,
-                        title = "Please provide OMA file in orthoXML format",
-                        multiple = FALSE,
-                        buttonType = "default"
-                    ),
-                    br(), br(),
-                    
-                    selectInput(
-                        ns("taxType"), strong("Get genne sets from:"),
-                        c("Local directory", "OMA Database"),
-                        selected = "Local directory"
-                    ),
-                    
-                    conditionalPanel(
-                        condition = "input.taxType == 'Local directory'", 
-                        ns = ns,
-                        shinyDirButton(
-                            ns("genomeDir"), "Gene set directory" ,
-                            title = "Please select gene set directory",
-                            buttonType = "default", class = NULL
-                        ),
-                        bsPopover(
-                            ns("genomeDir"),
-                            "",
-                            paste(
-                                "Directory contains organisms's sequences"
-                            ),
-                            "bottom"
-                        ),
-                        br(), br(),
-                    ),
-                    
-                    shinyFilesButton(
-                        ns("taxMappingFile"),
-                        "TaxID mapping file" ,
-                        title = "Please provide taxon ID mapping file",
-                        multiple = FALSE,
-                        buttonType = "default"
-                    ),
-                    bsPopover(
-                        ns("taxMappingFile"),
-                        "",
-                        paste(
-                            "Tab-delimited file containing 3 columns ",
-                            "<NCBI ID> <Taxon name in orthoXML file>",
-                            "<Abbr. taxon name>"
-                        ),
-                        "bottom"
-                    ),
-                    br(), br(),
-                ),
-
-                conditionalPanel(
-                    condition = "input.inputTyp != 'omaFile'", ns = ns,
-                    # oma data path
+                    condition = "input.taxType == 'Local directory'", 
+                    ns = ns,
                     shinyDirButton(
-                        ns("omaDataDir"), "OMA data directory" ,
-                        title = "Please select OMA data directory",
+                        ns("genomeDir"), "Gene set directory" ,
+                        title = "Please select gene set directory",
                         buttonType = "default", class = NULL
                     ),
                     bsPopover(
-                        ns("omaDataDir"),
+                        ns("genomeDir"),
                         "",
                         paste(
-                            "Please provide path to folder containing",
-                            "downloaded OMA browser data!"
+                            "Directory contains organisms's sequences"
                         ),
                         "bottom"
                     ),
-                    br(),
-                    # oma version
-                    uiOutput(ns("version")),
-                    # list of avail oma spec
-                    uiOutput(ns("omaSpec")),
-                    # oma type (appears only when 2 taxa are selected)
-                    uiOutput(ns("omaType")),
-                    # No. of missing species allowed a common OmaGroup
-                    uiOutput(ns("nrMissingSpecies"))
+                    br(), br(),
                 ),
                 
-                # MSA tool selection
-                radioButtons(
-                    ns("MSA"),
-                    strong("MSA tool"), choices = c("MAFFT", "MUSCLE"), 
-                    selected = "MAFFT"
-                ),
-                
-                # option for running FAS annotation
-                checkboxInput(
-                    ns("doAnno"), strong("Include FAS annotation"),
-                    value = FALSE
+                shinyFilesButton(
+                    ns("taxMappingFile"),
+                    "TaxID mapping file" ,
+                    title = "Please provide taxon ID mapping file",
+                    multiple = FALSE,
+                    buttonType = "default"
                 ),
                 bsPopover(
-                    ns("doAnno"),
+                    ns("taxMappingFile"),
                     "",
                     paste(
-                        "Include feature annotation.",
-                        "Note: it can take time!"
+                        "Tab-delimited file containing 3 columns ",
+                        "<NCBI ID> <Taxon name in orthoXML file>",
+                        "<Abbr. taxon name>"
+                    ),
+                    "bottom"
+                ),
+                br(), br(),
+            ),
+            
+            conditionalPanel(
+                condition = "input.inputTyp != 'omaFile'", ns = ns,
+                # oma data path
+                shinyDirButton(
+                    ns("omaDataDir"), "OMA data directory" ,
+                    title = "Please select OMA data directory",
+                    buttonType = "default", class = NULL
+                ),
+                bsPopover(
+                    ns("omaDataDir"),
+                    "",
+                    paste(
+                        "Please provide path to folder containing",
+                        "downloaded OMA browser data!"
                     ),
                     "bottom"
                 ),
                 br(),
-                
-                shinyDirButton(
-                    ns("outAnnoDir"), "Output directory" ,
-                    title = "Please select a folder",
-                    buttonType = "default", class = NULL
+                # oma version
+                uiOutput(ns("version")),
+                # list of avail oma spec
+                uiOutput(ns("omaSpec")),
+                # oma type (appears only when 2 taxa are selected)
+                uiOutput(ns("omaType")),
+                # No. of missing species allowed a common OmaGroup
+                uiOutput(ns("nrMissingSpecies"))
+            ),
+            
+            # MSA tool selection
+            radioButtons(
+                ns("MSA"),
+                strong("MSA tool"), choices = c("MAFFT", "MUSCLE"), 
+                selected = "MAFFT"
+            ),
+            
+            # option for running FAS annotation
+            checkboxInput(
+                ns("doAnno"), strong("Include FAS annotation"),
+                value = FALSE
+            ),
+            bsPopover(
+                ns("doAnno"),
+                "",
+                paste(
+                    "Include feature annotation.",
+                    "Note: it can take time!"
                 ),
-                hr(),
-                
-                # job ID
-                textInput(ns("dccJob"), strong("Job ID"), value = randFn(1)),
-                bsPopover(
-                    ns("dccJob"),
-                    "",
-                    paste(
-                        "Name of job and log file(s)"
-                    ),
-                    "bottom"
+                "bottom"
+            ),
+            br(),
+            
+            shinyDirButton(
+                ns("outAnnoDir"), "Output directory" ,
+                title = "Please select a folder",
+                buttonType = "default", class = NULL
+            ),
+            hr(),
+            
+            # job ID
+            textInput(ns("dccJob"), strong("Job ID"), value = randFn(1)),
+            bsPopover(
+                ns("dccJob"),
+                "",
+                paste(
+                    "Name of job and log file(s)"
                 ),
-                bsButton(ns("newDcc"), label = "New job", disabled = TRUE)
-            # )
+                "bottom"
+            ),
+            bsButton(ns("newDcc"), label = "New job", disabled = TRUE)
         ),
         # * main panel for annoFAS and greedyFAS -------------------------------
         mainPanel(
             width = 9,
             conditionalPanel(
-                # condition = "output.checkPython == 0", ns = ns,
                 condition = "output.checkRunDcc", ns = ns,
-                # uiOutput(ns("dccBtn.ui")),
                 bsButton(
                     ns("submit"), "Run DCC",
                     style = "success", disabled = FALSE
@@ -194,18 +188,12 @@ dccAppUI <- function(id) {
             
                 strong("Progress"),
                 verbatimTextOutput(ns("dccLog")),
+                br(),
                 
                 # finishing msg
                 uiOutput(ns("end")),
                 uiOutput(ns("annoOptions.ui"))
             )
-            # ,
-            # conditionalPanel(
-            #     # condition = "output.checkPython == 1", ns = ns,
-            #     # htmlOutput(ns("pythonMsg"))
-            #     condition = "output.checkRunDcc == FALSE", ns = ns,
-            #     uiOutput(ns("dccStartMsg"))
-            # )
         )
     )
 }
@@ -226,24 +214,7 @@ dccApp <- function (input, output, session) {
             )
         )
     })
-    
-    # check python version ====================================================
-    # output$checkPython <- reactive({
-    #     # python <- suppressWarnings(system("python -V", intern = TRUE))
-    #     if (try(system("python -V") < "Python 3")) {
-    #         return(1)
-    #     } else return(0)
-    # })
-    # outputOptions(output, "checkPython", suspendWhenHidden = FALSE)
-    # 
-    # output$pythonMsg <- renderText({
-    #     # python <- suppressWarnings(system("python -V", intern = TRUE))
-    #     paste(
-    #         "<font color=\"#FF0000\"><b><p>", "Python2", # python, 
-    #         " was found, while DCC requires Python3! </p>",
-    #         "<p>Please check again!</p>", "</b></font>"
-    #     )
-    # })
+
     python <- reactive({
         if (try(system("python -V") < "Python 3")) {
             return("python3")
@@ -252,7 +223,7 @@ dccApp <- function (input, output, session) {
         }
     })
     
-    # get OMA data path =======================================================
+    # get local OMA data path ==================================================
     getOmaPath <- reactive({
         shinyDirChoose(
             input, "omaDataDir", roots = homePath, session = session
@@ -316,7 +287,7 @@ dccApp <- function (input, output, session) {
         output$verbatimTextOutput <- renderText({NULL})
         system2("rm", "*.dcc.log")
     })
-    
+
     # get standalone OMA info ==================================================
     # * oma input path ========================================================
     getLocalOma <- reactive({
@@ -340,35 +311,34 @@ dccApp <- function (input, output, session) {
         shinyFileChoose(
             input, "taxMappingFile", roots = homePath, session = session
         )
-        # req(input$taxMappingFile)
         file_selected <- parseFilePaths(homePath, input$taxMappingFile)
         return(as.character(file_selected$datapath))
     })
-    
+
     # * read taxonomy info from mapping file ==================================
     readTaxMapping <- reactive({
         req(getTaxMapping())
         taxFile <- read.table(
-            getTaxMapping(), sep = "\t", header = FALSE, comment.char = "", 
+            getTaxMapping(), sep = "\t", header = FALSE, comment.char = "",
             stringsAsFactors = FALSE
         )
         colnames(taxFile) <- c("NCBI ID", "Gene set name", "Abbr specices name")
         return(taxFile)
     })
-    
+
     # * render orthoxmlParser options =========================================
     omaParserOptions <- reactive({
         inFile <- ""
-        if (length(getLocalOma()) > 0) 
+        if (length(getLocalOma()) > 0)
             inFile <- paste("--inFile", getLocalOma())
         outPath <- ""
-        if (length(getOutputPath()) > 0) 
+        if (length(getOutputPath()) > 0)
             outPath <- paste("--outPath", getOutputPath())
         data <- ""
-        if (length(getLocalDataset()) > 0) 
+        if (length(getLocalDataset()) > 0)
             data <- paste("--geneSet", getLocalDataset())
         mapping <- ""
-        if (length(getTaxMapping()) > 0) 
+        if (length(getTaxMapping()) > 0)
             mapping <- paste("--mappingFile", getTaxMapping())
         tool <- paste("--alignTool", input$MSA)
         anno <- ""
@@ -382,7 +352,7 @@ dccApp <- function (input, output, session) {
             parserOption[unlist(lapply(parserOption, function (x) x != ""))]
         )
     })
-    
+
     output$omaParserOptions <- renderUI({
         HTML(paste(omaParserOptions(), collapse = "<br/>"))
     })
@@ -393,7 +363,7 @@ dccApp <- function (input, output, session) {
         req(getOmaPath())
         if (!file.exists(paste0(getOmaPath(), "/oma-species.txt"))) return()
         taxTable <- fread(
-            paste0(getOmaPath(), "/oma-species.txt"), header = FALSE, skip = 2, 
+            paste0(getOmaPath(), "/oma-species.txt"), header = FALSE, skip = 2,
             sep = "\t"
         )
         colnames(taxTable) <- c(
@@ -442,15 +412,14 @@ dccApp <- function (input, output, session) {
             )
         }
     })
-    
+
     # * render OMA type ========================================================
     output$omaType <- renderUI({
         req(input$speciesList)
         if (length(input$speciesList) == 2){
-            checkboxInput(ns("omaPair"), strong("Use Oma Pair (requires Internet"), value = FALSE)
+            checkboxInput(ns("omaPair"), strong("Use Oma Pair (requires Internet)"), value = FALSE)
         }
     })
-    
 
     # * render number of allowed missing species ===============================
     # * except OMA standalone
@@ -503,7 +472,7 @@ dccApp <- function (input, output, session) {
             return(DF)
         }
     })
-    
+
     # get valid & invalid taxa from input file
     makeWarningWindow <- reactive({
         req(input$taxFile)
@@ -521,7 +490,7 @@ dccApp <- function (input, output, session) {
             )
         }
     })
-    
+
     getTaxaFromFile <- reactive({
         req(input$taxFile)
         DF <- getFileTable()
@@ -532,7 +501,7 @@ dccApp <- function (input, output, session) {
         }
         return(DF)
     })
-    
+
     # render taxa list from input file
     output$checkTax <- DT::renderDataTable({
         req(input$taxFile)
@@ -559,13 +528,13 @@ dccApp <- function (input, output, session) {
         }
         return(DF)
     })
-    
+
     output$omaGroupSpeciesTable <- DT::renderDataTable({
         if (input$inputTyp == "OmaId") {
             speciesTable <- createOmaIdOutput()
         }
     })
-    
+
     output$speciesSelectionOmaGroup <- renderUI({
         if (input$inputTyp == "OmaId") {
             speciesTable <- createOmaIdOutput()
@@ -654,7 +623,7 @@ dccApp <- function (input, output, session) {
         }
         return(omaCode)
     }
-    
+
     # get taxonomy Ids for chosen species ====================================
     findTaxId <- function(outputSpecies, speciesTable) {
         if (input$inputTyp == "ncbiID") {
@@ -669,7 +638,7 @@ dccApp <- function (input, output, session) {
         }
         return(omaCode)
     }
-    
+
     # get output path ==========================================================
     getOutputPath <- reactive({
         shinyDirChoose(
@@ -678,7 +647,7 @@ dccApp <- function (input, output, session) {
         outputPath <- parseDirPath(homePath, input$outAnnoDir)
         return(replaceHomeCharacter(as.character(outputPath)))
     })
-    
+
     # run DCC ==================================================================
     # * dcc command ============================================================
     getCmd <- reactive({
@@ -701,11 +670,11 @@ dccApp <- function (input, output, session) {
             } else {
                 speciesInput <- input$speciesList
             }
-            
+
             taxTable <- readOmaSpec()
             OmaCodes <- findOmaCode(speciesInput, taxTable)
             taxIds <- findTaxId(speciesInput, taxTable)
-            
+
             if (input$inputTyp == "OmaId") {
                 cmd <- paste(
                     python(), "scripts/omaParserByOG.py",
@@ -730,16 +699,19 @@ dccApp <- function (input, output, session) {
                     "-j", input$dccJob
                 )
                 if (input$doAnno) cmd <- paste(cmd, "-f")
-                if (input$omaPair == TRUE) cmd <- paste(cmd, "-t pair")
+                if (length(input$speciesList) == 2){
+                    if (length(input$omaPair) > 0 && input$omaPair == TRUE) 
+                        cmd <- paste(cmd, "-t pair")
+                }
             }
         }
         return(cmd)
     })
-    
+
     output$hamstrCmdText <- renderText({
         getCmd()
     })
-    
+
     # * render submit button ===================================================
     output$checkRunDcc <- reactive({
         if (length(getOutputPath()) == 0) return(FALSE)
@@ -764,38 +736,38 @@ dccApp <- function (input, output, session) {
         return(TRUE)
     })
     outputOptions(output, "checkRunDcc", suspendWhenHidden = FALSE)
-    
+
     rvDcc <- reactiveValues(
         textstream = c(""),
-        timer = reactiveTimer(1),
+        timer = reactiveTimer(1000),
         started = FALSE
     )
-    
+
     startPythonScript <- observeEvent(input$submit, {
         rvDcc$started <- TRUE
         updateButton(session, ns("submit"), disabled = TRUE)
         updateButton(session, ns("newDcc"), disabled = FALSE)
         updateButton(session, ns("stopDcc"), disabled = FALSE)
-        
+
         cmd <- paste(getCmd(), ">>", paste0(input$dccJob, ".dcc.log"))
         system(cmd, wait = FALSE)
         # output$end <- renderUI(
         #     strong("The calculation is finished!")
         # )
     })
-    
+
     observeEvent(input$stopDcc, {
         rvDcc$started <- FALSE
         system2("rm", "*.dcc.log")
         updateButton(session, ns("stopDcc"), disabled = TRUE)
     })
-    
+
     observe({
         rvDcc$timer()
         if (isolate(rvDcc$started)) {
             if (file.exists(paste0(input$dccJob, ".dcc.log"))) {
                 rvDcc$textstream <- suppressWarnings(
-                    readLines(paste0(input$dccJob, ".dcc.log"),  n = -1) %>% 
+                    readLines(paste0(input$dccJob, ".dcc.log"),  n = -1) %>%
                         tail(10) %>% paste(collapse = "\n")
                 )
             }

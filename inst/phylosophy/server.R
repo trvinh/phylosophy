@@ -19,7 +19,7 @@ shinyServer(function(input, output, session) {
     nameFullDf <- data.table::fread(nameFullFile, select = c(1:3))
     
     # DCC app
-    # callModule(dccApp, "dccApp")
+    callModule(dccApp, "dccApp")
     
     # annoFAS app
     callModule(annoFasApp, "annoFasApp")

@@ -97,7 +97,7 @@ def main():
     jobName = args.jobName
 
     start = time.time()
-    pool = mp.Pool(mp.cpu_count()-1)
+    pool = mp.Pool(mp.cpu_count()-2)
 
     ### create output folders
     print("Creating output folders...")

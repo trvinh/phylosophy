@@ -82,7 +82,7 @@ def main():
     jobName = args.jobName
 
     start = time.time()
-    pool = mp.Pool(mp.cpu_count())
+    pool = mp.Pool(mp.cpu_count()-2)
     ##### read mapping file
     (name2id, name2abbr) = readFileToDict(mappingFile)
 
