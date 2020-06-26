@@ -31,31 +31,20 @@ hamstrPrepareAppUI <- function(id) {
             br(), 
             
             # ** required options ==================================
-            strong("Required options"),
-            
-            textInput(ns("prepareJob"), strong("Job ID"), value = randFn(1)),
-            bsPopover(
-                ns("prepareJob"),
-                "",
-                paste(
-                    "Name of job and log file(s)."
-                ),
-                "bottom"
-            ),
-            bsButton(ns("newPrepareJob.btn"), "New job ID"),
-            br(), br(),
-            
-            textInput(
-                ns("abbrName"), strong("Acronym name"), 
-                placeholder = "e.g. HOMSA for Homo sapiens"
-            ),
-            
+            strong("Taxon ID"),
             numericInput(
-                ns("taxid"), strong("Taxon ID"), value = 999999999, min = 1, step = 1
+                ns("taxid"), "", value = 999999999, min = 1, step = 1
             ),
             uiOutput(ns("idCheck.ui")),
             br(),
-            
+            strong("Acronym name"),
+            textInput(
+                ns("abbrName"), "", 
+                placeholder = "e.g. HOMSA for Homo sapiens"
+            ),
+            uiOutput(ns("nameCheck.ui")),
+            br(),
+
             strong("Output directory"),
             checkboxInput(ns("optOutPath"), "Other output path", value = FALSE),
             conditionalPanel(
@@ -67,8 +56,21 @@ hamstrPrepareAppUI <- function(id) {
                 )
             ),
             uiOutput(ns("outputLocation.ui")),
-            hr(),
+            br(),
             
+            textInput(ns("prepareJob"), strong("Job ID"), value = randFn(1)),
+            bsPopover(
+                ns("prepareJob"),
+                "",
+                paste(
+                    "Name of job and log file(s)."
+                ),
+                "bottom"
+            ),
+            bsButton(ns("newPrepareJob.btn"), "New job ID"),
+            br(),
+            hr(),
+
             # ** optional options ==================================
             checkboxInput(
                 ns("optAnnoOption"),
@@ -273,12 +275,45 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
     
     output$idCheck.ui <- renderUI({
         if (checkTaxId() == 0) {
-            em(paste("This ID not found in NCBI taxonomy database!"))
+            em(paste("NOTE: This ID not found in NCBI taxonomy database!"))
         } else if (checkTaxId() == 1) {
-            em("This ID has been used by HaMStR!")
+            em("ERROR: This ID has been used by HaMStR!")
         } else {
-            em(checkTaxId())
+            em(paste("INFO:", checkTaxId()))
         }
+    })
+    
+    
+    # get suggest taxon abbr name ==============================================
+    suggestName <- reactive({
+        req(checkTaxId())
+        if (checkTaxId() != 0 && checkTaxId() != 1) {
+            taxInfo <- str_split(checkTaxId(), ", ")
+            taxName <- str_split(taxInfo[[1]][2], " ")
+            if (length(taxName[[1]]) > 1) {
+                suggestName <- toupper(
+                    paste0(
+                        substrLeft(taxName[[1]][1], 3), 
+                        substrLeft(taxName[[1]][2], 2)
+                    )
+                )
+            } else {
+                suggestName <- toupper(substrLeft(taxName[[1]][1], 5))
+            }
+            return(suggestName)
+        }
+    })
+    
+    observeEvent(suggestName(),{
+        updateTextInput(
+            session, "abbrName", "", value = suggestName()
+        )
+    })
+    
+    output$nameCheck.ui <- renderUI({
+        req(input$abbrName)
+        req(input$taxid)
+        em("Output name: ", paste0("", input$abbrName, "@", input$taxid, "@", input$ver))
     })
     
     # required options =========================================================
