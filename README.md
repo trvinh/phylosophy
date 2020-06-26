@@ -94,7 +94,7 @@ HaMStR-oneSeq comes with a pre-calculated data set containing the default 78 tax
 
 ## PhyloProfile app
 
-PhyloProfile ([Tran *et al.* 2018](https://academic.oup.com/bioinformatics/article/34/17/3041/4962496)) is an R package for integrating, visualizing and exploring complexed phylogenetic profile.
+[PhyloProfile](https://github.com/BIONF/PhyloProfile) is an R package for integrating, visualizing and exploring complexed phylogenetic profile ([Tran *et al.* 2018](https://academic.oup.com/bioinformatics/article/34/17/3041/4962496)).
 
 In *phylosophy*, there are 2 versions of *PhyloProfile*. For a quick visualizing and basic filtering of the phylogenetic profiles, a lite version of PhyloProfile has been directly implemented inside *phylosophy*. For utilize the complete functions of that package, a tab in *phylosophy* will open the full version of PhyloProfile's GUI tool.
 
