@@ -5,6 +5,7 @@
 # Table of Contents
 * [Installation](#installation)
 * [Usage](#usage)
+* [DCC components](#dcc-components)
 * [Contributors](#contributors)
 * [Contact](#contact)
 
@@ -12,7 +13,7 @@
 
 # Installation
 
-*phylosophy* requires [R](https://cran.r-project.org) (version ≥ 3.6.0). Please install or update R on your computer before continue.
+*phylosophy* requires [R](https://cran.r-project.org) (version ≥ 4.0). Please install or update R on your computer before continue.
 
 * [R for Linux](https://cran.r-project.org/bin/linux/)
 * [R for Mac OS](https://cran.r-project.org/bin/macosx/)
@@ -36,6 +37,35 @@ library(phylosophy)
 runPhylosophy()
 ```
 Check your web browser, *phylosophy* will be displayed there ;-)
+
+# DCC components
+
+*phylosophy* contains the following apps:
+
+* [MILTS](#milts-app):
+* [BUSCO](#busco-app): Assessing gene set completeness
+* [DCCv2](#dccv2-app): Compiling core sets for HaMStR
+* [FAS](#dccv2-app): Calculating pairwise protein feature architecture similarity
+* [HaMStR](#dccv2-app): Searching feature-aware orthologs
+* [PhyloProfile](#dccv2-app): Exploring complex phylogenetic profiles
+
+## MILTS
+blablabla
+
+## BUSCO
+blablabla
+
+## DCCv2
+blablabla
+
+## FAS
+blablabla
+
+## HaMStR
+blablabla
+
+## PhyloProfile
+blablabla
 
 # Contributors
 * [Vinh](https://github.com/trvinh)
