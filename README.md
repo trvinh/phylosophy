@@ -50,9 +50,9 @@ Check your web browser, *phylosophy* will be displayed there ;-)
 * [MILTS](#milts-app):
 * [BUSCO](#busco-app): Assessing gene set completeness
 * [DCCv2](#dccv2-app): Compiling core sets for HaMStR
-* [FAS](#dccv2-app): Calculating pairwise protein feature architecture similarity
-* [HaMStR](#dccv2-app): Searching feature-aware orthologs
-* [PhyloProfile](#dccv2-app): Exploring complex phylogenetic profiles
+* [FAS](#fas-app): Calculating pairwise protein feature architecture similarity
+* [HaMStR](#hamstr-app): Searching feature-aware orthologs
+* [PhyloProfile](#phyloprofile-app): Exploring complex phylogenetic profiles
 
 ## MILTS app
 blablabla
