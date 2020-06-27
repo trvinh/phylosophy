@@ -34,6 +34,19 @@ Besides, some [components of DCC](#dcc-components) require an additional install
 # Usage
 ## Configuration
 
+*phylosophy* is a modular program, i.e. each component/function has it own module and can run independently from each other. Not all the inside apps can be installed automatically with *phylosophy*. If you wish to use all apps, you need to install some of them by yourself.
+
+Normally, when you start *phylosophy* in the same environment where you installed those tools, no further action required. However, if you are **working with RStudio**, probably you have already known that RStudio's environment configuration could be different than the one of bash/zsh. In this case, you need to put the following lines to your `~/.Rprofile` file to make *phylosophy* works:
+
+```
+# path config for python3
+Sys.setenv(PATH = paste("/path/to/your/Python/3.7/bin", Sys.getenv("PATH"), sep=":"))
+# path config for HaMStR-oneSeq
+Sys.setenv(PATH = paste("/path/to/your/HaMStR/bin", Sys.getenv("PATH"), sep=":"))
+# path config for annoFAS (a function of greedyFAS)
+Sys.setenv(COILSDIR = "/path/to/your/annotation_fas/COILS2/coils")
+
+```
 
 ## Run phylospphy
 From the R terminal, enter:
@@ -60,7 +73,7 @@ blablabla
 ## BUSCO app
 *[NAME]* is an R package for assessing the completenss of a given gene set. Similar to [BUSCO](https://busco.ezlab.org), *[NAME]* compares the user input gene set with its pre-calculated hierarchical core ortholog data and assign those core genes if they are present, missing or different in term of functional equivalence.
 
-*[NAME]* can be used as a independent tool (install from its github page) or as an app included in *phylosophy* (no installation required). 
+*[NAME]* can be used as a independent tool (install from its github page) or as an app included in *phylosophy* (no installation required).
 
 ## DCCv2 app
 *DCCv2* is a tool for compiling core set data for HaMStR using predicted orthologs from [OMA](https://omabrowser.org/oma/home/), both *OMA-browser* and *OMA-standalone*. Outputs of this tool are 3 (optional 4) folders required for a HaMStR run, including **(1) core_orthologs** (comprises of OMA orthologous group - OG, or OMA pairs - OP. Each OG/OP has its own directory, where a multiple fasta file and a corresponding profile HMM can be found), **(2) genome_dir** (contains gene sets of taxa, from which the orthologs are originated), **(3) blast_dir** (holds the blast databases of those gene sets within `genome_dir`), and an optional **(4) weight_dir** (contains feature architecure annotations of all gene sets).
