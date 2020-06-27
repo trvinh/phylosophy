@@ -84,7 +84,7 @@ To use *DCCv2* with OMA-browser, some data from OMA need to be downloaded and pr
 ```
 python3 createOmaDic.py -o <out_put_directory>
 ```
-For OMA-browser, *DCCv2* accept input as NCBI taxonomy IDs, taxon names or an OMA group ID. If only 2 taxa are selected, you can decided if OMA groups or OMA pairs should be taken into account.
+For OMA-browser, *DCCv2* accept input as NCBI taxonomy IDs, taxon names or an OMA group ID. If only 2 taxa are given, one can decided if OMA groups or OMA pairs should be taken into account.
 
 *DCCv2* is delivered together with *phylosophy*. No additional installation needed. To find the `path/to/R/libraries`, where *phylosophy* has been installed, you can use this command in the R console:
 ```
@@ -97,7 +97,7 @@ greedyFAS is a python tool for calculating the so called FAS-score, which is a m
 
 greedyFAS (version ≥ 1.2.0) needs to be installed for using the *FAS app* and the complete function of *HaMStR app*. Please follow the instruction on its [github site](https://github.com/BIONF/FAS) for more information.
 
-FAS app contains 2 main functions. One is used only for doing feature annotation for a multiple FASTA input. This function gets use of the `annoFAS` function of greedyFAS. The second one performs the architecture similarity calculation, which is done by the `calcFAS` function.
+*FAS app* contains 2 main functions. One is used only for doing feature annotation for a multiple FASTA input. This function gets use of the `annoFAS` function of greedyFAS. The second one performs the architecture similarity calculation, which is done by the `calcFAS` function.
 
 ## HaMStR app
 
