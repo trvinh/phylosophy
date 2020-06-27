@@ -58,7 +58,9 @@ Check your web browser, *phylosophy* will be displayed there ;-)
 blablabla
 
 ## BUSCO app
-blablabla
+*[NAME]* is an R package for assessing the completenss of a given gene set. Similar to [BUSCO](https://busco.ezlab.org), *[NAME]* compares the user input gene set with its pre-calculated hierarchical core ortholog data and assign those core genes if they are present, missing or different in term of functional equivalence.
+
+*[NAME]* can be used as a independent tool (install from its github page) or as an app included in *phylosophy* (no installation required). 
 
 ## DCCv2 app
 *DCCv2* is a tool for compiling core set data for HaMStR using predicted orthologs from [OMA](https://omabrowser.org/oma/home/), both *OMA-browser* and *OMA-standalone*. Outputs of this tool are 3 (optional 4) folders required for a HaMStR run, including **(1) core_orthologs** (comprises of OMA orthologous group - OG, or OMA pairs - OP. Each OG/OP has its own directory, where a multiple fasta file and a corresponding profile HMM can be found), **(2) genome_dir** (contains gene sets of taxa, from which the orthologs are originated), **(3) blast_dir** (holds the blast databases of those gene sets within `genome_dir`), and an optional **(4) weight_dir** (contains feature architecure annotations of all gene sets).
