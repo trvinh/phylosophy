@@ -80,11 +80,7 @@ blablabla
 
 For OMA-standalone, *DCCv2* requires the output orthoXML file from OMA, a taxon mapping file in tab-delimited format containing 3 columns (blabla) (blabla) (blabla). Protein set of included taxa can be either given as a folder, or automatically downloaded from OMA database.
 
-To use *DCCv2* with OMA-browser, some data from OMA need to be downloaded and processed in advance. This can be done using the script `path/to/R/libraries/phylosophy/phylosophy/scripts/createOmaDic.py`:
-```
-python3 createOmaDic.py -o <out_put_directory>
-```
-For OMA-browser, *DCCv2* accept input as NCBI taxonomy IDs, taxon names or an OMA group ID. If only 2 taxa are given, one can decided if OMA groups or OMA pairs should be taken into account.
+To use *DCCv2* with OMA-browser, some data from OMA need to be downloaded and processed in advance using the function `Get OMA data` under the `DCCv2 menu` of *phylosophy*. For OMA-browser, *DCCv2* accept input as NCBI taxonomy IDs, taxon names or an OMA group ID. If only 2 taxa are given, one can decided if OMA groups or OMA pairs should be taken into account.
 
 *DCCv2* is delivered together with *phylosophy*. No additional installation needed. To find the `path/to/R/libraries`, where *phylosophy* has been installed, you can use this command in the R console:
 ```

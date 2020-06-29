@@ -100,9 +100,9 @@ def main():
         if not Path(blastDbFile).exists():
             blastJobs.append([fileName, specFile, outPath])
         # get info for FAS annotation
-        annoPfamFile = "%s/weight_dir/%s/pfam.xml" % (outPath, fileName)
-        if not Path(annoPfamFile).exists():
-            annoJobs.append([fileName, specFile, outPath])
+        annoFile = "%s/weight_dir/%s.json" % (outPath, fileName)
+        if not Path(annoFile).exists():
+            annoJobs.append([specFile, outPath])
 
     ### create blastDBs
     print("Creating BLAST databases for %s taxa..." % len(blastJobs))

@@ -40,8 +40,15 @@ shinyUI(
             ),
             
             # DCC TAB ==========================================================
-            tabPanel(
-            	"DCCv2", dccAppUI("dccApp")
+            navbarMenu(
+                "DCCv2",
+                tabPanel(
+                    "Get OMA data"
+                ),
+                tabPanel(
+                    "DCCv2", 
+                    dccAppUI("dccApp")
+                )
             ),
             
             # HAMSTR TAB =======================================================

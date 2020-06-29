@@ -134,9 +134,9 @@ def main():
         if not Path(blastDbFile).exists():
             blastJobs.append([specName, specFile, outPath])
         # get info for FAS annotation
-        annoPfamFile = "%s/weight_dir/%s/pfam.xml" % (outPath, specName)
-        if not Path(annoPfamFile).exists():
-            annoJobs.append([specName, specFile, outPath])
+        annoFile = "%s/weight_dir/%s.json" % (outPath, specName)
+        if not Path(annoFile).exists():
+            annoJobs.append([specFile, outPath])
 
         # save OG members and their spec name to dict
         for gene in spec.findAll("gene"):
