@@ -19,7 +19,7 @@ shinyUI(
             fluid = TRUE,
             position = "fixed-top",
             
-            # DCC TAB ==========================================================
+            # INTRO TAB ==========================================================
             tabPanel(
               "INTRODUCTION",
               h1("WELCOME TO PHYLOSOPHY TOOL KIT!"),
@@ -43,7 +43,8 @@ shinyUI(
             navbarMenu(
                 "DCCv2",
                 tabPanel(
-                    "Get OMA data"
+                    "Get OMA data",
+                    dccDownloadOmaAppUI("dccDownloadOma")
                 ),
                 tabPanel(
                     "DCCv2", 

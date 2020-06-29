@@ -145,8 +145,8 @@ def main():
             anno = pool.map(dccFn.calcAnnoFas, annoJobs)
 
     pool.close()
-    ende = time.time()
-    print("Finished in " + '{:5.3f}s'.format(ende-start))
+    end = time.time()
+    print("Finished in " + '{:5.3f}s'.format(end-start))
     print("Output can be found in %s" % outPath)
 
 if __name__ == '__main__':

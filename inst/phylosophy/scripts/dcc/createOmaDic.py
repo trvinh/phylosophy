@@ -75,7 +75,6 @@ def downloadFiles(dataPath, force):
             sys.exit("Error occurs while downloading %s/%s" % (mainUrl, specinfo))
 
 def createDicSpecies(proteins, file):
-    start = time.time()
     sequenceDic = {}
     code = str(proteins.readline()[2:7])
     startline = 0
@@ -91,11 +90,8 @@ def createDicSpecies(proteins, file):
 
     sequenceDic[code] = (startline,lineNr)
     json.dump(sequenceDic, file)
-    ende = time.time()
-    print('{:5.3f}s'.format(ende - start), end='  ')
 
 def createDicOmaGroup(omaGroups, file):
-    start = time.time()
     groupDic = {}
     for i in omaGroups:
         if i[0] != "#":
@@ -113,8 +109,6 @@ def createDicOmaGroup(omaGroups, file):
         speciesStr = speciesStr.replace("'", "")
         speciesStr = speciesStr.replace(" ", "")
         file.write(key + "\t" + speciesStr + "\n")
-    ende = time.time()
-    print('{:5.3f}s'.format(ende - start), end='  ')
 
 def main():
     version = "1.0.0"
@@ -128,6 +122,7 @@ def main():
     dataPath = args.outPath
     force = args.force
 
+    start = time.time()
     downloadFiles(dataPath, force)
 
     allProteins = open(dataPath + "/oma-seqs.fa", "r")
@@ -144,7 +139,9 @@ def main():
     newFileOmaGroup.close()
     allProteins.close()
     omaGroups.close()
-    print("Finished! All output files saved in %s" % dataPath)
+    end = time.time()
+    print("Finished in " + '{:5.3f}s'.format(end-start))
+    print("Output can be found in %s" % dataPath)
 
 if __name__ == '__main__':
     main()

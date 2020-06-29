@@ -184,7 +184,7 @@ dccAppUI <- function(id) {
                 ),
                 
                 strong("Command"),
-                verbatimTextOutput(ns("hamstrCmdText")),
+                verbatimTextOutput(ns("dccCmdText")),
             
                 strong("Progress"),
                 verbatimTextOutput(ns("dccLog")),
@@ -192,7 +192,7 @@ dccAppUI <- function(id) {
                 
                 # finishing msg
                 uiOutput(ns("end")),
-                uiOutput(ns("annoOptions.ui"))
+                uiOutput(ns("end.ui"))
             )
         )
     )
@@ -655,7 +655,7 @@ dccApp <- function (input, output, session) {
         if (input$inputTyp == 'omaFile') {
             # parse standalone OMA
             cmd <- paste(
-                "python scripts/orthoxmlParser.py",
+                python(), "scripts/dcc/orthoxmlParser.py",
                 paste(omaParserOptions(), collapse = " ")
                 #, "-l", 5 # for testing purpose
             )
@@ -677,7 +677,7 @@ dccApp <- function (input, output, session) {
 
             if (input$inputTyp == "OmaId") {
                 cmd <- paste(
-                    python(), "scripts/omaParserByOG.py",
+                    python(), "scripts/dcc/omaParserByOG.py",
                     "-g", input$omaGroupId,
                     "-n", paste(OmaCodes, collapse = ","),
                     "-i", paste(taxIds, collapse = ","),
@@ -689,7 +689,7 @@ dccApp <- function (input, output, session) {
                 if (input$doAnno) cmd <- paste(cmd, "-f")
             } else {
                 cmd <- paste(
-                    python(), "scripts/omaParser.py",
+                    python(), "scripts/dcc/omaParser.py",
                     "-n", paste(OmaCodes, collapse = ","),
                     "-i", paste(taxIds, collapse = ","),
                     "-d", getOmaPath(),
@@ -708,7 +708,7 @@ dccApp <- function (input, output, session) {
         return(cmd)
     })
 
-    output$hamstrCmdText <- renderText({
+    output$dccCmdText <- renderText({
         getCmd()
     })
 
@@ -778,7 +778,7 @@ dccApp <- function (input, output, session) {
     })
 
     # finishing msg ==========================================================
-    output$annoOptions.ui <- renderUI({
+    output$end.ui <- renderUI({
         req(input$submit)
         paste("Your output will be saved at: ", getOutputPath())
     })
