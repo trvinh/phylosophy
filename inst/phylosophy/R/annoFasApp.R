@@ -569,7 +569,7 @@ annoFasApp <- function (input, output, session) {
         if (!(file.exists(getOutFile()))) return(NULL)
         groupId <- input$outName
         seedId <- input$annoIDplot
-        domainDfIn <- fromJSON(getOutFile(), flatten = TRUE)
+        domainDfIn <- jsonlite::fromJSON(getOutFile(), flatten = TRUE)
         domainInfo <- domainDfIn$feature[[seedId]]
         len <- domainInfo$length
         domainDf <- data.frame(

@@ -1055,12 +1055,8 @@ fasApp <- function (input, output, session) {
     })
     
     # render domain plot =======================================================
-    observe({
-        if (!("--bidirectional" %in% fasOptions()))
-            updateButton(session, ns("doPlot"), disabled = TRUE)
-        else {
-            updateButton(session, ns("doPlot"), disabled = FALSE)
-        }
+    observeEvent(input$doFAS, {
+        updateButton(session, ns("doPlot"), disabled = FALSE)
     })
     
     output$seedIDplot.ui <- renderUI({

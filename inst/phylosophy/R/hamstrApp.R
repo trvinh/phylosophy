@@ -151,6 +151,16 @@ hamstrAppUI <- function(id) {
                 ),
                 "right"
             ),
+            
+            conditionalPanel(
+                condition = "input.useFAS", ns = ns,
+                checkboxInput(
+                    ns("bidirectionalFAS"),
+                    strong("Calculate FAS in both directions"),
+                    value = TRUE,
+                    width = NULL
+                )
+            ),
             hr(),
             
             # ** optional options ==================================
@@ -1109,6 +1119,11 @@ hamstrApp <- function(input, output, session, nameFullDf) {
             fasoff <- paste0("-fasoff")
         }
         
+        counterCheck <- ""
+        if (input$bidirectionalFAS == TRUE) {
+            counterCheck <- paste0("-countercheck")
+        }
+        
         seqName <- ""
         if (!is.null(input$seqName)) {
             seqName <- paste0("-seqName=", input$seqName)
@@ -1252,13 +1267,13 @@ hamstrApp <- function(input, output, session, nameFullDf) {
         }
         
         optOptionList <- c(
-            outpath, blastpath, searchpath, hmmpath, weightpath, fasoff, 
+            outpath, blastpath, searchpath, hmmpath, weightpath, fasoff,
             seqName, coreTaxa, strict, coreStrict, 
             checkCoorthologsRef, corecheckCoorthologsRef, rbh, rep, coreRep, 
             coreOnly, reuseCore, blast, group, evalBlast, evalHmmer, 
             evalRelaxfac, hitLimit, coreHitLimit, autoLimit, scoreThreshold, 
             scoreCutoff,ignoreDistance, distDeviation, cpu, aligner, 
-            alignStrategy, force, append, silent, cleanup
+            alignStrategy, force, append, silent, cleanup, counterCheck
         )
         return(
             optOptionList[unlist(lapply(optOptionList, function (x) x != ""))]
@@ -1370,8 +1385,12 @@ hamstrApp <- function(input, output, session, nameFullDf) {
         faOut <- paste0(outpath, "/", input$seqName, ".extended.fa")
         ppOut <- paste0(outpath, "/", input$seqName, ".phyloprofile")
         if (input$useFAS == TRUE) {
-            domainFwOut <- paste0(outpath, "/", input$seqName, "_1.domains")
-            return(c(faOut, ppOut, domainFwOut))
+            domainFwOut <- paste0(outpath, "/", input$seqName, "_forward.domains")
+            domainRevOut <- paste0(outpath, "/", input$seqName, "_reverse.domains")
+            if (input$bidirectionalFAS  == TRUE) {
+                return(c(faOut, ppOut, domainFwOut, domainRevOut))
+            } else return(c(faOut, ppOut, domainFwOut))
+            
         } else {
             return(c(faOut, ppOut, NULL))
         }
