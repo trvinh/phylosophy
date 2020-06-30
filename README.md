@@ -82,10 +82,7 @@ For OMA-standalone, *DCCv2* requires the output orthoXML file from OMA, a taxon 
 
 To use *DCCv2* with OMA-browser, some data from OMA need to be downloaded and processed in advance using the function `Get OMA data` under the `DCCv2 menu` of *phylosophy*. For OMA-browser, *DCCv2* accept input as NCBI taxonomy IDs, taxon names or an OMA group ID. If only 2 taxa are given, one can decided if OMA groups or OMA pairs should be taken into account.
 
-*DCCv2* is delivered together with *phylosophy*. No additional installation needed. To find the `path/to/R/libraries`, where *phylosophy* has been installed, you can use this command in the R console:
-```
-.libpaths()
-```
+*DCCv2* is delivered together with *phylosophy*. No additional installation needed.
 
 ## FAS app
 
