@@ -155,12 +155,12 @@ fasAppUI <- function(id) {
                 ),
                 
                 checkboxInput(
-                    ns("noArch"), strong("Not output domain XML file"),
+                    ns("noTsv"), strong("Turn off scores output (*.tsv)"),
                     value = FALSE
                 ),
                 
                 checkboxInput(
-                    ns("noDomain"), strong("Not output domain tabular output"),
+                    ns("noDomain"), strong("Turn off domain output (*.domains)"),
                     value = FALSE
                 ),
                 
@@ -422,7 +422,7 @@ fasAppUI <- function(id) {
                 )
             )
         ),
-        # * main panel for annoFAS and greedyFAS -------------------------------
+        # * main panel for annoFAS and calcFAS -------------------------------
         mainPanel(
             width = 9,
             uiOutput(ns("fasBtn.ui")),
@@ -435,7 +435,7 @@ fasAppUI <- function(id) {
             ),
             conditionalPanel(
                 condition = "input.showOpts", ns = ns,
-                strong("greedyFAS OPTIONS"),
+                strong("calcFAS OPTIONS"),
                 br(),
                 uiOutput(ns("fasOptions.ui")),
                 strong("Command"),
@@ -854,13 +854,13 @@ fasApp <- function (input, output, session) {
         if (input$queryID[1] != "all")
             queryID <- paste("--query_id", paste(input$queryID, collapse = " "))
         
-        noArch <- ""
-        if (input$noArch)
-            noArch <- paste0("--no_arch")
+        noTsv <- ""
+        if (input$noTsv)
+            noTsv <- paste0("--tsv")
         
-        domain <- paste0("--domain")
+        noDomain <- ""
         if (input$noDomain == TRUE)
-            domain <- ""
+            noDomain <- paste0("--domain")
         
         phyloprofile <- ""
         if (input$outputPhyloprofile == TRUE) {
@@ -880,7 +880,7 @@ fasApp <- function (input, output, session) {
         
         optOptions <- c(
             optOptions,
-            seedID, queryID, noArch, domain, phyloprofile, featureTypes
+            seedID, queryID, noTsv, noDomain, phyloprofile, featureTypes
         )
 
         # * annotation options =================================================
@@ -969,7 +969,7 @@ fasApp <- function (input, output, session) {
         return(optOptions)
     })
     
-    # greedyFAS options ========================================================
+    # calcFAS options ========================================================
     fasOptions <- reactive({
         fasOptions <- c(reqOptions(), optOptions(), "--raw")
         return(
@@ -981,12 +981,12 @@ fasApp <- function (input, output, session) {
         HTML(paste(fasOptions(), collapse = "<br/>"))
     })
     
-    # RUN greedyFAS ============================================================
+    # RUN calcFAS ============================================================
     output$fasBtn.ui <- renderUI({
         if (length(reqOptions()) == 5) {
             tagList(
                 bsButton(
-                    ns("doFAS"), "Run greedyFAS",
+                    ns("doFAS"), "Run calcFAS",
                     style = "success", disabled = FALSE
                 ),
                 actionButton(ns("stopFAS"),label = "Stop"),
@@ -1099,26 +1099,30 @@ fasApp <- function (input, output, session) {
         req(input$doFAS)
         req(input$doPlot)
         fasOutput <- paste0(
-            getOutPath(), "/", input$outName, "_table.csv"
+            getOutPath(), "/", input$outName, ".tsv"
         )
         req(file.exists(fasOutput))
         fasOutDf <- read.csv(
-            fasOutput, header = TRUE, sep = ",", stringsAsFactors = FALSE
+            fasOutput, header = TRUE, sep = "\t", stringsAsFactors = FALSE,
+            colClasses=c(NA, NA, NA, "NULL", "NULL", "NULL", "NULL", "NULL")
         )
+        setDT(fasOutDf)[
+            , c("fwd", "rev") := tstrsplit(Score.Forward.Reverse., "/")
+        ]
         if (input$direction == "fwd") {
             return(paste(
                 "Fwd FAS SCORE =",
-                fasOutDf$forward[
-                    fasOutDf$seedID == input$seedIDplot 
-                    & fasOutDf$queryID == input$queryIDplot
+                fasOutDf$fwd[
+                    fasOutDf$Seed == input$seedIDplot 
+                    & fasOutDf$Query == input$queryIDplot
                 ]
             ))
         } else {
             return(paste(
                 "Rev FAS SCORE =",
-                fasOutDf$reverse[
-                    fasOutDf$seedID == input$seedIDplot 
-                    & fasOutDf$queryID == input$queryIDplot
+                fasOutDf$rev[
+                    fasOutDf$Seed == input$seedIDplot 
+                    & fasOutDf$Query == input$queryIDplot
                     ]
             ))
         }
@@ -1210,26 +1214,18 @@ fasApp <- function (input, output, session) {
         annoOutPath <- getOutPath()
         outName <- input$outName
         
-        fasFile <- paste0(
-            getOutPath(), "/", outName, ".xml"
-        )
-        archiFile <- ""
-        if (input$noArch == FALSE) {
-            archiFile <- paste0(
-                getOutPath(), "/", outName, "_architecture.xml"
-            )
+        
+        fasFile <- ""
+        domainOut <- paste0(getOutPath(), "/", outName, "_forward.domains")
+        if (input$noTsv == FALSE) {
+            fasFile <- paste0(getOutPath(), "/", outName, ".tsv")
         }
+        
         if (input$optFasOption == TRUE) {
             revFile <- ""
             if (input$bidirectional == TRUE) {
                 revFile <- paste0(
-                    getOutPath(), "/", outName, "_reverse.xml"
-                )
-            }
-            domainOut <- ""
-            if (input$noDomain == FALSE) {
-                domainOut <- paste0(
-                    getOutPath(), "/", outName, "_*.domains"
+                    getOutPath(), "/", outName, "_reverse.domains"
                 )
             }
             ppOut <- ""
@@ -1238,11 +1234,15 @@ fasApp <- function (input, output, session) {
                     getOutPath(), "/", outName, ".phyloprofile"
                 )
             }
+            if (input$noDomain == TRUE) {
+                domainOut <- ""
+                revFile <- ""
+            }
             return(
-                paste(fasFile, archiFile, revFile, domainOut, ppOut, sep = "\n")
+                paste(fasFile, domainOut, revFile, ppOut, sep = "\n")
             )
         } else {
-            return(paste(fasFile, archiFile, sep = "\n"))
+            return(paste(fasFile, domainOut, sep = "\n"))
         }
     })
 }

@@ -191,7 +191,7 @@ dccAppUI <- function(id) {
                 br(),
                 
                 # finishing msg
-                uiOutput(ns("end")),
+                # uiOutput(ns("end")),
                 uiOutput(ns("end.ui"))
             )
         )

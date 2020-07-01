@@ -49,9 +49,8 @@ createTextSize <- function(id, title, value, width) {
 msgPlot <- function() {
     msg <- paste(
         "No information about domain architecture!",
-        "Please check:","if you uploaded the correct domain file/folder; or ",
-        "if the selected genes (seed & ortholog) do exist in the uploaded file",
-        "(please search for the corresponding seedID and hitID)",
+        "Please check:","if the domain file exists; or ",
+        "if the selected genes (seed & ortholog) do exist in the domain file",
         sep = "\n"
     )
     x <- c(1,2,3,4,5)
@@ -77,4 +76,19 @@ substrRight <- function(x, n) {
 
 substrLeft <- function(x, n) {
     substr(x, 1, n)
+}
+
+createAbbrName <- function(fullName) {
+    taxName <- str_split(fullName, " ")
+    if (length(taxName[[1]]) > 1) {
+        suggestName <- toupper(
+            paste0(
+                substrLeft(taxName[[1]][1], 3), 
+                substrLeft(taxName[[1]][2], 2)
+            )
+        )
+    } else {
+        suggestName <- toupper(substrLeft(taxName[[1]][1], 5))
+    }
+    return(suggestName)
 }

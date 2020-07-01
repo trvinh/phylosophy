@@ -3,7 +3,7 @@
 hamstrPrepareAppUI <- function(id) {
     ns <- NS(id)
     sidebarLayout(
-        # * sidebar panel for FAS input/options -----------------
+        # * sidebar panel for input/options -----------------
         sidebarPanel(
             width = 3,
             # ** hamstr location ===================================
@@ -21,30 +21,60 @@ hamstrPrepareAppUI <- function(id) {
             h3("Input and configurations"),
             hr(),
             
-            shinyFilesButton(
-                ns("fastaInput"), "Input fasta file!" ,
-                title = "Please provide fasta file for annotation job:",
-                multiple = FALSE,
-                buttonType = "default", class = NULL
-            ),
-            uiOutput(ns("fastaInput.ui")),
-            br(), 
-            
             # ** required options ==================================
-            strong("Taxon ID"),
-            numericInput(
-                ns("taxid"), "", value = 999999999, min = 1, step = 1
+            selectInput(
+                ns("inputType"),
+                "",
+                choices = c("Add single taxon", "Add list of taxa"),
+                selected = "Add single taxon"
             ),
-            uiOutput(ns("idCheck.ui")),
-            br(),
-            strong("Acronym name"),
-            textInput(
-                ns("abbrName"), "", 
-                placeholder = "e.g. HOMSA for Homo sapiens"
+            
+            conditionalPanel(
+                condition = 'input.inputType == "Add single taxon"', ns = ns,
+                shinyFilesButton(
+                    ns("fastaInput"), "Input fasta file" ,
+                    title = "Please provide fasta file",
+                    multiple = FALSE,
+                    buttonType = "default", class = NULL
+                ),
+                uiOutput(ns("fastaInput.ui")),
+                br(), 
+                
+                strong("Taxon ID"),
+                numericInput(
+                    ns("taxid"), "", value = 999999999, min = 1, step = 1
+                ),
+                uiOutput(ns("idCheck.ui")),
+                br(),
+                strong("Acronym name"),
+                textInput(
+                    ns("abbrName"), "", 
+                    placeholder = "e.g. HOMSA for Homo sapiens"
+                ),
+                checkboxInput(ns("useName"), "Use suggested name", value = TRUE),
+                uiOutput(ns("nameCheck.ui"))
             ),
-            uiOutput(ns("nameCheck.ui")),
+            
+            conditionalPanel(
+                condition = 'input.inputType == "Add list of taxa"', ns = ns,
+                shinyDirButton(
+                    ns("inputDir"), "Input directory" ,
+                    title = "Please select a folder",
+                    buttonType = "default", class = NULL
+                ),
+                uiOutput(ns("inputDir.ui")),
+                br(),
+                
+                shinyFilesButton(
+                    ns("mappingFile"), "Input mapping file" ,
+                    title = "Please provide mapping file",
+                    multiple = FALSE,
+                    buttonType = "default", class = NULL
+                ),
+                uiOutput(ns("mappingFile.ui")),
+            ),
             br(),
-
+            
             strong("Output directory"),
             checkboxInput(ns("optOutPath"), "Other output path", value = FALSE),
             conditionalPanel(
@@ -126,7 +156,7 @@ hamstrPrepareAppUI <- function(id) {
                 )
             )
         ),
-        # * main panel for annoFAS and greedyFAS -------------------------------
+        # * main panel -------------------------------
         mainPanel(
             width = 9,
             conditionalPanel(
@@ -137,7 +167,15 @@ hamstrPrepareAppUI <- function(id) {
                 ),
                 actionButton(ns("stopPrepare"),label = "Stop"),
                 actionButton(ns("newPrepare"),label = "New job"),
-                hr(),
+                hr()
+            ),
+            conditionalPanel(
+                condition = 'input.inputType == "Add list of taxa"', ns = ns,
+                dataTableOutput(ns("checkTable")),
+                uiOutput(ns("checkMsg.ui"))
+            ),
+            conditionalPanel(
+                condition = "output.checkRunPrepare", ns = ns,
                 strong("Command"),
                 verbatimTextOutput(ns("prepareCmdText")),
                 strong("Log file"),
@@ -180,13 +218,16 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
     getPreparePath <- reactive({
         hamstrPath <- getHamstrPath()
         if (!is.null(hamstrPath)){
-            return(paste0(hamstrPath, "/bin/addTaxonHamstr.py"))
+            if (input$inputType == "Add single taxon")
+                return(paste0(hamstrPath, "/bin/addTaxonHamstr.py"))
+            else
+                return(paste0(hamstrPath, "/bin/addTaxaHamstr.py"))
         } else {
             return(NULL)
         }
     })
     
-    # get input fasta =========================================
+    # get input fasta ==========================================================
     getFastaInput <- reactive({
         shinyFileChoose(
             input, "fastaInput", roots = homePath, session = session,
@@ -200,6 +241,46 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
         req(getFastaInput())
         if (length(getFastaInput()) > 0) {
             outString <- getFastaInput()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
+        }
+    })
+    
+    # get input folder and mapping file ========================================
+    getInputDir <- reactive({
+        shinyDirChoose(
+            input, "inputDir", roots = homePath, session = session
+        )
+        outputPath <- parseDirPath(homePath, input$inputDir)
+        return(replaceHomeCharacter(as.character(outputPath)))
+    })
+    output$inputDir.ui <- renderUI({
+        req(getInputDir())
+        if (length(getInputDir()) > 0) {
+            outString <- getInputDir()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
+        }
+    })
+    
+    getMappingFile <- reactive({
+        shinyFileChoose(
+            input, "mappingFile", roots = homePath, session = session
+        )
+        fileSelected <- parseFilePaths(homePath, input$mappingFile)
+        # req(input$mappingFile)
+        return(replaceHomeCharacter(as.character(fileSelected$datapath)))
+    })
+    output$mappingFile.ui <- renderUI({
+        req(getMappingFile())
+        if (length(getMappingFile()) > 0) {
+            outString <- getMappingFile()
             if (nchar(outString) > 30)
                 outString <- paste0(
                     substrLeft(outString, 15), "...", substrRight(outString, 15)
@@ -246,17 +327,17 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
     })
     
     # check taxon ID ===========================================================
-    getRefspecIds <- reactive ({
+    getRefspec <- reactive ({
         # get spec ID from blast_dir
-        outDir <- paste0(getHamstrPath(), "/blast_dir")
+        outDir <- paste0(getHamstrPath(), "/genome_dir")
         outDirPath <- list.dirs(
             path = outDir, full.names = TRUE, recursive = FALSE
         )
         outDirTaxIds <- stringr::str_replace(
             outDirPath, paste0(outDir,"/"), ""
         )
-        ids <- str_replace_all(str_match(outDirTaxIds, "@.+@"), "@", "")
-        return(ids)
+        # ids <- str_replace_all(str_match(outDirTaxIds, "@.+@"), "@", "")
+        return(outDirTaxIds)
     })
     
     checkTaxId <- reactive({
@@ -265,7 +346,10 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
         if (nrow(taxInfo) == 0) {
             return(0)
         } else {
-            if (input$taxid %in% getRefspecIds()) {
+            if (
+                paste0(input$abbrName, "@", input$taxid, "@", input$ver) 
+                %in% getRefspec()
+            ) {
                 return(1)
             } else {
                 return(paste(as.list(taxInfo), collapse = ", "))
@@ -277,43 +361,98 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
         if (checkTaxId() == 0) {
             em(paste("NOTE: This ID not found in NCBI taxonomy database!"))
         } else if (checkTaxId() == 1) {
-            em("ERROR: This ID has been used by HaMStR!")
+            em("ERROR: This gene set already present in HaMStR!")
         } else {
-            em(paste("INFO:", checkTaxId()))
+            em(paste("Taxon:", checkTaxId()))
         }
     })
     
+    # check IDs in mapping file ================================================
+    parseMappingFile <- reactive({
+        req(getMappingFile())
+        mapDf <- read.csv(
+            getMappingFile(), header = TRUE, sep = "\t", fill = TRUE,
+            na.strings = "NA", stringsAsFactors = FALSE
+        )
+        if (nrow(mapDf) < 1) return(NULL)
+        if (ncol(mapDf) < 4) return("Wrong mapping file!")
+        mapDf[mapDf == ""] <- NA
+        mapDf$version[is.na(mapDf$version)] <- 1
+        colnames(mapDf) <- c("fileName", "ncbiID", "taxName", "version")
+        mapDf <- merge(
+            mapDf, nameFullDf[, c("ncbiID", "fullName")], by = "ncbiID",
+            all.x = TRUE
+        )
+        abbrNameList <- lapply(
+            mapDf$fullName, function (x) createAbbrName(x)
+        )
+        mapDf$abbrName <- abbrNameList
+        mapDf$taxName[is.na(mapDf$taxName)] <-
+            mapDf$abbrName[is.na(mapDf$taxName)]
+        mapDf$taxName[is.na(mapDf$taxName)] <-
+            paste0("UNK", mapDf$ncbiID[is.na(mapDf$taxName)])
+        mapDf$suggestedName <- paste0(
+            mapDf$taxName, "@", mapDf$ncbiID, "@", mapDf$version
+        )
+        mapDf$exist <- mapDf$suggestedName %in% getRefspec()
+        mapDf$note[is.na(mapDf$fullName)] <- "Not found in NCBI"
+        mapDf$note[mapDf$exist == TRUE] <- "Already exists"
+        mapDf$note[is.na(mapDf$note)] <- "OK"
+        outDf <- mapDf[
+            , c("fileName", "ncbiID", "fullName", "suggestedName", "note")
+        ]
+        return(outDf[order(outDf$note),])
+    })
+
+    output$checkTable <- renderDataTable(rownames= FALSE, {
+        parseMappingFile()
+    })
+
+    checkMappingFile <- reactive({
+        df <- parseMappingFile()
+        df <- df[df$note == "Already exists",]
+        return(nrow(df))
+    })
+    
+    output$checkMsg.ui <- renderUI({
+        req(getHamstrPath())
+        if (checkMappingFile() > 0) {
+            msg <- paste(
+                "Some gene sets already exist in", getHamstrPath(),
+                ". Please remove them or change their name/id/version",
+                "in the mapping file"
+            )
+            tagList(
+                br(),
+                em(strong(msg)),
+                hr(),
+            )
+        }
+    })
     
     # get suggest taxon abbr name ==============================================
     suggestName <- reactive({
         req(checkTaxId())
         if (checkTaxId() != 0 && checkTaxId() != 1) {
             taxInfo <- str_split(checkTaxId(), ", ")
-            taxName <- str_split(taxInfo[[1]][2], " ")
-            if (length(taxName[[1]]) > 1) {
-                suggestName <- toupper(
-                    paste0(
-                        substrLeft(taxName[[1]][1], 3), 
-                        substrLeft(taxName[[1]][2], 2)
-                    )
-                )
-            } else {
-                suggestName <- toupper(substrLeft(taxName[[1]][1], 5))
-            }
+            suggestName <- createAbbrName(taxInfo[[1]][2])
             return(suggestName)
         }
     })
     
     observeEvent(suggestName(),{
-        updateTextInput(
-            session, "abbrName", "", value = suggestName()
-        )
+        if (input$useName == TRUE) {
+            updateTextInput(session, "abbrName", "", value = suggestName())
+        }
     })
     
     output$nameCheck.ui <- renderUI({
         req(input$abbrName)
         req(input$taxid)
-        em("Output name: ", paste0("", input$abbrName, "@", input$taxid, "@", input$ver))
+        em(
+            "Output name: ", 
+            paste0("", input$abbrName, "@", input$taxid, "@", input$ver)
+        )
     })
     
     # required options =========================================================
@@ -334,7 +473,23 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
             reqOption[unlist(lapply(reqOption, function (x) x != ""))]
         )
     })
-     
+    
+    reqOptionsTaxa <- reactive({
+        input <- ""
+        if (length(getInputDir()) > 0)
+            input <- paste("--input", getInputDir())
+        mapping <- ""
+        if (length(getMappingFile()) > 0)
+            mapping <- paste("--mapping", getMappingFile())
+        outPath <- ""
+        if (!is.null(outputLocation())) 
+            outPath <- paste0("--outPath ", outputLocation())
+        reqOption <- c(input, mapping, outPath)
+        return(
+            reqOption[unlist(lapply(reqOption, function (x) x != ""))]
+        )
+    })
+    
     # optional options =========================================================
     optOptions <- reactive({
         coreTaxa <- ""
@@ -353,8 +508,13 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
     
     # RUN annFAS ===============================================================
     output$checkRunPrepare <- reactive({
-        if (length(reqOptions()) == 4 && checkTaxId() != 1)
-            return(TRUE)
+        if (input$inputType == "Add single taxon") {
+            if (length(reqOptions()) == 4 && checkTaxId() != 1)
+                return(TRUE)
+        } else {
+            if (length(reqOptionsTaxa()) == 3 && checkMappingFile() == 0)
+                return(TRUE)
+        }
         return(FALSE)
     })
     outputOptions(output, "checkRunPrepare", suspendWhenHidden = FALSE)
@@ -365,13 +525,24 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
     })
     
     prepareCmd <- reactive({
-        return(
-            paste(
-                getPreparePath(),
-                paste(reqOptions(), collapse = " "),
-                paste(optOptions(), collapse = " ")
+        if (input$inputType == "Add single taxon") {
+            return(
+                paste(
+                    getPreparePath(),
+                    paste(reqOptions(), collapse = " "),
+                    paste(optOptions(), collapse = " ")
+                )
             )
-        )
+        } else {
+            return(
+                paste(
+                    getPreparePath(),
+                    paste(reqOptionsTaxa(), collapse = " "),
+                    paste(optOptions(), collapse = " ")
+                )
+            )
+        }
+
     })
     
     output$prepareCmdText <- renderText({
