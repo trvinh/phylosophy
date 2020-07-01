@@ -175,6 +175,7 @@ def runMsa(args):
     print(id + ".aln")
 
 def calcAnnoFas(args):
-	(specName, specFile, outPath) = args
-	annoCmd = 'annoFAS --fasta %s --path %s/weight_dir --name %s' % (specFile, outPath, specName) #  --cores 4
-	subprocess.call([annoCmd], shell = True)
+    (specFile, outPath) = args
+    annoCmd = 'annoFAS --fasta %s --outPath %s/weight_dir' % (specFile, outPath) #  --cores 4
+    print(annoCmd)
+    subprocess.call([annoCmd], shell = True)

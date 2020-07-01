@@ -66,6 +66,12 @@ phyloprofileLiteUI <- function(id) {
                     condition = "input.useHamstr", ns = ns,
                     "PhyloProfile input",
                     verbatimTextOutput(ns("inputPP")),
+                    selectInput(
+                        ns("direction"),
+                        "FAS direction",
+                        choices = list("Forward" = "fwd", "Reverse" = "rev"),
+                        selected = "fwd"
+                    ),
                     "Domain input",
                     verbatimTextOutput(ns("inputDomain"))
                 ),
@@ -96,7 +102,7 @@ phyloprofileLiteUI <- function(id) {
                     )
                 )
             ),
-            # main panel for FAS run ----------------------------
+            # main panel ----------------------------
             mainPanel(
                 width = 9,
                 conditionalPanel(
@@ -289,7 +295,9 @@ phyloprofileLiteUI <- function(id) {
                 )
             ),
             hr(),
-            uiOutput(ns("archiPlot.ui"))
+            uiOutput(ns("archiPlot.ui")),
+            br(),  br(),
+            downloadButton(ns("archiDownload"), "Download plot")
         )
     )
 }
@@ -311,7 +319,13 @@ phyloprofileLite <- function(input, output, session, hamstrOut) {
         if (file.exists(hamstrOut()[2])) return(hamstrOut()[2])
     })
     output$inputDomain <- renderText({
-        if (file.exists(hamstrOut()[3])) return(hamstrOut()[3])
+        if (input$useHamstr == TRUE) {
+            if (input$direction  == "rev")
+                return(hamstrOut()[4])
+            else
+                return(hamstrOut()[3])
+            if (!file.exists(inputDomain)) return()
+        }
     })
     
     # get main input ---------------------------------------------------------
@@ -355,7 +369,10 @@ phyloprofileLite <- function(input, output, session, hamstrOut) {
     getDomainInformation <- reactive({
         withProgress(message = 'Reading domain input...', value = 0.5, {
             if (input$useHamstr == TRUE) {
-                inputDomain <- hamstrOut()[3]
+                if (input$direction  == "rev")
+                    inputDomain <- hamstrOut()[4]
+                else
+                    inputDomain <- hamstrOut()[3]
                 if (!file.exists(inputDomain)) return()
             } else {
                 filein <- input$fileDomainInput
@@ -969,9 +986,8 @@ phyloprofileLite <- function(input, output, session, hamstrOut) {
     
     # get status of pointInfo for activating Domain Plot button --------------
     output$pointInfoStatus <- reactive({
-        if (file.exists(hamstrOut()[3])) {
-            return(is.null(selectedpointInfo()))
-        }
+        req(selectedpointInfo())
+        return(is.null(selectedpointInfo()))
     })
     outputOptions(output, "pointInfoStatus", suspendWhenHidden = FALSE)
 
@@ -1012,5 +1028,25 @@ phyloprofileLite <- function(input, output, session, hamstrOut) {
             width = input$archiWidth
         )
     })
+    
+    output$archiDownload <- downloadHandler(
+        filename = function() {
+            paste0(input$seedID, "_", input$queryID, "_domains.pdf")
+        },
+        content = function(file) {
+            g <- createArchiPlot(
+                c(input$seedID, input$queryID), 
+                getDomainInformation(), input$labelArchiSize, 
+                input$titleArchiSize
+            )
+            grid.draw(g)
+            ggsave(
+                file, plot = g,
+                width = input$archiWidth * 0.056458333,
+                height = input$archiHeight * 0.056458333,
+                units = "cm", dpi = 300, device = "pdf", limitsize = FALSE
+            )
+        }
+    )
 }
 

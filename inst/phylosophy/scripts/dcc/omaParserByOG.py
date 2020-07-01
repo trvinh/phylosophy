@@ -29,67 +29,41 @@ from pathlib import Path
 import time
 from Bio import SeqIO
 import multiprocessing as mp
-from omadb import Client
 import dccFn
 
-def gettingOmaGroups(dataPath, speciesSet, nr):
-    omaGroupFull = dccFn.openFileToRead(dataPath + "/oma-groups.txt")
-    omaGroups = {}
-    for i in omaGroupFull:
-        row = i.split("\t")
-        if len(row) != 1:
-            ProteinIds = []
-            counter = 0
-            for j in range(2, len(row)):
-                species = row[j][0:5]
-                if species in speciesSet:
-                    ProteinIds.append(row[j])
-                    counter += 1
-            if counter >= (len(speciesSet) - int(nr)):
-                omaGroups[row[0]] = ProteinIds
-    return(omaGroups)
-
-def gettingOmaPairs(speciesList):
-    c = Client()
-    omaPairs = list(c.pairwise(speciesList[0], speciesList[1], progress = True))
-    out = {}
-    nr = 1
-    for pair in omaPairs:
-        id = 'OP' + pair.rel_type.replace(':','') + "_" + str(nr)
-        out[id] = [pair.entry_1.omaid, pair.entry_2.omaid]
-        nr = nr + 1
-        # if not str(pair.entry_1.oma_group) in out:
-        #     out[str(pair.entry_1.oma_group)] = [pair.entry_1.omaid, pair.entry_2.omaid]
-        # else:
-        #     for id in [pair.entry_1.omaid, pair.entry_2.omaid]:
-        #         if id not in out[str(pair.entry_1.oma_group)]:
-        #             out[str(pair.entry_1.oma_group)].append(id)
-    return(out)
+def getOGprot(dataPath, omaGroupId, speciesList):
+    fileGroups = dccFn.openFileToRead(dataPath + "/oma-groups.txt")
+    allGroups = fileGroups.readlines()
+    fileGroups.close()
+    groupLine = allGroups[int(omaGroupId) + 2].strip().split("\t")
+    proteinIds = []
+    for prot in groupLine[2:]:
+        if prot[0:5] in speciesList:
+            proteinIds.append(prot)
+    return(proteinIds)
 
 def main():
     version = "1.0.0"
-    parser = argparse.ArgumentParser(description="You are running omaParser for OMA Browser version " + str(version) + ".")
+    parser = argparse.ArgumentParser(description="You are running omaParser by OG ID for OMA Browser version " + str(version) + ".")
     required = parser.add_argument_group('required arguments')
     optional = parser.add_argument_group('additional arguments')
+    required.add_argument('-g', '--OG', help='Input OMA group ID', action='store', default='', required=True)
     required.add_argument('-n', '--name', help='List of OMA species abbr. names', action='store', default='', required=True)
     required.add_argument('-i', '--id', help='List of corresponding taxonomy IDs to OMA species', action='store', default='', required=True)
     required.add_argument('-d', '--dataPath', help='Path to OMA Browser data', action='store', default='', required=True)
     required.add_argument('-o', '--outPath', help='Path to output directory', action='store', default='', required=True)
     required.add_argument('-j', '--jobName', help='Job name', action='store', default='', required=True)
-    optional.add_argument('-m', '--missingTaxa', help='Number of allowed missing taxa. Default: 0', action='store', default=0, type=int)
-    optional.add_argument('-t', '--omaType', help='OMA type (group|pair). Default: "group"', choices=['group', 'pair'], action='store', default='group')
-    optional.add_argument('-a', '--alignTool', help='Alignment tool (mafft|muscle). Default: mafft', choices=['mafft', 'muscle'], action='store', default='mafft')
+    optional.add_argument('-a', '--alignTool', help='Alignment tool (mafft|muscle). Default: mafft', action='store', default='mafft')
     optional.add_argument('-f', '--annoFas', help='Perform FAS annotation', action='store_true')
     args = parser.parse_args()
 
     dccFn.checkFileExist(args.dataPath)
     dccFn.checkFileExist(args.dataPath+"/oma-seqs-dic.fa")
     dataPath = str(Path(args.dataPath).resolve())
-    speciesList = str(args.name.upper()).split(",")
+    omaGroupId = args.OG
+    speciesList = str(args.name).split(",")
     speciesTaxId = str(args.id).split(",")
     outPath = str(Path(args.outPath).resolve())
-    nrMissingTaxa = args.missingTaxa
-    omaType = args.omaType
     aligTool = args.alignTool.lower()
     if not aligTool == "mafft" or aligTool == "muscle":
         sys.exit("alignment tool must be either mafft or muscle")
@@ -97,13 +71,13 @@ def main():
     jobName = args.jobName
 
     start = time.time()
-    pool = mp.Pool(mp.cpu_count()-1)
+    pool = mp.Pool(mp.cpu_count()-2)
 
     ### create output folders
     print("Creating output folders...")
     Path(outPath + "/genome_dir").mkdir(parents = True, exist_ok = True)
     Path(outPath + "/blast_dir").mkdir(parents = True, exist_ok = True)
-    Path(outPath + "/core_orthologs/" + jobName).mkdir(parents = True, exist_ok = True)
+    Path(outPath + "/core_orthologs/" + jobName +  "/" + omaGroupId + "/hmm_dir").mkdir(parents = True, exist_ok = True)
     Path(outPath + "/weight_dir").mkdir(parents = True, exist_ok = True)
 
     ### create spec IDs dict
@@ -126,9 +100,9 @@ def main():
         if not Path(blastDbFile).exists():
             blastJobs.append([fileName, specFile, outPath])
         # get info for FAS annotation
-        annoPfamFile = "%s/weight_dir/%s/pfam.xml" % (outPath, fileName)
-        if not Path(annoPfamFile).exists():
-            annoJobs.append([fileName, specFile, outPath])
+        annoFile = "%s/weight_dir/%s.json" % (outPath, fileName)
+        if not Path(annoFile).exists():
+            annoJobs.append([specFile, outPath])
 
     ### create blastDBs
     print("Creating BLAST databases for %s taxa..." % len(blastJobs))
@@ -137,47 +111,32 @@ def main():
     else:
         print("makeblastdb not found!")
 
-    ### get OGs and their fasta
-    if omaType == 'group':
-        omaGroups = gettingOmaGroups(dataPath, set(speciesList), nrMissingTaxa)
-    elif omaType == 'pair':
-        omaGroups = gettingOmaPairs(speciesList)
-    print("Getting protein sequences for %s OGs..." % len(omaGroups))
-    msaJobs = []
-    hmmJobs = []
-    for omaGroupId in omaGroups:
-        # Path(outPath + "/core_orthologs/" + omaGroupId).mkdir(parents = True, exist_ok = True)
-        Path(outPath + "/core_orthologs/" + jobName + "/" + omaGroupId + "/hmm_dir").mkdir(parents = True, exist_ok = True)
-        # getSeqJobs.append([omaGroups[omaGroupId], omaGroupId, outPath, fasta])  # slower than run sequentially
-        dccFn.getOGseq([omaGroups[omaGroupId], omaGroupId, outPath, fasta, specName2id, jobName])
+    ### get OG fasta
+    print("Getting protein sequences for OG id %s..." % omaGroupId)
+    proteinIds = getOGprot(dataPath, omaGroupId, speciesList)
+    dccFn.getOGseq([proteinIds, omaGroupId, outPath, fasta, jobName])
 
-        ogFasta = outPath + "/core_orthologs/" + jobName + "/" + omaGroupId + "/" + omaGroupId
-        ### get MSA jobs
-        try:
-            msaFile = "%s/core_orthologs/%s/%s/%s.aln" % (outPath, jobName, omaGroupId, omaGroupId)
-            flag = dccFn.checkFileEmpty(msaFile)
-            if flag == 1:
-                msaJobs.append([ogFasta, aligTool, omaGroupId])
-        except:
-            sys.exit("%s not found or %s not works correctly!" % (ogFasta+".fa", aligTool))
-        ### get pHMM jobs
+    ### calculate MSAs and pHMMs
+    ogFasta = outPath + "/core_orthologs/" + jobName +  "/" + omaGroupId + "/" + omaGroupId
+    # do MSAs
+    try:
+        msaFile = "%s/core_orthologs/%s/%s/%s.aln" % (outPath, jobName, omaGroupId, omaGroupId)
+        flag = dccFn.checkFileEmpty(msaFile)
+        if flag == 1:
+            dccFn.runMsa([ogFasta, aligTool, omaGroupId])
+    except:
+        sys.exit("%s not found or %s not works correctly!" % (ogFasta+".fa", aligTool))
+    # do pHMMs
+    if dccFn.is_tool('hmmbuild'):
         try:
             hmmFile = "%s/core_orthologs/%s/%s/hmm_dir/%s.hmm" % (outPath, jobName, omaGroupId, omaGroupId)
             flag = dccFn.checkFileEmpty(hmmFile)
             if flag == 1:
-                hmmJobs.append([hmmFile, ogFasta, omaGroupId])
+                dccFn.runHmm([hmmFile, ogFasta, omaGroupId])
         except:
             sys.exit("hmmbuild not works correctly for %s!" % (ogFasta+".fa"))
-
-    ### calculate MSAs and pHMMs
-    print("Calculating MSAs and pHMMs for %s OGs..." % len(omaGroups))
-    if len(msaJobs) > 0:
-        msa = pool.map(dccFn.runMsa, msaJobs)
-    if len(hmmJobs) > 0:
-        if dccFn.is_tool('hmmbuild'):
-            hamm = pool.map(dccFn.runHmm, hmmJobs)
-        else:
-            print("hmmbuild not found!")
+    else:
+        print("hmmbuild not found!")
 
     ### do FAS annotation
     if doAnno:
@@ -186,8 +145,8 @@ def main():
             anno = pool.map(dccFn.calcAnnoFas, annoJobs)
 
     pool.close()
-    ende = time.time()
-    print("Finished in " + '{:5.3f}s'.format(ende-start))
+    end = time.time()
+    print("Finished in " + '{:5.3f}s'.format(end-start))
     print("Output can be found in %s" % outPath)
 
 if __name__ == '__main__':

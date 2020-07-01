@@ -12,14 +12,14 @@ shinyUI(
         
         # MAIN NARVARPAGE TABS -------------------------------------------------
         navbarPage(
-            em(strong("phylosophy v0.0.1")),
+            em(strong("phylosophy v0.0.3")),
             id = "tabs",
             collapsible = TRUE,
             inverse = TRUE,
             fluid = TRUE,
             position = "fixed-top",
             
-            # DCC TAB ==========================================================
+            # INTRO TAB ==========================================================
             tabPanel(
               "INTRODUCTION",
               h1("WELCOME TO PHYLOSOPHY TOOL KIT!"),
@@ -40,14 +40,29 @@ shinyUI(
             ),
             
             # DCC TAB ==========================================================
-            tabPanel(
-            	"DCCv2", dccAppUI("dccApp")
+            navbarMenu(
+                "DCCv2",
+                tabPanel(
+                    "Get OMA data",
+                    dccDownloadOmaAppUI("dccDownloadOma")
+                ),
+                tabPanel(
+                    "DCCv2", 
+                    dccAppUI("dccApp")
+                )
             ),
             
             # HAMSTR TAB =======================================================
-            tabPanel(
+            navbarMenu(
                 "HaMStR",
-                hamstrAppUI("hamstrApp")
+                tabPanel(
+                    "Adding taxon to HaMStR",
+                    hamstrPrepareAppUI("hamstrPrepareApp")
+                ),
+                tabPanel(
+                    "HaMStR oneSeq",
+                    hamstrAppUI("hamstrApp")
+                )
             ),
             
             # PHYLOPROFILE TAB =================================================

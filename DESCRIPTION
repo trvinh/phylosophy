@@ -1,6 +1,6 @@
 Package: phylosophy
-Version: 0.0.1
-Date: 2020-02-19
+Version: 0.0.3
+Date: 2020-06-25
 Title: phylosophy
 Authors@R: c(
     person("Vinh", "Tran", role = c("aut", "cre"), email = "tran@bio.uni-frankfurt.de"))
@@ -8,12 +8,13 @@ Description: phylosophy is a toolkit for post-sequencing analysis. It provides s
 URL: https://github.com/BIONF/phylosophy/
 BugReports: https://github.com/BIONF/phylosophy/issues
 License: GPL-3 + file LICENSE
-Depends: R (>= 3.6.0)
+Depends: R (>= 4.0.0)
 Encoding: UTF-8
 Imports:
-    Biostrings, data.table, DT, ggplot2, grid, reticulate, shiny, shinyBS, 
-    shinyFiles, shinyjs, shinyalert, shinythemes, stringr, PhyloProfile
-RoxygenNote: 7.0.2
+    BiocManager, Biostrings, data.table, DT, ggplot2, grid, jsonlite, reticulate,
+    shiny, shinyBS, shinyFiles, shinyjs, shinyalert, shinythemes, stringr, 
+    PhyloProfile
+RoxygenNote: 7.1.0
 Suggests: knitr, rmarkdown, testthat
 VignetteBuilder: knitr
 

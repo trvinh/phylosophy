@@ -82,7 +82,7 @@ def main():
     jobName = args.jobName
 
     start = time.time()
-    pool = mp.Pool(mp.cpu_count())
+    pool = mp.Pool(mp.cpu_count()-2)
     ##### read mapping file
     (name2id, name2abbr) = readFileToDict(mappingFile)
 
@@ -134,9 +134,9 @@ def main():
         if not Path(blastDbFile).exists():
             blastJobs.append([specName, specFile, outPath])
         # get info for FAS annotation
-        annoPfamFile = "%s/weight_dir/%s/pfam.xml" % (outPath, specName)
-        if not Path(annoPfamFile).exists():
-            annoJobs.append([specName, specFile, outPath])
+        annoFile = "%s/weight_dir/%s.json" % (outPath, specName)
+        if not Path(annoFile).exists():
+            annoJobs.append([specFile, outPath])
 
         # save OG members and their spec name to dict
         for gene in spec.findAll("gene"):
@@ -207,8 +207,8 @@ def main():
             anno = pool.map(dccFn.calcAnnoFas, annoJobs)
 
     pool.close()
-    ende = time.time()
-    print("Finished in " + '{:5.3f}s'.format(ende-start))
+    end = time.time()
+    print("Finished in " + '{:5.3f}s'.format(end-start))
     print("Output can be found in %s" % outPath)
 
 if __name__ == "__main__":
