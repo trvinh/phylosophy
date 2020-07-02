@@ -79,6 +79,7 @@ substrLeft <- function(x, n) {
 }
 
 createAbbrName <- function(fullName) {
+    fullName <- gsub("[^[:alnum:] ]", "", fullName)
     taxName <- str_split(fullName, " ")
     if (length(taxName[[1]]) > 1) {
         suggestName <- toupper(
