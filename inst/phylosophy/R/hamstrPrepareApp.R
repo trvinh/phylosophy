@@ -153,6 +153,11 @@ hamstrPrepareAppUI <- function(id) {
                         "Determine the number of CPUs used for doing annotation"
                     ),
                     "bottom"
+                ),
+                
+                checkboxInput(
+                    ns("force"), strong("Overwrite existing data"),
+                    value = FALSE
                 )
             )
         ),
@@ -500,7 +505,9 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
         if (input$noAnno == TRUE) noAnno <- paste("--noAnno")
         cpus <- ""
         if (input$annoCPU > 1) cores <- paste0("--cpus ", input$annoCPU)
-        optOptions <- c(coreTaxa, ver, noAnno, cpus)
+        force <- ""
+        if (input$force == TRUE) force <- paste("--force")
+        optOptions <- c(coreTaxa, ver, noAnno, cpus, force)
         return(
             optOptions[unlist(lapply(optOptions, function (x) x != ""))]
         )
