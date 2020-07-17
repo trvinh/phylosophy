@@ -32,6 +32,7 @@ import argparse
 import subprocess
 from pathlib import Path
 import errno
+from datetime import datetime
 
 def subprocess_cmd(commands):
     for cmd in commands:
@@ -123,6 +124,10 @@ def getGeneset(dataPath, speciesCode, speciesTaxId, outPath):
                 newLine = allProteinsLines[z].replace(" ", "")
                 newFile.write("\n" + newLine)
         newFile.close()
+        # write .checked file
+        checkedFile = openFileToWrite(newFile+".checked")
+        checkedFile.write(str(datetime.now()))
+        checkedFile.close()
 
 def getOGseq(args):
     (proteinIds, omaGroupId, outPath, allFasta, specName2id, jobName) = args
