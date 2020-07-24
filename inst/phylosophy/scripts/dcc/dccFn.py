@@ -90,6 +90,7 @@ def getGeneset(dataPath, speciesCode, speciesTaxId, outPath):
     Path(outPath+"/genome_dir").mkdir(parents = True, exist_ok = True)
 
     toDo = []
+    print('Loading OMA sequence dictionary...')
     with open(dataPath + "/oma-seqs-dic.fa") as f:
         sequence_dic = json.load(f)
 
@@ -106,6 +107,7 @@ def getGeneset(dataPath, speciesCode, speciesTaxId, outPath):
         allProteinsLines = allProteins.readlines()
         allProteins.close()
 
+    print('Getting sequences...')
     for j in range(0,len(toDo)):
         name = makeOneSeqSpeciesName(speciesCode[toDo[j]], speciesTaxId[toDo[j]])
         newFile = openFileToWrite(outPath + "/genome_dir/" + name + "/" + name + ".fa")
@@ -125,7 +127,7 @@ def getGeneset(dataPath, speciesCode, speciesTaxId, outPath):
                 newFile.write("\n" + newLine)
         newFile.close()
         # write .checked file
-        checkedFile = openFileToWrite(newFile+".checked")
+        checkedFile = openFileToWrite(outPath + "/genome_dir/" + name + "/" + name + ".fa"+".checked")
         checkedFile.write(str(datetime.now()))
         checkedFile.close()
 
