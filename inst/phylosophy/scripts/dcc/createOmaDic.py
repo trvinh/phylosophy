@@ -30,6 +30,7 @@ import subprocess
 from pathlib import Path
 import argparse
 import dccFn
+from tqdm import tqdm
 
 def downloadFiles(dataPath, force):
     mainUrl = "https://omabrowser.org/All/"
@@ -80,7 +81,7 @@ def createDicSpecies(proteins, file):
     startline = 0
     lineNr = 0
 
-    for i in proteins:
+    for i in tqdm(proteins):
         lineNr += 1
         if code != i[2:7] and i[0] == ">":
             endline = lineNr - 1
@@ -93,7 +94,7 @@ def createDicSpecies(proteins, file):
 
 def createDicOmaGroup(omaGroups, file):
     groupDic = {}
-    for i in omaGroups:
+    for i in tqdm(omaGroups):
         if i[0] != "#":
             line = i.split("\t")
             speciesSet = set()

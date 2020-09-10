@@ -31,11 +31,12 @@ from Bio import SeqIO
 import multiprocessing as mp
 from omadb import Client
 import dccFn
+from tqdm import tqdm
 
 def gettingOmaGroups(dataPath, speciesSet, nr):
     omaGroupFull = dccFn.openFileToRead(dataPath + "/oma-groups.txt")
     omaGroups = {}
-    for i in omaGroupFull:
+    for i in tqdm(omaGroupFull, desc = 'OMA groups'):
         row = i.split("\t")
         if len(row) != 1:
             ProteinIds = []
@@ -54,7 +55,7 @@ def gettingOmaPairs(speciesList):
     omaPairs = list(c.pairwise(speciesList[0], speciesList[1], progress = True))
     out = {}
     nr = 1
-    for pair in omaPairs:
+    for pair in tqdm(omaPairs, desc = 'OMA Pairs'):
         id = 'OP' + pair.rel_type.replace(':','') + "_" + str(nr)
         out[id] = [pair.entry_1.omaid, pair.entry_2.omaid]
         nr = nr + 1
@@ -117,7 +118,8 @@ def main():
     fasta = {}
     blastJobs = []
     annoJobs = []
-    for i in range(0,len(speciesList)):
+    print("Loading fasta files...")
+    for i in tqdm(range(0,len(speciesList))):
         fileName = dccFn.makeOneSeqSpeciesName(speciesList[i], speciesTaxId[i])
         specFile = outPath+"/genome_dir/"+fileName+"/"+fileName+".fa"
         fasta[speciesList[i]] = SeqIO.to_dict(SeqIO.parse(open(specFile),'fasta'))
@@ -133,7 +135,7 @@ def main():
     ### create blastDBs
     print("Creating BLAST databases for %s taxa..." % len(blastJobs))
     if dccFn.is_tool('makeblastdb'):
-        msa = pool.map(dccFn.runBlast, blastJobs)
+        blast = pool.map(dccFn.runBlast, blastJobs)
     else:
         print("makeblastdb not found!")
 
@@ -145,7 +147,7 @@ def main():
     print("Getting protein sequences for %s OGs..." % len(omaGroups))
     msaJobs = []
     hmmJobs = []
-    for omaGroupId in omaGroups:
+    for omaGroupId in tqdm(omaGroups):
         # Path(outPath + "/core_orthologs/" + omaGroupId).mkdir(parents = True, exist_ok = True)
         Path(outPath + "/core_orthologs/" + jobName + "/" + omaGroupId + "/hmm_dir").mkdir(parents = True, exist_ok = True)
         # getSeqJobs.append([omaGroups[omaGroupId], omaGroupId, outPath, fasta])  # slower than run sequentially
