@@ -21,7 +21,7 @@ vignette: >
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
-    # library(phylosophy),
+    library(phylosophy),
     collapse = TRUE,
     comment = "#>",
     dev = 'png',
@@ -53,10 +53,13 @@ multi-layered phylogenetic profiles*.
 
 # How to install phylosophy
 
-To install the dev version from [github](https://github.com/BIONF/phylosophy):
+Install *phylosophy* from [github](https://github.com/BIONF/phylosophy):
 
-Or use directly the online version at
-http://applbio.biologie.uni-frankfurt.de/phyloprofile/.
+```r
+if (!requireNamespace("devtools"))
+    install.packages("devtools")
+devtools::install_github("BIONF/phylosophy", INSTALL_opts = c('--no-lock'), build_vignettes = TRUE)
+```
 
 # Input
 
@@ -120,8 +123,6 @@ contact us at [tran@bio.uni-frankfurt.de](mailto:tran@bio.uni-frankfurt.de)
 
 ## Contributors {.unnumbered}
 - [Vinh Tran](https://github.com/trvinh)
-- [Bastian Greshake Tzovaras](https://github.com/gedankenstuecke)
-- [Carla Moelbert](https://github.com/CarlaMoelbert)
 
 # SessionInfo()
 

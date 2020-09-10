@@ -9,43 +9,24 @@ hamstrAppUI <- function(id) {
             # ** hamstr location ===================================
             conditionalPanel(
                 condition = "output.checkHamstrStatus == 0", ns = ns,
-                selectInput(
-                    ns("whereHamstr"), "HaMStR not found! Please:",
-                    choice = c("Install HaMStR", "Provide HaMStR path"),
-                    selected = "Provide HaMStR path"
+                h2(em("HaMStR not found! Please install it first!")),
+                bsButton(
+                    "installHamstr", "Install HaMStR", 
+                    onclick = "window.open('https://bionf.github.io/HaMStR/#how-to-install', '_blank')"
                 ),
-                conditionalPanel(
-                    condition = "input.whereHamstr == 'Provide HaMStR path'",
-                    ns = ns,
-                    shinyFilesButton(
-                        ns("hamstrFile"),
-                        "HaMStR location?" ,
-                        title = "Please provide oneSeq.pl file:",
-                        multiple = FALSE,
-                        buttonType = "default"
-                    )
-                ),
-                conditionalPanel(
-                    condition = "input.whereHamstr == 'Install HaMStR'",
-                    ns = ns,
-                    bsButton(
-                        "installHamstr", "Install HaMStR", 
-                        onclick = "window.open('https://bionf.github.io/HaMStR/#how-to-install', '_blank')"
-                    )
-                )
+                hr()
             ),
-            hr(),
             
             # ** fasta input =======================================
             h3("Input and configurations"),
             hr(),
             shinyFilesButton(
                 ns("hamstrInput"), "Input fasta file!" ,
-                title = "Please provide fasta input file:", 
+                title = "Please provide fasta input file:",
                 multiple = FALSE,
                 buttonType = "default", class = NULL
             ),
-            br(),
+            uiOutput(ns("input.ui")),
             br(),
             
             # ** required options ==================================
@@ -142,7 +123,6 @@ hamstrAppUI <- function(id) {
                 "top"
             ),
             
-            # textInput(ns("seqName"), "Job name", value = ""),
             uiOutput(ns("seqName.ui")),
             bsPopover(
                 ns("seqName"),
@@ -154,36 +134,32 @@ hamstrAppUI <- function(id) {
                 "bottom"
             ),
             bsButton(ns("newSeqName.btn"), "New job name"),
-            
             hr(),
             
-            # ** FAS on/off ========================================
+            # ** FAS option ========================================
             checkboxInput(
                 ns("useFAS"),
                 strong("Use FAS"),
                 value = TRUE,
                 width = NULL
             ),
-            conditionalPanel(
-                condition = "input.useFAS && output.checkFasStatus == 0", 
-                ns = ns,
-                shinyFilesButton(
-                    ns("greedyFasFile"), 
-                    "FAS location?" ,
-                    title = "Please provide greedyFAS.py file:", 
-                    multiple = FALSE,
-                    class = NULL
-                    
-                )
-            ),
             bsPopover(
                 ns("useFAS"),
                 "",
                 paste(
-                    "FAS is blablabla",
-                    "that do blebleble"
+                    "Turn on/off feature architecture similarity calculation"
                 ),
                 "right"
+            ),
+            
+            conditionalPanel(
+                condition = "input.useFAS", ns = ns,
+                checkboxInput(
+                    ns("bidirectionalFAS"),
+                    strong("Calculate FAS in both directions"),
+                    value = TRUE,
+                    width = NULL
+                )
             ),
             hr(),
             
@@ -198,6 +174,9 @@ hamstrAppUI <- function(id) {
             conditionalPanel(
                 condition = "input.optOption", ns = ns,
                 strong("Additional options"),
+                br(),
+                
+                bsButton("cusPath", "Set data & output paths"),
                 
                 uiOutput(ns("coreTaxa.ui")),
                 bsPopover(
@@ -349,13 +328,13 @@ hamstrAppUI <- function(id) {
                 ),
                 
                 checkboxInput(
-                    ns("reuse_core"),
+                    ns("reuseCore"),
                     strong("Reuse existing core-set"),
                     value = FALSE,
                     width = NULL
                 ),
                 bsPopover(
-                    ns("reuse_core"),
+                    ns("reuseCore"),
                     "",
                     paste(
                         "Set this flag if the core set for your",
@@ -604,7 +583,7 @@ hamstrAppUI <- function(id) {
                 numericInput(
                     ns("cpu"),
                     strong("Number of CPUs"),
-                    value = 1,
+                    value = 4,
                     min = 1,
                     max = 99,
                     step = 1
@@ -634,6 +613,25 @@ hamstrAppUI <- function(id) {
                         "Choose between mafft-linsi or muscle for",
                         "the multiple sequence alignment.",
                         "DEFAULT: muscle"
+                    ),
+                    "top"
+                ),
+                
+                selectInput(
+                    ns("alignStrategy"), "Alignment strategy",
+                    choices = c(
+                        "local",
+                        "glocal",
+                        "global"
+                    ),
+                    selected = "local"
+                ),
+                bsPopover(
+                    ns("alignStrategy"),
+                    "",
+                    paste(
+                        "Choose alignment strategy for core ortholog",
+                        "compilation. DEFAULT: local"
                     ),
                     "top"
                 ),
@@ -700,34 +698,145 @@ hamstrAppUI <- function(id) {
                     ),
                     "bottom"
                 )
+            ),
+
+            # ** bsModal for setting customized paths ==========================
+            bsModal(
+                "setPath",
+                "Customize data & output paths",
+                "cusPath",
+                
+                shinyDirButton(
+                    ns("outHamstrDir"), "Output directory" ,
+                    title = "Please select a folder",
+                    buttonType = "default", class = NULL
+                ),
+                bsPopover(
+                    ns("outHamstrDir"),
+                    "",
+                    paste(
+                        "Provide output directory"
+                    ),
+                    "top"
+                ),
+                uiOutput(ns("outHamstrDir.ui")),
+                br(),
+                
+                shinyDirButton(
+                    ns("blastDir"), "BlastDB directory" ,
+                    title = "Please select a folder",
+                    buttonType = "default", class = NULL
+                ),
+                bsPopover(
+                    ns("blastDir"),
+                    "",
+                    paste(
+                        "Provide path to Blast DBs directory.",
+                        "Reference species and species in the core set must",
+                        "be present in this directory!"
+                    ),
+                    "top"
+                ),
+                uiOutput(ns("blastDir.ui")),
+                br(),
+                
+                shinyDirButton(
+                    ns("genomeDir"), "Genome directory" ,
+                    title = "Please select a folder",
+                    buttonType = "default", class = NULL
+                ),
+                bsPopover(
+                    ns("genomeDir"),
+                    "",
+                    paste(
+                        "Provide path to genomes directory,",
+                        "where search/query species can be found."
+                    ),
+                    "top"
+                ),
+                uiOutput(ns("genomeDir.ui")),
+                br(),
+                
+                shinyDirButton(
+                    ns("weightDir"), "Genome annotation directory" ,
+                    title = "Please select a folder",
+                    buttonType = "default", class = NULL
+                ),
+                bsPopover(
+                    ns("weightDir"),
+                    "",
+                    paste(
+                        "Provide path to weight_dir directory,",
+                        "where feature annotations can be found."
+                    ),
+                    "top"
+                ),
+                uiOutput(ns("weightDir.ui")),
+                br(),
+                
+                shinyDirButton(
+                    ns("coreDir"), "Core ortholog directory" ,
+                    title = "Please select a folder",
+                    buttonType = "default", class = NULL
+                ),
+                bsPopover(
+                    ns("coreDir"),
+                    "",
+                    paste(
+                        "Provide path to core_orthologs directory,",
+                        "where the core set will be saved or can be found."
+                    ),
+                    "top"
+                ),
+                uiOutput(ns("coreDir.ui"))
             )
         ),
         # * main panel for hamstr run ----------------------------
         mainPanel(
             width = 9,
-            column(
-                6,
-                uiOutput(ns("hamstrBtn.ui")),
+            conditionalPanel(
+                condition = "output.checkRun", ns = ns,
+                bsButton(
+                    ns("doHamstr"), "Run HaMStR",
+                    style = "success", disabled = FALSE
+                ),
+                actionButton(ns("stopHamstr"),label = "Stop"),
+                actionButton(ns("newHamstr"),label = "New HaMStR job"),
+                uiOutput(ns("hamstrLocation")),
+                conditionalPanel(
+                    condition = "input.useFAS", ns = ns,
+                    uiOutput(ns("fasLocation.ui"))
+                ),
                 hr(),
-                strong("SELECTED OPTIONS"),
-                br(), br(),
-                strong("Required"),
-                br(), br(),
-                uiOutput(ns("reqOptions.ui")),
-                br(), br(),
-                strong("Optional"),
-                br(), br(),
-                uiOutput(ns("optOptions.ui")),
-                hr(),
-                strong("Log file"),
-                verbatimTextOutput(ns("logLocation")),
-                strong("Output files"),
-                verbatimTextOutput(ns("outputLocation"))
-            ),
-            column(
-                6,
+                checkboxInput(
+                    ns("showOpts"),
+                    strong("Show selected options"),
+                    value = FALSE,
+                    width = NULL
+                ),
+                conditionalPanel(
+                    condition = "input.showOpts", ns = ns,
+                    strong("SELECTED OPTIONS"),
+                    br(), br(),
+                    strong("Required"),
+                    br(), br(),
+                    uiOutput(ns("reqOptions.ui")),
+                    br(), br(),
+                    strong("Optional"),
+                    br(), br(),
+                    uiOutput(ns("optOptions.ui")),
+                    hr()
+                ),
                 strong("Command"),
                 verbatimTextOutput(ns("hamstrCmdText")),
+                strong("Log file"),
+                textOutput(ns("logLocation")),
+                br(),
+                strong("Output files"),
+                checkboxInput(
+                    ns("outputDetail"), "Show detailed output files", value = FALSE
+                ),
+                uiOutput(ns("output.ui")),
                 hr(),
                 strong("Progress"),
                 verbatimTextOutput(ns("hamstrLog"))
@@ -736,10 +845,10 @@ hamstrAppUI <- function(id) {
     )
 }
 
-hamstrApp <- function(input, output, session) {
+hamstrApp <- function(input, output, session, nameFullDf) {
     homePath = c(wd='~/') # for shinyFileChoose
     ns <- session$ns
-    
+
     # get hamstr location ======================================================
     output$checkHamstrStatus <- reactive({
         hamstrLocation <- suppressWarnings(
@@ -758,26 +867,19 @@ hamstrApp <- function(input, output, session) {
         if (!is.na (hamstrLocation[1])){
             return(hamstrLocation[1])
         } else {
-            shinyFileChoose(
-                input, "hamstrFile", roots = homePath, session = session
-            )
-            req(input$hamstrFile)
-            fileSelected <- parseFilePaths(homePath, input$hamstrFile)
-            return(replaceHomeCharacter(as.character(fileSelected$datapath)))
+            return(NULL)
         }
     })
     
-    output$hamstrLocation <- renderText({
+    output$hamstrLocation <- renderUI({
         hamstrPath <- getHamstrPath()
-        paste(
-            "HaMStR found at", hamstrPath
-        )
+        if (!is.null(hamstrPath)) paste("HaMStR found at", hamstrPath)
     })
     
     # get fas location =========================================================
     output$checkFasStatus <- reactive({
         fasLocation <- suppressWarnings(
-            system("which greedyFAS", intern = TRUE)
+            system("which calcFAS", intern = TRUE)
         )
         if (!is.na (fasLocation[1])){
             return(1)
@@ -787,25 +889,18 @@ hamstrApp <- function(input, output, session) {
     
     getFasPath <- reactive({
         fasLocation <- suppressWarnings(
-            system("which greedyFAS", intern = TRUE)
+            system("which calcFAS", intern = TRUE)
         )
         if (!is.na (fasLocation[1])){
             return(fasLocation[1])
         } else {
-            shinyFileChoose(
-                input, "greedyFasFile", roots = homePath, session = session
-            )
-            req(input$greedyFasFile)
-            fileSelected <- parseFilePaths(homePath, input$greedyFasFile)
-            return(replaceHomeCharacter(as.character(fileSelected$datapath)))
+            return(NULL)
         }
     })
     
-    output$fasLocation <- renderText({
+    output$fasLocation.ui <- renderUI({
         fasPath <- getFasPath()
-        paste(
-            "FAS found at", fasPath
-        )
+        if (!is.null(fasPath)) paste("calcFAS found at", fasPath)
     })
     
     # get input fasta ==========================================================
@@ -817,6 +912,17 @@ hamstrApp <- function(input, output, session) {
         req(input$hamstrInput)
         fileSelected <- parseFilePaths(homePath, input$hamstrInput)
         return(replaceHomeCharacter(as.character(fileSelected$datapath)))
+    })
+    output$input.ui <- renderUI({
+        req(getInputPath())
+        if (length(getInputPath()) > 0) {
+            outString <- getInputPath()
+            if (nchar(outString) > 30)
+                outString <- paste0(
+                    substrLeft(outString, 15), "...", substrRight(outString, 15)
+                )
+            em(outString)
+        }
     })
     
     # get list of sequence IDs =================================================
@@ -847,52 +953,128 @@ hamstrApp <- function(input, output, session) {
         }
     }
     
-    getRefspecList <- function(hamstrPath = NULL, subFolderName = NULL){
-        outDir <- getSubFolderDir(getHamstrPath(), subFolderName)
+    getRefspecList <- reactive ({
+        # get spec ID from blast_dir
+        outDir <- getSubFolderDir(getHamstrPath(), "blast_dir")
         outDirPath <- list.dirs(
             path = outDir, full.names = TRUE, recursive = FALSE
         )
-        outDirList <- stringr::str_replace(
+        outDirTaxIds <- stringr::str_replace(
             outDirPath, paste0(outDir,"/"), ""
         )
-        return(outDirList)
-    }
+        ids <- str_replace_all(str_match(outDirTaxIds, "@.+@"), "@", "")
+        blastDf <- data.frame(
+            "abbrName" = outDirTaxIds, "ncbiID" = ids
+        )
+        # get taxon fullnames
+        refSpecDf <- merge(blastDf, nameFullDf, by = "ncbiID", all.x = TRUE)
+        refSpecDf$fullName[is.na(refSpecDf$fullName)] <- 
+            refSpecDf$abbrName[is.na(refSpecDf$fullName)]
+        return(refSpecDf)
+    })
     
     output$refSpec.ui <- renderUI({
         refspecList <- c("undefined")
-        refspecList <- getRefspecList(getHamstrPath(), "blast_dir")
+        refspecList <- getRefspecList()
         selectInput(
             ns("refSpec"), "Reference species",
-            choices = c("undefined", refspecList),
+            choices = c("undefined", refspecList$fullName),
             selected = "undefined"
         )
     })
     
     output$coreTaxa.ui <- renderUI({
         coreTaxaList <- "all"
-        coreTaxaList <- getRefspecList(getHamstrPath(), "blast_dir")
+        coreTaxaList <- getRefspecList()
         selectInput(
             ns("coreTaxa"), strong("Core taxa"),
-            choices = c("all", coreTaxaList),
+            choices = c("all", coreTaxaList$fullName),
             selected = "all",
             multiple = TRUE
         )
     })
     
-    # get data dir ???????????????=======================================
+    # get customized paths =====================================================
+    getOutputPath <- reactive({
+        shinyDirChoose(
+            input, "outHamstrDir", roots = homePath, session = session
+        )
+        outputPath <- parseDirPath(homePath, input$outHamstrDir)
+        return(replaceHomeCharacter(as.character(outputPath)))
+    })
+    output$outHamstrDir.ui <- renderText({
+        if (length(getOutputPath()) > 0) {
+            paste0(getOutputPath(), "/", input$seqName)
+        } else {
+            outpath <- paste0(getwd(), "/", input$seqName)
+        }
+    })
     
+    getBlastPath <- reactive({
+        shinyDirChoose(
+            input, "blastDir", roots = homePath, session = session
+        )
+        blastPath <- parseDirPath(homePath, input$blastDir)
+        return(replaceHomeCharacter(as.character(blastPath)))
+    })
+    output$blastDir.ui <- renderText({
+        if (length(getBlastPath()) > 0) getBlastPath()
+        else paste0(getSubFolderDir(getHamstrPath(), "blast_dir"))
+    })
+    
+    getGenomePath <- reactive({
+        shinyDirChoose(
+            input, "genomeDir", roots = homePath, session = session
+        )
+        genomePath <- parseDirPath(homePath, input$genomeDir)
+        return(replaceHomeCharacter(as.character(genomePath)))
+    })
+    output$genomeDir.ui <- renderText({
+        if (length(getGenomePath()) > 0) getGenomePath()
+        else paste0(getSubFolderDir(getHamstrPath(), "genome_dir"))
+    })
+    
+    getWeightPath <- reactive({
+        shinyDirChoose(
+            input, "weightDir", roots = homePath, session = session
+        )
+        weightPath <- parseDirPath(homePath, input$weightDir)
+        return(replaceHomeCharacter(as.character(weightPath)))
+    })
+    output$weightDir.ui <- renderText({
+        if (length(getWeightPath()) > 0) getWeightPath()
+        else paste0(getSubFolderDir(getHamstrPath(), "weight_dir"))
+    })
+    
+    getCorePath <- reactive({
+        shinyDirChoose(
+            input, "coreDir", roots = homePath, session = session
+        )
+        corePath <- parseDirPath(homePath, input$coreDir)
+        return(replaceHomeCharacter(as.character(corePath)))
+    })
+    output$coreDir.ui <- renderText({
+        if (length(getCorePath()) > 0) getCorePath()
+        else paste0(getSubFolderDir(getHamstrPath(), "core_orthologs"))
+    })
     
     # required options =========================================================
     reqOptions <- reactive({
         req(getInputPath())
         # copy input file to hamstr/data folder
         dataDir <- getSubFolderDir(getHamstrPath(), "data")
-        system2("cp", paste(getInputPath(), dataDir, sep = " "), wait = TRUE)
+        system2(
+            "rsync", paste("-aq", getInputPath(), dataDir, sep = " "), 
+            wait = TRUE
+        )
         
         # seqFile <- paste0("-seqFile=", "infile.fa")
         seqFile <- paste0("-seqFile=", getFileName(getInputPath()))
         seqId <- paste0("-seqId=", input$seqID)
-        refSpec <- paste0("-refSpec=", input$refSpec)
+        refSpecDf <- getRefspecList()
+        refSpec <- paste0(
+            "-refSpec=", refSpecDf$abbrName[refSpecDf$fullName == input$refSpec]
+        )
         minDist <- paste0("-minDist=", input$minDist)
         maxDist <- paste0("-maxDist=", input$maxDist)
         coreOrth <- paste0("-coreOrth=", input$coreOrth)
@@ -907,9 +1089,39 @@ hamstrApp <- function(input, output, session) {
     
     # optional options =========================================================
     optOptions <- reactive({
+        outpath <- ""
+        if (length(getOutputPath()) > 0) {
+            outpath <- paste0("-outpath=", getOutputPath())
+        }
+        
+        blastpath <- ""
+        if (length(getBlastPath()) > 0) {
+            blastpath <- paste0("-blastpath=", getBlastPath())
+        }
+        
+        searchpath <- ""
+        if (length(getGenomePath()) > 0) {
+            searchpath <- paste0("-searchpath=", getGenomePath())
+        }
+        
+        hmmpath <- ""
+        if (length(getCorePath()) > 0) {
+            hmmpath <- paste0("-hmmpath=", getCorePath())
+        }
+        
+        weightpath <- ""
+        if (length(getWeightPath()) > 0) {
+            weightpath <- paste0("-weightpath=", getWeightPath())
+        }
+        
         fasoff <- ""
         if (input$useFAS == FALSE) {
             fasoff <- paste0("-fasoff")
+        }
+        
+        counterCheck <- ""
+        if (input$bidirectionalFAS == TRUE) {
+            counterCheck <- paste0("-countercheck")
         }
         
         seqName <- ""
@@ -917,11 +1129,16 @@ hamstrApp <- function(input, output, session) {
             seqName <- paste0("-seqName=", input$seqName)
         }
         
+        refSpecDf <- getRefspecList()
         coreTaxa <- ""
         if(input$optOption == TRUE && !is.null(input$coreTaxa)) {
             if (!("all" %in% input$coreTaxa)) {
                 coreTaxa <- paste0(
-                    "-coreTaxa=", paste(input$coreTaxa, collapse = ",")
+                    "-coreTaxa=", 
+                    paste(
+                        refSpecDf$abbrName[refSpecDf$fullName %in% input$coreTaxa],
+                        collapse = ","
+                    )
                 )
             }
         } 
@@ -960,9 +1177,9 @@ hamstrApp <- function(input, output, session) {
         if (input$coreOnly == TRUE) {
             coreOnly <- paste0("-coreOnly")
         }
-        reuse_core <- ""
-        if (input$reuse_core == TRUE) {
-            reuse_core <- paste0("-reuse_core")
+        reuseCore <- ""
+        if (input$reuseCore == TRUE) {
+            reuseCore <- paste0("-reuseCore")
         }
         blast <- ""
         if (input$blast == TRUE) {
@@ -1027,6 +1244,10 @@ hamstrApp <- function(input, output, session) {
         if (input$aligner != "muscle") {
             aligner <- paste0("-aligner=", input$aligner)
         }
+        alignStrategy <- ""
+        if (input$alignStrategy != "local") {
+            alignStrategy <- paste0("-", input$alignStrategy)
+        }
         
         force <- ""
         if (input$force == TRUE) {
@@ -1046,12 +1267,13 @@ hamstrApp <- function(input, output, session) {
         }
         
         optOptionList <- c(
-            fasoff, seqName, coreTaxa, strict, coreStrict, checkCoorthologsRef,
-            corecheckCoorthologsRef, rbh, rep, coreRep, coreOnly, reuse_core,
-            blast, group, evalBlast, evalHmmer, evalRelaxfac, hitLimit,
-            coreHitLimit, autoLimit, scoreThreshold, scoreCutoff, 
-            ignoreDistance, distDeviation, cpu, aligner, force, append, silent,
-            cleanup
+            outpath, blastpath, searchpath, hmmpath, weightpath, fasoff,
+            seqName, coreTaxa, strict, coreStrict, 
+            checkCoorthologsRef, corecheckCoorthologsRef, rbh, rep, coreRep, 
+            coreOnly, reuseCore, blast, group, evalBlast, evalHmmer, 
+            evalRelaxfac, hitLimit, coreHitLimit, autoLimit, scoreThreshold, 
+            scoreCutoff,ignoreDistance, distDeviation, cpu, aligner, 
+            alignStrategy, force, append, silent, cleanup, counterCheck
         )
         return(
             optOptionList[unlist(lapply(optOptionList, function (x) x != ""))]
@@ -1074,28 +1296,16 @@ hamstrApp <- function(input, output, session) {
     })
     
     # RUN HAMSTR ===============================================================
-    output$hamstrBtn.ui <- renderUI({
+    output$checkRun <- reactive({
         if (
             !is.null(input$refSpec) && !is.null(input$seqID) && input$seqID !=""
         ) {
             if (input$refSpec != "undefined") {
-                tagList(
-                    bsButton(
-                        ns("doHamstr"), "Run HaMStR",
-                        style = "warning", disabled = FALSE
-                    ),
-                    actionButton(ns("stopHamstr"),label = "Stop"),
-                    actionButton(ns("newHamstr"),label = "New job"),
-                    textOutput(ns("hamstrLocation")),
-                    
-                    conditionalPanel(
-                        condition = 'input.useFAS', ns = ns,
-                        textOutput(ns("fasLocation"))
-                    )
-                )
+                return(TRUE)
             }
-        }
+        } else return(FALSE)
     })
+    outputOptions(output, "checkRun", suspendWhenHidden = FALSE)
     
     observeEvent(input$newHamstr, {
         updateButton(session, ns("doHamstr"), disabled = FALSE)
@@ -1113,7 +1323,7 @@ hamstrApp <- function(input, output, session) {
     })
     
     output$hamstrCmdText <- renderText({
-        paste("perl", hamstrCmd())
+        paste(hamstrCmd())
     })
     
     rv <- reactiveValues(
@@ -1135,19 +1345,22 @@ hamstrApp <- function(input, output, session) {
     
     observeEvent(input$stopHamstr, {
         rv$started <- FALSE
-        system2("rm", "*.log")
+        system(paste("rm -rf", str_replace_all(returnOutput()[1], paste0("/", input$seqName, ".extended.fa"), "")))
+        # system2("rm", "*.log")
         updateButton(session, ns("stopHamstr"), disabled = TRUE)
     })
     
     observe({
         rv$timer()
         if (isolate(rv$started)) {
-            rv$textstream <- suppressWarnings(
-                paste(
-                    readLines(paste0(input$seqName, ".log"),  n = -1) %>% 
-                        tail(50) %>% paste(collapse = "\n")
+            if (file.exists(paste0(input$seqName, ".log"))) {
+                rv$textstream <- suppressWarnings(
+                    paste(
+                        readLines(paste0(input$seqName, ".log"),  n = -1) %>% 
+                            tail(25) %>% paste(collapse = "\n")
+                    )
                 )
-            )
+            }
         }
     })
     output$hamstrLog <- renderText({
@@ -1159,23 +1372,38 @@ hamstrApp <- function(input, output, session) {
         paste0(getwd(), "/", input$seqName, ".log")
     })
     
-    output$outputLocation <- renderText({
+    returnOutput <- reactive({
         req(getHamstrPath())
         req(getInputPath())
-        # get default output folder of hamstr
-        dataDir <- getSubFolderDir(getHamstrPath(), "data")
-        # return output files
-        faOut <- paste0(dataDir, "/", input$seqName, ".extended.fa")
-        if (input$useFAS == TRUE) {
-            inFaOut <- paste0(dataDir, "/", getFileName(getInputPath()))
-            ppOut <- paste0(dataDir, "/", input$seqName, ".phyloprofile")
-            domainFwOut <- paste0(dataDir, "/", input$seqName, "_1.domains")
-            domainRvOut <- paste0(
-                "[", dataDir, "/", input$seqName, "_1.domains", "]"
-            )
-            paste(inFaOut, faOut, ppOut, domainFwOut, domainRvOut, sep = "\n")
+        # get output path
+        if (length(getOutputPath()) > 0) {
+            outpath <- paste0(getOutputPath(), "/", input$seqName)
         } else {
-            faOut
+            outpath <- paste0(getwd(), "/", input$seqName)
+        }
+        # return output files
+        faOut <- paste0(outpath, "/", input$seqName, ".extended.fa")
+        ppOut <- paste0(outpath, "/", input$seqName, ".phyloprofile")
+        if (input$useFAS == TRUE) {
+            domainFwOut <- paste0(outpath, "/", input$seqName, "_forward.domains")
+            domainRevOut <- paste0(outpath, "/", input$seqName, "_reverse.domains")
+            if (input$bidirectionalFAS  == TRUE) {
+                return(c(faOut, ppOut, domainFwOut, domainRevOut))
+            } else return(c(faOut, ppOut, domainFwOut))
+            
+        } else {
+            return(c(faOut, ppOut, NULL))
         }
     })
+    
+    output$output.ui <- renderUI({
+        if (input$outputDetail == TRUE) {
+            HTML(paste(returnOutput(), sep = "<br/>"))
+        } else {
+            HTML(str_replace_all(returnOutput()[1], "extended.fa", "*"))
+        }
+    })
+    
+    # return
+    return(returnOutput)
 }
