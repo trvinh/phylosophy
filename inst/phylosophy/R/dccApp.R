@@ -6,6 +6,16 @@ dccAppUI <- function(id) {
         # * sidebar panel for DCC input/options -----------------
         sidebarPanel(
             width = 3,
+            conditionalPanel(
+                condition = "output.checkDccStatus == 0", ns = ns,
+                h2(em("dcc2 not found! Please install it first!")),
+                bsButton(
+                    "installDcc", "Install DCC",
+                    onclick = "window.open('https://bionf.github.io/dcc2/#how-to-install', '_blank')"
+                ),
+                hr()
+            ),
+            
             h3("Input and configurations"),
             hr(),
 
@@ -80,21 +90,21 @@ dccAppUI <- function(id) {
             conditionalPanel(
                 condition = "input.inputTyp != 'omaFile'", ns = ns,
                 # oma data path
-                shinyDirButton(
-                    ns("omaDataDir"), "OMA data directory" ,
-                    title = "Please select OMA data directory",
-                    buttonType = "default", class = NULL
-                ),
-                bsPopover(
-                    ns("omaDataDir"),
-                    "",
-                    paste(
-                        "Please provide path to folder containing",
-                        "downloaded OMA browser data!"
-                    ),
-                    "bottom"
-                ),
-                br(),
+                # shinyDirButton(
+                #     ns("omaDataDir"), "OMA data directory" ,
+                #     title = "Please select OMA data directory",
+                #     buttonType = "default", class = NULL
+                # ),
+                # bsPopover(
+                #     ns("omaDataDir"),
+                #     "",
+                #     paste(
+                #         "Please provide path to folder containing",
+                #         "downloaded OMA browser data!"
+                #     ),
+                #     "bottom"
+                # ),
+                # br(),
                 # oma version
                 uiOutput(ns("version")),
                 # list of avail oma spec
@@ -202,18 +212,29 @@ dccApp <- function (input, output, session) {
     homePath = c(wd='~/') # for shinyFileChoose
     ns <- session$ns
     
-    # DCC start msg ============================================================
-    output$dccStartMsg <- renderText({
-        HTML(
-            paste(
-                "<h3><em><strong>Please specify <span style=\"color:",
-                "#ff0000;\">downloaded OMA Browser data directory</span> or",
-                "upload output of <span style=\"color: #ff0000;\">OMA",
-                "Standalone in orthoXML</span> format.<span style=\"color:",
-                "#ff0000;\"></span></strong></em></h3>"
-            )
+    # check if dcc2 installed ==================================================
+    output$checkDccStatus <- reactive({
+        dccLocation <- suppressWarnings(
+            system("which prepareDcc", intern = TRUE)
         )
+        if (!is.na (dccLocation[1])){
+            return(1)
+        } else return(0)
     })
+    outputOptions(output, "checkDccStatus", suspendWhenHidden = FALSE)
+    
+    # DCC start msg ============================================================
+    # output$dccStartMsg <- renderText({
+    #     HTML(
+    #         paste(
+    #             "<h3><em><strong>Please specify <span style=\"color:",
+    #             "#ff0000;\">downloaded OMA Browser data directory</span> or",
+    #             "upload output of <span style=\"color: #ff0000;\">OMA",
+    #             "Standalone in orthoXML</span> format.<span style=\"color:",
+    #             "#ff0000;\"></span></strong></em></h3>"
+    #         )
+    #     )
+    # })
 
     python <- reactive({
         if (try(system("python -V") < "Python 3")) {
@@ -225,11 +246,19 @@ dccApp <- function (input, output, session) {
     
     # get local OMA data path ==================================================
     getOmaPath <- reactive({
-        shinyDirChoose(
-            input, "omaDataDir", roots = homePath, session = session
+        # shinyDirChoose(
+        #     input, "omaDataDir", roots = homePath, session = session
+        # )
+        # omaPath <- parseDirPath(homePath, input$omaDataDir)
+        # return(replaceHomeCharacter(as.character(omaPath)))
+        omaDataPath <- suppressWarnings(
+            system("prepareDcc -o ~/ -g", intern = TRUE)
         )
-        omaPath <- parseDirPath(homePath, input$omaDataDir)
-        return(replaceHomeCharacter(as.character(omaPath)))
+        if (length(omaDataPath) > 1){
+            return(omaDataPath[2])
+        } else {
+            return("ERROR NO PATHCONFIG FOUND!")
+        }
     })
     
     # render oma version =======================================================
