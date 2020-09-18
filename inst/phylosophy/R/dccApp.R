@@ -24,7 +24,7 @@ dccAppUI <- function(id) {
                 choices = list(
                     "NCBI Taxonomy ID" = "ncbiID",
                     "Scientific name" = "speciesName",
-                    "Input taxa list" = "inputFile",
+                    "Input taxon ID list" = "inputFile",
                     "OMA Group ID" = "OmaId",
                     "OMA standalone file" = "omaFile"
                 ),
@@ -89,22 +89,6 @@ dccAppUI <- function(id) {
             
             conditionalPanel(
                 condition = "input.inputTyp != 'omaFile'", ns = ns,
-                # oma data path
-                # shinyDirButton(
-                #     ns("omaDataDir"), "OMA data directory" ,
-                #     title = "Please select OMA data directory",
-                #     buttonType = "default", class = NULL
-                # ),
-                # bsPopover(
-                #     ns("omaDataDir"),
-                #     "",
-                #     paste(
-                #         "Please provide path to folder containing",
-                #         "downloaded OMA browser data!"
-                #     ),
-                #     "bottom"
-                # ),
-                # br(),
                 # oma version
                 uiOutput(ns("version")),
                 # list of avail oma spec
@@ -120,6 +104,13 @@ dccAppUI <- function(id) {
                 ns("MSA"),
                 strong("MSA tool"), choices = c("MAFFT", "MUSCLE"), 
                 selected = "MAFFT"
+            ),
+            
+            # Number of CPUs
+            numericInput(
+                ns("cpus"), 
+                strong("Number of CPU cores for multiprocessing"),
+                min = 1, max = 999, step = 1, value = 4
             ),
             
             # option for running FAS annotation
@@ -223,19 +214,6 @@ dccApp <- function (input, output, session) {
     })
     outputOptions(output, "checkDccStatus", suspendWhenHidden = FALSE)
     
-    # DCC start msg ============================================================
-    # output$dccStartMsg <- renderText({
-    #     HTML(
-    #         paste(
-    #             "<h3><em><strong>Please specify <span style=\"color:",
-    #             "#ff0000;\">downloaded OMA Browser data directory</span> or",
-    #             "upload output of <span style=\"color: #ff0000;\">OMA",
-    #             "Standalone in orthoXML</span> format.<span style=\"color:",
-    #             "#ff0000;\"></span></strong></em></h3>"
-    #         )
-    #     )
-    # })
-
     python <- reactive({
         if (try(system("python -V") < "Python 3")) {
             return("python3")
@@ -246,11 +224,6 @@ dccApp <- function (input, output, session) {
     
     # get local OMA data path ==================================================
     getOmaPath <- reactive({
-        # shinyDirChoose(
-        #     input, "omaDataDir", roots = homePath, session = session
-        # )
-        # omaPath <- parseDirPath(homePath, input$omaDataDir)
-        # return(replaceHomeCharacter(as.character(omaPath)))
         omaDataPath <- suppressWarnings(
             system("prepareDcc -o ~/ -g", intern = TRUE)
         )
@@ -266,22 +239,12 @@ dccApp <- function (input, output, session) {
         req(getOmaPath())
         currVersion <- OmaDB::getVersion()$oma_version
         if (!file.exists(paste0(getOmaPath(),"/oma-groups.txt"))) {
+            prepareDcc <- a(
+                "prepareDcc function",
+                href="https://github.com/BIONF/dcc2#setup-dcc2"
+            )
             tagList(
-                HTML(paste0(
-                    "<p>No OMA data found! Did you run <em><span style=\"color:",
-                    "#ff0000;\">createOmaDic.py</span></em> script? If not,",
-                    "please do it and reselect the correct path to the downloaded",
-                    "OMA data.</p>"
-                )),
-                bsButton(ns("downloadOmaBtn"), "Run createOmaDic.py"),
-                
-                bsModal(
-                    "downloadOmaWindows",
-                    "Download and parse OMA data",
-                    ns("downloadOmaBtn"),
-                    em("Path to output"),
-                    bsButton(ns("downloadOma"), "Download OMA Data")
-                )
+                "No OMA data found! Please run ", prepareDcc, " first!"
             )
         } else {
             localVersion <- str_replace_all(
@@ -293,6 +256,7 @@ dccApp <- function (input, output, session) {
             )
             if (localVersion == currVersion) {
                 HTML(paste0(
+                    "<p>OMA data found at ", getOmaPath(), "</p>",
                     "<p><em>Version <span style=\"color: #ff0000;\">",
                     currVersion, "</span></em></p>"
                 ))
@@ -386,7 +350,7 @@ dccApp <- function (input, output, session) {
         HTML(paste(omaParserOptions(), collapse = "<br/>"))
     })
 
-    # process dowloaded OMA database ==========================================
+    # process dowloaded OMA database ===========================================
     # * load the oma-species file from OmaDb ===================================
     readOmaSpec <- reactive({
         req(getOmaPath())
@@ -433,8 +397,10 @@ dccApp <- function (input, output, session) {
             x = readOmaGroup()
             numericInput(
                 inputId = ns("omaGroupId"),
-                value = NULL,
-                label = strong("Select a Oma Group Id between 1 and 866647"),
+                value = 1,
+                label = strong(
+                    paste("Select a Oma Group Id between 1 and", nrow(x))
+                ),
                 min = 1,
                 max = nrow(x),
                 step = 1
@@ -446,7 +412,10 @@ dccApp <- function (input, output, session) {
     output$omaType <- renderUI({
         req(input$speciesList)
         if (length(input$speciesList) == 2){
-            checkboxInput(ns("omaPair"), strong("Use Oma Pair (requires Internet)"), value = FALSE)
+            checkboxInput(
+                ns("omaPair"), 
+                strong("Use Oma Pair (requires Internet)"), value = FALSE
+            )
         }
     })
 
@@ -463,13 +432,6 @@ dccApp <- function (input, output, session) {
             } else if (input$inputTyp == "inputFile") {
                 inFile <- input$taxFile
                 if (!(is.null(inFile))) {
-                    #         taxaInFile <- 1
-                    #         selectInput(
-                    #                 inputId = ns("nrMissingSpecies"),
-                    #                 label = "How many species can be missed in an OmaGroup",
-                    #                 choices = 0
-                    #         )
-                    # } else {
                     taxaInFile <- read.table(inFile$datapath, header = FALSE)
                     selectInput(
                         ns("nrMissingSpecies"),
@@ -610,7 +572,7 @@ dccApp <- function (input, output, session) {
                     ScientificNames = "Nothing selected",
                     OmaCode = "Nothing selected")
             } else {
-                if (sum(speciesTable$ScientificName %in% input$speciesList) > 0) {
+                if (sum(speciesTable$ScientificName %in% input$speciesList)>0) {
                     DF <- data.table(
                         TaxonomyIDs = speciesTable$TaxonID[
                             speciesTable$ScientificName %in% input$speciesList],
@@ -619,7 +581,9 @@ dccApp <- function (input, output, session) {
                             speciesTable$ScientificName %in% input$speciesList],
                         OmaCode = unlist(
                             speciesTable$OMAcode[
-                                speciesTable$ScientificName %in% input$speciesList]
+                                speciesTable$ScientificName 
+                                %in% input$speciesList
+                            ]
                         )
                     )
                 }
@@ -653,21 +617,6 @@ dccApp <- function (input, output, session) {
         return(omaCode)
     }
 
-    # get taxonomy Ids for chosen species ====================================
-    findTaxId <- function(outputSpecies, speciesTable) {
-        if (input$inputTyp == "ncbiID") {
-            omaCode <- speciesTable$TaxonID[
-                speciesTable$TaxonID %in% outputSpecies]
-        } else if (input$inputTyp == "speciesName") {
-            omaCode <- speciesTable$TaxonID[
-                speciesTable$ScientificName %in% outputSpecies]
-        } else {
-            omaCode <- speciesTable$TaxonID[
-                speciesTable$TaxonID %in% outputSpecies]
-        }
-        return(omaCode)
-    }
-
     # get output path ==========================================================
     getOutputPath <- reactive({
         shinyDirChoose(
@@ -684,7 +633,7 @@ dccApp <- function (input, output, session) {
         if (input$inputTyp == 'omaFile') {
             # parse standalone OMA
             cmd <- paste(
-                python(), "scripts/dcc/orthoxmlParser.py",
+                python(), "parseOrthoxml",
                 paste(omaParserOptions(), collapse = " ")
                 #, "-l", 5 # for testing purpose
             )
@@ -702,35 +651,37 @@ dccApp <- function (input, output, session) {
 
             taxTable <- readOmaSpec()
             OmaCodes <- findOmaCode(speciesInput, taxTable)
-            taxIds <- findTaxId(speciesInput, taxTable)
+            # taxIds <- findTaxId(speciesInput, taxTable)
 
             if (input$inputTyp == "OmaId") {
                 cmd <- paste(
-                    python(), "scripts/dcc/omaParserByOG.py",
-                    "-g", input$omaGroupId,
-                    "-n", paste(OmaCodes, collapse = ","),
-                    "-i", paste(taxIds, collapse = ","),
-                    "-d", getOmaPath(),
-                    "-o", getOutputPath(),
-                    "-a", tolower(input$MSA),
-                    "-j", input$dccJob
+                    "parseOmaById",
+                    "--OG", input$omaGroupId,
+                    "--name", paste(OmaCodes, collapse = ","),
+                    # "-i", paste(taxIds, collapse = ","),
+                    # "-d", getOmaPath(),
+                    "--outPath", getOutputPath(),
+                    "--alignTool", tolower(input$MSA),
+                    "--jobName", input$dccJob,
+                    "--cpus", input$cpus
                 )
                 if (input$doAnno) cmd <- paste(cmd, "-f")
             } else {
                 cmd <- paste(
-                    python(), "scripts/dcc/omaParser.py",
-                    "-n", paste(OmaCodes, collapse = ","),
-                    "-i", paste(taxIds, collapse = ","),
-                    "-d", getOmaPath(),
-                    "-o", getOutputPath(),
-                    "-m", input$nrMissingSpecies,
-                    "-a", tolower(input$MSA),
-                    "-j", input$dccJob
+                    "parseOmaBySpec",
+                    "--name", paste(OmaCodes, collapse = ","),
+                    # "-i", paste(taxIds, collapse = ","),
+                    # "-d", getOmaPath(),
+                    "--outPath", getOutputPath(),
+                    "--missingTaxa", input$nrMissingSpecies,
+                    "--alignTool", tolower(input$MSA),
+                    "--jobName", input$dccJob,
+                    "--cpus", input$cpus
                 )
-                if (input$doAnno) cmd <- paste(cmd, "-f")
+                if (input$doAnno) cmd <- paste(cmd, "--annoFas")
                 if (length(input$speciesList) == 2){
                     if (length(input$omaPair) > 0 && input$omaPair == TRUE) 
-                        cmd <- paste(cmd, "-t pair")
+                        cmd <- paste(cmd, "--omaType pair")
                 }
             }
         }
@@ -754,7 +705,7 @@ dccApp <- function (input, output, session) {
             if (input$inputTyp == "inputFile") {
                 if (is.null(input$taxFile)) return(FALSE)
             } else if (input$inputTyp == "OmaId") {
-                if (is.null(input$GroupSpecies)) return(FALSE)
+                if (is.null(input$omaGroupId)) return(FALSE)
             } else {
                 if (is.null(input$speciesList)) return(FALSE)
             }

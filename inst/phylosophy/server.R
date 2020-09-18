@@ -18,8 +18,6 @@ shinyServer(function(input, output, session) {
     )
     nameFullDf <- data.table::fread(nameFullFile, select = c(1:3))
     
-    # DCC download oma app
-    callModule(dccDownloadOmaApp, "dccDownloadOma")
     # DCC app
     callModule(dccApp, "dccApp")
     

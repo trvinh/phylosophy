@@ -12,7 +12,7 @@ shinyUI(
         
         # MAIN NARVARPAGE TABS -------------------------------------------------
         navbarPage(
-            em(strong("phylosophy v0.0.3")),
+            em(strong("phylosophy v0.1.0")),
             id = "tabs",
             collapsible = TRUE,
             inverse = TRUE,
@@ -40,23 +40,16 @@ shinyUI(
             ),
             
             # DCC TAB ==========================================================
-            navbarMenu(
-                "DCCv2",
-                tabPanel(
-                    "Get OMA data",
-                    dccDownloadOmaAppUI("dccDownloadOma")
-                ),
-                tabPanel(
-                    "DCCv2", 
-                    dccAppUI("dccApp")
-                )
+            tabPanel(
+                "dcc2",
+                dccAppUI("dccApp")
             ),
             
             # HAMSTR TAB =======================================================
             navbarMenu(
-                "HaMStR",
+                "h1s",
                 tabPanel(
-                    "Adding taxon to HaMStR",
+                    "Adding taxon to h1s",
                     hamstrPrepareAppUI("hamstrPrepareApp")
                 ),
                 tabPanel(
