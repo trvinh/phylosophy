@@ -1,23 +1,22 @@
-#' add new taxon to hamstr module
+#' add new taxon to fdog module
 
-hamstrPrepareAppUI <- function(id) {
+fdogAddTaxaAppUI <- function(id) {
     ns <- NS(id)
     sidebarLayout(
         # * sidebar panel for input/options -----------------
         sidebarPanel(
             width = 3,
-            # ** hamstr location ===================================
+            # ** fdog location ===================================
             conditionalPanel(
-                condition = "output.checkHamstrStatus == 0", ns = ns,
-                h2(em("HaMStR not found! Please install it first!")),
+                condition = "output.checkfdogStatus == 0", ns = ns,
+                h2(em("fdog not found! Please install it first!")),
                 bsButton(
-                    "installHamstr", "Install HaMStR", 
-                    onclick = "window.open('https://bionf.github.io/HaMStR/#how-to-install', '_blank')"
+                    "installfdog", "Install fDOG", 
+                    onclick = "window.open('https://bionf.github.io/fDOG/#how-to-install', '_blank')"
                 ),
                 hr()
             ),
             
-            # ** fasta input =======================================
             h3("Input and configurations"),
             hr(),
             
@@ -80,7 +79,7 @@ hamstrPrepareAppUI <- function(id) {
             conditionalPanel(
                 condition = "input.optOutPath", ns = ns,
                 shinyDirButton(
-                    ns("outPrepareDir"), "Set output directory" ,
+                    ns("addTaxOutDir"), "Set output directory" ,
                     title = "Please select a folder",
                     buttonType = "default", class = NULL
                 )
@@ -88,16 +87,16 @@ hamstrPrepareAppUI <- function(id) {
             uiOutput(ns("outputLocation.ui")),
             br(),
             
-            textInput(ns("prepareJob"), strong("Job ID"), value = randFn(1)),
+            textInput(ns("addTaxJob"), strong("Job ID"), value = randFn(1)),
             bsPopover(
-                ns("prepareJob"),
+                ns("addTaxJob"),
                 "",
                 paste(
                     "Name of job and log file(s)."
                 ),
                 "bottom"
             ),
-            bsButton(ns("newPrepareJob.btn"), "New job ID"),
+            bsButton(ns("newAddTaxJob.btn"), "New job ID"),
             br(),
             hr(),
 
@@ -123,7 +122,7 @@ hamstrPrepareAppUI <- function(id) {
                     "",
                     paste(
                         "Include this taxon to the core taxa, which are",
-                        "normally can be found in HaMStR/blast_dir"
+                        "normally can be found in fdog_datapath/blast_dir"
                     ),
                     "bottom"
                 ),
@@ -156,6 +155,16 @@ hamstrPrepareAppUI <- function(id) {
                 ),
                 
                 checkboxInput(
+                    ns("replace"), strong("Replace special characters"),
+                    value = FALSE
+                ),
+                
+                checkboxInput(
+                    ns("delete"), strong("Delete special characters"),
+                    value = FALSE
+                ),
+                
+                checkboxInput(
                     ns("force"), strong("Overwrite existing data"),
                     value = FALSE
                 )
@@ -165,13 +174,13 @@ hamstrPrepareAppUI <- function(id) {
         mainPanel(
             width = 9,
             conditionalPanel(
-                condition = "output.checkRunPrepare", ns = ns,
+                condition = "output.checkRunAddTax", ns = ns,
                 bsButton(
-                    ns("doPrepare"), "Run",
+                    ns("doAddTax"), "Run",
                     style = "success", disabled = FALSE
                 ),
-                actionButton(ns("stopPrepare"),label = "Stop"),
-                actionButton(ns("newPrepare"),label = "New job"),
+                actionButton(ns("stopAddTax"),label = "Stop"),
+                actionButton(ns("newAddTax"),label = "New job"),
                 hr()
             ),
             conditionalPanel(
@@ -180,57 +189,33 @@ hamstrPrepareAppUI <- function(id) {
                 uiOutput(ns("checkMsg.ui"))
             ),
             conditionalPanel(
-                condition = "output.checkRunPrepare", ns = ns,
+                condition = "output.checkRunAddTax", ns = ns,
                 strong("Command"),
-                verbatimTextOutput(ns("prepareCmdText")),
+                verbatimTextOutput(ns("addTaxCmdText")),
                 strong("Log file"),
-                textOutput(ns("logPrepareLocation")),
+                textOutput(ns("logAddTaxLocation")),
                 hr(),
                 strong("Progress"),
-                verbatimTextOutput(ns("prepareLog")),
+                verbatimTextOutput(ns("addTaxLog")),
             )
         )
     )
 }
 
-hamstrPrepareApp <- function (input, output, session, nameFullDf) {
+fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
     homePath = c(wd='~/') # for shinyFileChoose
     ns <- session$ns
     
-    # get hamstr location ======================================================
-    output$checkHamstrStatus <- reactive({
-        hamstrLocation <- suppressWarnings(
-            system("which oneSeq", intern = TRUE)
+    # get fdog location ======================================================
+    output$checkfdogStatus <- reactive({
+        fdogLocation <- suppressWarnings(
+            system("which fdog.run", intern = TRUE)
         )
-        if (!is.na (hamstrLocation[1])){
+        if (!is.na (fdogLocation[1])){
             return(1)
         } else return(0)
     })
-    outputOptions(output, "checkHamstrStatus", suspendWhenHidden = FALSE)
-    
-    getHamstrPath <- reactive({
-        hamstrLocation <- suppressWarnings(
-            system("which oneSeq", intern = TRUE)
-        )
-        if (!is.na (hamstrLocation[1])){
-            hamstrPath <- gsub("/bin/oneSeq", "", hamstrLocation[1])
-            return(hamstrPath)
-        } else {
-            return(NULL)
-        }
-    })
-    
-    getPreparePath <- reactive({
-        hamstrPath <- getHamstrPath()
-        if (!is.null(hamstrPath)){
-            if (input$inputType == "Add single taxon")
-                return(paste0(hamstrPath, "/bin/addTaxonHamstr.py"))
-            else
-                return(paste0(hamstrPath, "/bin/addTaxaHamstr.py"))
-        } else {
-            return(NULL)
-        }
-    })
+    outputOptions(output, "checkfdogStatus", suspendWhenHidden = FALSE)
     
     # get input fasta ==========================================================
     getFastaInput <- reactive({
@@ -295,17 +280,26 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
     })
     
     # get output path ==========================================================
+    getDefaultPath <- reactive({
+        datapath <- system("fdog.setup -o ~/ --getDatapath", intern = TRUE)
+        if (length(datapath) > 0) {
+            return(datapath)
+        } else {
+            return(NULL)
+        }
+    })
+    
     getOutputPath <- reactive({
         shinyDirChoose(
-            input, "outPrepareDir", roots = homePath, session = session
+            input, "addTaxOutDir", roots = homePath, session = session
         )
-        outputPath <- parseDirPath(homePath, input$outPrepareDir)
+        outputPath <- parseDirPath(homePath, input$addTaxOutDir)
         return(replaceHomeCharacter(as.character(outputPath)))
     })
     
     outputLocation <- reactive({
         if (input$optOutPath == FALSE) {
-            return(getHamstrPath())
+            return(getDefaultPath())
         } else {
             if (length(getOutputPath()) > 0)
                 return(getOutputPath())
@@ -326,23 +320,31 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
     })
  
     # generate new job ID ======================================================
-    observeEvent(input$newPrepareJob.btn, {
+    observeEvent(input$newAddTaxJob.btn, {
         jobID <- randFn(1)
-        updateTextInput(session, "prepareJob", strong("Job ID"), value = jobID)
+        updateTextInput(session, "addTaxJob", strong("Job ID"), value = jobID)
     })
     
     # check taxon ID ===========================================================
     getRefspec <- reactive ({
-        # get spec ID from blast_dir
-        outDir <- paste0(getHamstrPath(), "/genome_dir")
-        outDirPath <- list.dirs(
-            path = outDir, full.names = TRUE, recursive = FALSE
+        # get spec ID from genome_dir
+        datapath <- system("fdog.setup -o ~/ --getDatapath", intern = TRUE)
+        genomeDir <- paste0(datapath, "/genome_dir")
+        genomeDirPath <- list.dirs(
+            path = genomeDir, full.names = TRUE, recursive = FALSE
         )
-        outDirTaxIds <- stringr::str_replace(
-            outDirPath, paste0(outDir,"/"), ""
+        genomeDirTaxIds <- stringr::str_replace(
+            genomeDirPath, paste0(genomeDir,"/"), ""
         )
-        # ids <- str_replace_all(str_match(outDirTaxIds, "@.+@"), "@", "")
-        return(outDirTaxIds)
+        blastDir <- paste0(datapath, "/blast_dir")
+        blastDirPath <- list.dirs(
+            path = blastDir, full.names = TRUE, recursive = FALSE
+        )
+        blastDirTaxIds <- stringr::str_replace(
+            blastDirPath, paste0(blastDir,"/"), ""
+        )
+        allTaxIds <- c(genomeDirTaxIds, blastDirTaxIds)
+        return(unique(allTaxIds))
     })
     
     checkTaxId <- reactive({
@@ -420,10 +422,10 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
     })
     
     output$checkMsg.ui <- renderUI({
-        req(getHamstrPath())
+        req(getDefaultPath())
         if (checkMappingFile() > 0) {
             msg <- paste(
-                "Some gene sets already exist in", getHamstrPath(),
+                "Some gene sets already exist in", getDefaultPath(),
                 ". Please remove them or change their name/id/version",
                 "in the mapping file"
             )
@@ -460,43 +462,26 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
         )
     })
     
-    # required options =========================================================
+    # options for addTaxon =====================================================
     reqOptions <- reactive({
         req(input$taxid)
         fasta <- paste0("--fasta ", getFastaInput())
+        taxid <- ""
+        if (input$taxid > 0)
+            taxid <- paste("--taxid", input$taxid)
+        reqOption <- c(fasta, taxid)
+        return(
+            reqOption[unlist(lapply(reqOption, function (x) x != ""))]
+        )
+    })
+    
+    optOptions <- reactive({
         outPath <- ""
         if (!is.null(outputLocation())) 
             outPath <- paste0("--outPath ", outputLocation())
         name <- ""
         if (!(input$abbrName == ""))
             name <- paste("--name", input$abbrName)
-        taxid <- ""
-        if (input$taxid > 0)
-            taxid <- paste("--taxid", input$taxid)
-        reqOption <- c(fasta, outPath, name, taxid)
-        return(
-            reqOption[unlist(lapply(reqOption, function (x) x != ""))]
-        )
-    })
-    
-    reqOptionsTaxa <- reactive({
-        input <- ""
-        if (length(getInputDir()) > 0)
-            input <- paste("--input", getInputDir())
-        mapping <- ""
-        if (length(getMappingFile()) > 0)
-            mapping <- paste("--mapping", getMappingFile())
-        outPath <- ""
-        if (!is.null(outputLocation())) 
-            outPath <- paste0("--outPath ", outputLocation())
-        reqOption <- c(input, mapping, outPath)
-        return(
-            reqOption[unlist(lapply(reqOption, function (x) x != ""))]
-        )
-    })
-    
-    # optional options =========================================================
-    optOptions <- reactive({
         coreTaxa <- ""
         if (input$coreTaxa == TRUE) coreTaxa <- paste("--coreTaxa")
         ver <- ""
@@ -507,35 +492,81 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
         if (input$annoCPU > 1) cores <- paste0("--cpus ", input$annoCPU)
         force <- ""
         if (input$force == TRUE) force <- paste("--force")
-        optOptions <- c(coreTaxa, ver, noAnno, cpus, force)
+        replace <- ""
+        if (input$replace == TRUE) force <- paste("--replace")
+        delete <- ""
+        if (input$delete == TRUE) force <- paste("--delete")
+        optOptions <- c(
+            outPath, name, ver, coreTaxa, noAnno, cpus, force, replace, delete
+        )
         return(
             optOptions[unlist(lapply(optOptions, function (x) x != ""))]
         )
     })
     
-    # RUN annFAS ===============================================================
-    output$checkRunPrepare <- reactive({
-        if (input$inputType == "Add single taxon") {
-            if (length(reqOptions()) == 4 && checkTaxId() != 1)
-                return(TRUE)
-        } else {
-            if (length(reqOptionsTaxa()) == 3 && checkMappingFile() == 0)
-                return(TRUE)
+    # options for addTaxa ======================================================
+    reqOptionsTaxa <- reactive({
+        input <- ""
+        if (length(getInputDir()) > 0)
+            input <- paste("--input", getInputDir())
+        mapping <- ""
+        if (length(getMappingFile()) > 0)
+            mapping <- paste("--mapping", getMappingFile())
+        reqOption <- c(input, mapping)
+        return(
+            reqOption[unlist(lapply(reqOption, function (x) x != ""))]
+        )
+    })
+    
+    optOptionsTaxa <- reactive({
+        outPath <- ""
+        if (!is.null(outputLocation())) 
+            outPath <- paste0("--outPath ", outputLocation())
+        coreTaxa <- ""
+        if (input$coreTaxa == TRUE) coreTaxa <- paste("--coreTaxa")
+        noAnno <- ""
+        if (input$noAnno == TRUE) noAnno <- paste("--noAnno")
+        cpus <- ""
+        if (input$annoCPU > 1) cores <- paste0("--cpus ", input$annoCPU)
+        force <- ""
+        if (input$force == TRUE) force <- paste("--force")
+        replace <- ""
+        if (input$replace == TRUE) force <- paste("--replace")
+        delete <- ""
+        if (input$delete == TRUE) force <- paste("--delete")
+        optOptions <- c(
+            outPath, coreTaxa, noAnno, cpus, force, replace, delete
+        )
+        return(
+            optOptions[unlist(lapply(optOptions, function (x) x != ""))]
+        )
+    })
+    
+    # RUN addTaxon/addTaxa =====================================================
+    output$checkRunAddTax <- reactive({
+        if (checkTaxId() != 0 && checkTaxId() != 1) {
+            if (input$inputType == "Add single taxon") {
+                if (length(reqOptions()) == 2 && checkTaxId() != 1)
+                    return(TRUE)
+            } else {
+                if (length(reqOptionsTaxa()) == 2 && checkMappingFile() == 0)
+                    return(TRUE)
+            }
         }
         return(FALSE)
     })
-    outputOptions(output, "checkRunPrepare", suspendWhenHidden = FALSE)
+    outputOptions(output, "checkRunAddTax", suspendWhenHidden = FALSE)
     
-    observeEvent(input$newPrepare, {
-        updateButton(session, ns("doPrepare"), disabled = FALSE)
-        updateButton(session, ns("stopPrepare"), disabled = FALSE)
+    observeEvent(input$newAddTax, {
+        updateButton(session, ns("doAddTax"), disabled = FALSE)
+        updateButton(session, ns("stopAddTax"), disabled = FALSE)
     })
     
-    prepareCmd <- reactive({
+    addTaxCmd <- reactive({
         if (input$inputType == "Add single taxon") {
             return(
                 paste(
-                    getPreparePath(),
+                    "fdog.addTaxon",
                     paste(reqOptions(), collapse = " "),
                     paste(optOptions(), collapse = " ")
                 )
@@ -543,63 +574,62 @@ hamstrPrepareApp <- function (input, output, session, nameFullDf) {
         } else {
             return(
                 paste(
-                    getPreparePath(),
+                    "fdog.addTaxa",
                     paste(reqOptionsTaxa(), collapse = " "),
-                    paste(optOptions(), collapse = " ")
+                    paste(optOptionsTaxa(), collapse = " ")
                 )
             )
         }
 
     })
     
-    output$prepareCmdText <- renderText({
-        paste("python3", prepareCmd())
+    output$addTaxCmdText <- renderText({
+        paste(addTaxCmd())
     })
     
-    rvPrepare <- reactiveValues(
+    rvAddTax <- reactiveValues(
         textstream = c(""),
         timer = reactiveTimer(1000),
         started = FALSE
     )
     
-    observeEvent(input$doPrepare, {
-        rvPrepare$started <- TRUE
+    observeEvent(input$doAddTax, {
+        rvAddTax$started <- TRUE
         cmd <- paste(
-            "python3",
-            prepareCmd(),
+            addTaxCmd(),
             ">>",
-            paste0(input$prepareJob, ".prepare.log")
+            paste0(input$addTaxJob, ".addTax.log")
         )
         
         system(cmd, wait = FALSE)
-        updateButton(session, ns("doPrepare"), disabled = TRUE)
-        updateButton(session, ns("newPrepareJob.btn"), disabled = TRUE)
+        updateButton(session, ns("doAddTax"), disabled = TRUE)
+        updateButton(session, ns("newAddTaxJob.btn"), disabled = TRUE)
     })
     
-    observeEvent(input$stopPrepare, {
-        rvPrepare$started <- FALSE
-        system2("rm", "*.prepare.log")
-        updateButton(session, ns("stopPrepare"), disabled = TRUE)
+    observeEvent(input$stopAddTax, {
+        rvAddTax$started <- FALSE
+        system2("rm", "*.addTax.log")
+        updateButton(session, ns("stopAddTax"), disabled = TRUE)
     })
     
     observe({
-        rvPrepare$timer()
-        if (isolate(rvPrepare$started)) {
-            if (file.exists(paste0(input$prepareJob, ".prepare.log"))) {
-                rvPrepare$textstream <- suppressWarnings(
+        rvAddTax$timer()
+        if (isolate(rvAddTax$started)) {
+            if (file.exists(paste0(input$addTaxJob, ".addTax.log"))) {
+                rvAddTax$textstream <- suppressWarnings(
                     readLines(
-                        paste0(input$prepareJob, ".prepare.log"),  n = -1
+                        paste0(input$addTaxJob, ".addTax.log"),  n = -1
                     ) %>% tail(50) %>% paste(collapse = "\n")
                 )
             }
         }
     })
-    output$prepareLog <- renderText({
-        rvPrepare$textstream
+    output$addTaxLog <- renderText({
+        rvAddTax$textstream
     })
     
     # report results ===========================================================
-    output$logPrepareLocation <- renderText({
-        paste0(getwd(), "/", input$prepareJob, ".prepare.log")
+    output$logAddTaxLocation <- renderText({
+        paste0(getwd(), "/", input$addTaxJob, ".addTax.log")
     })
 }

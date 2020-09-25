@@ -19,11 +19,19 @@ shinyUI(
             fluid = TRUE,
             position = "fixed-top",
             
-            # INTRO TAB ==========================================================
+            # INTRO TAB ========================================================
             tabPanel(
               "INTRODUCTION",
               h1("WELCOME TO PHYLOSOPHY TOOL KIT!"),
               tags$img(src="wordcloud.png")
+            ),
+            
+            # FCAT TAB =======================================================
+            tabPanel(
+                "fCAT",
+                #dccAppUI("dccApp")
+                h2("Feature-aware Completeness Assessment Tool"),
+                em("Coming soon...")
             ),
             
             # FAS TAB ==========================================================
@@ -45,16 +53,16 @@ shinyUI(
                 dccAppUI("dccApp")
             ),
             
-            # HAMSTR TAB =======================================================
+            # FDOG TAB =======================================================
             navbarMenu(
-                "h1s",
+                "fDOG",
                 tabPanel(
-                    "Adding taxon to h1s",
-                    hamstrPrepareAppUI("hamstrPrepareApp")
+                    "Adding taxon to fDOG",
+                    fdogAddTaxaAppUI("fdogAddTaxaApp")
                 ),
                 tabPanel(
-                    "HaMStR oneSeq",
-                    hamstrAppUI("hamstrApp")
+                    "Run fDOG",
+                    fdogAppUI("fdogApp")
                 )
             ),
             

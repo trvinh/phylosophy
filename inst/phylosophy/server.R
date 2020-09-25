@@ -27,14 +27,14 @@ shinyServer(function(input, output, session) {
     # FAS app
     callModule(fasApp, "fasApp")
     
-    # hamstrPrepare app
-    callModule(hamstrPrepareApp, "hamstrPrepareApp", nameFullDf)
+    # fdogAddTaxa app
+    callModule(fdogAddTaxaApp, "fdogAddTaxaApp", nameFullDf)
 	
-	# HaMStR app
-	hamstrOut <- callModule(hamstrApp, "hamstrApp", nameFullDf)
-	
+	# fDOG app
+	fdogOut <- callModule(fdogApp, "fdogApp", nameFullDf)
+
 	# PhyloProfile lite
-	callModule(phyloprofileLite, "phyloprofileLite", hamstrOut)
+	callModule(phyloprofileLite, "phyloprofileLite", fdogOut)
 	
 	# PhyloProfile full
 	callModule(phyloprofileFull, "phyloprofileFull")
