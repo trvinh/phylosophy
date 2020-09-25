@@ -11,15 +11,15 @@ fdogAddTaxaAppUI <- function(id) {
                 condition = "output.checkfdogStatus == 0", ns = ns,
                 h2(em("fdog not found! Please install it first!")),
                 bsButton(
-                    "installfdog", "Install fDOG", 
+                    "installfdog", "Install fDOG",
                     onclick = "window.open('https://bionf.github.io/fDOG/#how-to-install', '_blank')"
                 ),
                 hr()
             ),
-            
+
             h3("Input and configurations"),
             hr(),
-            
+
             # ** required options ==================================
             selectInput(
                 ns("inputType"),
@@ -27,7 +27,7 @@ fdogAddTaxaAppUI <- function(id) {
                 choices = c("Add single taxon", "Add list of taxa"),
                 selected = "Add single taxon"
             ),
-            
+
             conditionalPanel(
                 condition = 'input.inputType == "Add single taxon"', ns = ns,
                 shinyFilesButton(
@@ -37,8 +37,8 @@ fdogAddTaxaAppUI <- function(id) {
                     buttonType = "default", class = NULL
                 ),
                 uiOutput(ns("fastaInput.ui")),
-                br(), 
-                
+                br(),
+
                 strong("Taxon ID"),
                 numericInput(
                     ns("taxid"), "", value = 999999999, min = 1, step = 1
@@ -47,13 +47,13 @@ fdogAddTaxaAppUI <- function(id) {
                 br(),
                 strong("Acronym name"),
                 textInput(
-                    ns("abbrName"), "", 
+                    ns("abbrName"), "",
                     placeholder = "e.g. HOMSA for Homo sapiens"
                 ),
                 checkboxInput(ns("useName"), "Use suggested name", value = TRUE),
                 uiOutput(ns("nameCheck.ui"))
             ),
-            
+
             conditionalPanel(
                 condition = 'input.inputType == "Add list of taxa"', ns = ns,
                 shinyDirButton(
@@ -63,7 +63,7 @@ fdogAddTaxaAppUI <- function(id) {
                 ),
                 uiOutput(ns("inputDir.ui")),
                 br(),
-                
+
                 shinyFilesButton(
                     ns("mappingFile"), "Input mapping file" ,
                     title = "Please provide mapping file",
@@ -73,7 +73,7 @@ fdogAddTaxaAppUI <- function(id) {
                 uiOutput(ns("mappingFile.ui")),
             ),
             br(),
-            
+
             strong("Output directory"),
             checkboxInput(ns("optOutPath"), "Other output path", value = FALSE),
             conditionalPanel(
@@ -86,7 +86,7 @@ fdogAddTaxaAppUI <- function(id) {
             ),
             uiOutput(ns("outputLocation.ui")),
             br(),
-            
+
             textInput(ns("addTaxJob"), strong("Job ID"), value = randFn(1)),
             bsPopover(
                 ns("addTaxJob"),
@@ -107,12 +107,12 @@ fdogAddTaxaAppUI <- function(id) {
                 value = FALSE,
                 width = NULL
             ),
-            
+
             conditionalPanel(
                 condition = "input.optAnnoOption", ns = ns,
                 strong("Additional options"),
                 br(), br(),
-                
+
                 checkboxInput(
                     ns("coreTaxa"), strong("Include to core taxa"),
                     value = FALSE
@@ -126,17 +126,17 @@ fdogAddTaxaAppUI <- function(id) {
                     ),
                     "bottom"
                 ),
-                
+
                 numericInput(
-                    ns("ver"), strong("Proteome version"), 
+                    ns("ver"), strong("Proteome version"),
                     value = 1, min = 1, step = 1
                 ),
-                
+
                 checkboxInput(
                     ns("noAnno"), strong("DO NOT do feature annotation"),
                     value = FALSE
                 ),
-                
+
                 numericInput(
                     ns("annoCPU"),
                     strong("Number of CPUs for annotation"),
@@ -153,17 +153,17 @@ fdogAddTaxaAppUI <- function(id) {
                     ),
                     "bottom"
                 ),
-                
+
                 checkboxInput(
                     ns("replace"), strong("Replace special characters"),
                     value = FALSE
                 ),
-                
+
                 checkboxInput(
                     ns("delete"), strong("Delete special characters"),
                     value = FALSE
                 ),
-                
+
                 checkboxInput(
                     ns("force"), strong("Overwrite existing data"),
                     value = FALSE
@@ -205,7 +205,7 @@ fdogAddTaxaAppUI <- function(id) {
 fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
     homePath = c(wd='~/') # for shinyFileChoose
     ns <- session$ns
-    
+
     # get fdog location ======================================================
     output$checkfdogStatus <- reactive({
         fdogLocation <- suppressWarnings(
@@ -216,7 +216,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
         } else return(0)
     })
     outputOptions(output, "checkfdogStatus", suspendWhenHidden = FALSE)
-    
+
     # get input fasta ==========================================================
     getFastaInput <- reactive({
         shinyFileChoose(
@@ -238,7 +238,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             em(outString)
         }
     })
-    
+
     # get input folder and mapping file ========================================
     getInputDir <- reactive({
         shinyDirChoose(
@@ -258,7 +258,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             em(outString)
         }
     })
-    
+
     getMappingFile <- reactive({
         shinyFileChoose(
             input, "mappingFile", roots = homePath, session = session
@@ -278,7 +278,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             em(outString)
         }
     })
-    
+
     # get output path ==========================================================
     getDefaultPath <- reactive({
         datapath <- system("fdog.setup -o ~/ --getDatapath", intern = TRUE)
@@ -288,7 +288,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             return(NULL)
         }
     })
-    
+
     getOutputPath <- reactive({
         shinyDirChoose(
             input, "addTaxOutDir", roots = homePath, session = session
@@ -296,7 +296,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
         outputPath <- parseDirPath(homePath, input$addTaxOutDir)
         return(replaceHomeCharacter(as.character(outputPath)))
     })
-    
+
     outputLocation <- reactive({
         if (input$optOutPath == FALSE) {
             return(getDefaultPath())
@@ -307,7 +307,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
                 return(NULL)
         }
     })
-    
+
     output$outputLocation.ui <- renderUI({
         if (!is.null(outputLocation())) {
             outString <- outputLocation()
@@ -318,13 +318,13 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             em(outString)
         }
     })
- 
+
     # generate new job ID ======================================================
     observeEvent(input$newAddTaxJob.btn, {
         jobID <- randFn(1)
         updateTextInput(session, "addTaxJob", strong("Job ID"), value = jobID)
     })
-    
+
     # check taxon ID ===========================================================
     getRefspec <- reactive ({
         # get spec ID from genome_dir
@@ -346,7 +346,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
         allTaxIds <- c(genomeDirTaxIds, blastDirTaxIds)
         return(unique(allTaxIds))
     })
-    
+
     checkTaxId <- reactive({
         req(input$taxid)
         taxInfo <- nameFullDf[nameFullDf$ncbiID == input$taxid,]
@@ -354,7 +354,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             return(0)
         } else {
             if (
-                paste0(input$abbrName, "@", input$taxid, "@", input$ver) 
+                paste0(input$abbrName, "@", input$taxid, "@", input$ver)
                 %in% getRefspec()
             ) {
                 return(1)
@@ -363,7 +363,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             }
         }
     })
-    
+
     output$idCheck.ui <- renderUI({
         if (checkTaxId() == 0) {
             em(paste("NOTE: This ID not found in NCBI taxonomy database!"))
@@ -373,7 +373,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             em(paste("Taxon:", checkTaxId()))
         }
     })
-    
+
     # check IDs in mapping file ================================================
     parseMappingFile <- reactive({
         req(getMappingFile())
@@ -420,7 +420,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
         df <- df[df$note == "Already exists",]
         return(nrow(df))
     })
-    
+
     output$checkMsg.ui <- renderUI({
         req(getDefaultPath())
         if (checkMappingFile() > 0) {
@@ -436,7 +436,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             )
         }
     })
-    
+
     # get suggest taxon abbr name ==============================================
     suggestName <- reactive({
         req(checkTaxId())
@@ -446,22 +446,22 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             return(suggestName)
         }
     })
-    
+
     observeEvent(suggestName(),{
         if (input$useName == TRUE) {
             updateTextInput(session, "abbrName", "", value = suggestName())
         }
     })
-    
+
     output$nameCheck.ui <- renderUI({
         req(input$abbrName)
         req(input$taxid)
         em(
-            "Output name: ", 
+            "Output name: ",
             paste0("", input$abbrName, "@", input$taxid, "@", input$ver)
         )
     })
-    
+
     # options for addTaxon =====================================================
     reqOptions <- reactive({
         req(input$taxid)
@@ -474,10 +474,10 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             reqOption[unlist(lapply(reqOption, function (x) x != ""))]
         )
     })
-    
+
     optOptions <- reactive({
         outPath <- ""
-        if (!is.null(outputLocation())) 
+        if (!is.null(outputLocation()))
             outPath <- paste0("--outPath ", outputLocation())
         name <- ""
         if (!(input$abbrName == ""))
@@ -503,7 +503,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             optOptions[unlist(lapply(optOptions, function (x) x != ""))]
         )
     })
-    
+
     # options for addTaxa ======================================================
     reqOptionsTaxa <- reactive({
         input <- ""
@@ -517,10 +517,10 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             reqOption[unlist(lapply(reqOption, function (x) x != ""))]
         )
     })
-    
+
     optOptionsTaxa <- reactive({
         outPath <- ""
-        if (!is.null(outputLocation())) 
+        if (!is.null(outputLocation()))
             outPath <- paste0("--outPath ", outputLocation())
         coreTaxa <- ""
         if (input$coreTaxa == TRUE) coreTaxa <- paste("--coreTaxa")
@@ -541,7 +541,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             optOptions[unlist(lapply(optOptions, function (x) x != ""))]
         )
     })
-    
+
     # RUN addTaxon/addTaxa =====================================================
     output$checkRunAddTax <- reactive({
         if (checkTaxId() != 0 && checkTaxId() != 1) {
@@ -556,12 +556,12 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
         return(FALSE)
     })
     outputOptions(output, "checkRunAddTax", suspendWhenHidden = FALSE)
-    
+
     observeEvent(input$newAddTax, {
         updateButton(session, ns("doAddTax"), disabled = FALSE)
         updateButton(session, ns("stopAddTax"), disabled = FALSE)
     })
-    
+
     addTaxCmd <- reactive({
         if (input$inputType == "Add single taxon") {
             return(
@@ -582,17 +582,17 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
         }
 
     })
-    
+
     output$addTaxCmdText <- renderText({
         paste(addTaxCmd())
     })
-    
+
     rvAddTax <- reactiveValues(
         textstream = c(""),
         timer = reactiveTimer(1000),
         started = FALSE
     )
-    
+
     observeEvent(input$doAddTax, {
         rvAddTax$started <- TRUE
         cmd <- paste(
@@ -600,18 +600,18 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
             ">>",
             paste0(input$addTaxJob, ".addTax.log")
         )
-        
+
         system(cmd, wait = FALSE)
         updateButton(session, ns("doAddTax"), disabled = TRUE)
         updateButton(session, ns("newAddTaxJob.btn"), disabled = TRUE)
     })
-    
+
     observeEvent(input$stopAddTax, {
         rvAddTax$started <- FALSE
         system2("rm", "*.addTax.log")
         updateButton(session, ns("stopAddTax"), disabled = TRUE)
     })
-    
+
     observe({
         rvAddTax$timer()
         if (isolate(rvAddTax$started)) {
@@ -627,7 +627,7 @@ fdogAddTaxaApp <- function (input, output, session, nameFullDf) {
     output$addTaxLog <- renderText({
         rvAddTax$textstream
     })
-    
+
     # report results ===========================================================
     output$logAddTaxLocation <- renderText({
         paste0(getwd(), "/", input$addTaxJob, ".addTax.log")
